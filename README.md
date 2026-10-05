@@ -40,7 +40,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 ## 현재 구현된 기능
 
-현재 버전은 첫 번째 수직 기능으로 Git 변경사항 수집과 요약을 제공합니다.
+현재 버전은 Git 변경사항 수집과 루트 `package.json`의 직접 dependency 분석을 제공합니다.
 
 - `HEAD`와 현재 working tree 비교
 - 두 Git reference 또는 브랜치 비교
@@ -50,8 +50,14 @@ LOW     구현체가 하나뿐인 추상화 추가
 - working tree 분석 시 untracked 파일 포함
 - 터미널용 텍스트 보고서
 - 후속 도구 연동을 위한 JSON 보고서
+- production·development dependency 추가 탐지
+- dependency 삭제, 버전 변경, 섹션 이동 탐지
+- 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
+- finding 심각도(`high`, `medium`, `low`) 집계
+- CI 품질 게이트를 위한 `--fail-on` 종료 코드
 
-아직 dependency 분석, AST 분석, 영향 범위 그래프, AI 리뷰 기능은 구현되지 않았습니다.
+아직 lockfile의 전이 dependency 분석, AST 분석, 영향 범위 그래프, AI 리뷰 기능은 구현되지
+않았습니다.
 
 ## 실행 방법
 
@@ -89,6 +95,31 @@ JSON으로 출력합니다.
 node dist/presentation/cli/main.js analyze --json
 ```
 
+지정한 심각도 이상의 finding이 있으면 보고서를 출력한 뒤 종료 코드 `1`을 반환합니다.
+
+```bash
+node dist/presentation/cli/main.js analyze --fail-on medium
+```
+
+`medium`은 `medium`과 `high` finding에 반응하며, `low`를 지정하면 모든 finding을 품질
+게이트 대상으로 취급합니다. 잘못된 CLI 사용은 종료 코드 `2`를 반환합니다.
+
+dependency가 추가된 경우 다음과 같이 판단 근거를 함께 출력합니다.
+
+```text
+IntentPatch Change Report
+
+Files changed        2
+New dependencies     1
+Findings             1
+
+Potential issues
+
+MEDIUM  New production dependency
+        package.json · dependency/new-production
+        dayjs@^1.11.0 was added to dependencies.
+```
+
 개발 중에는 빌드 없이 실행할 수 있습니다.
 
 ```bash
@@ -108,9 +139,9 @@ presentation ───────▶ application ───────▶ domai
 
 | 계층 | 책임 |
 | --- | --- |
-| `domain` | 변경 파일, 라인 변화량, 분석 보고서 등 핵심 모델 |
-| `application` | 분석 유스케이스와 외부 데이터 소스의 포트 정의 |
-| `infrastructure` | Git 명령 실행, diff 파싱, 파일 시스템 접근 |
+| `domain` | 변경 파일, 라인 변화량, finding, 심각도 등 핵심 모델 |
+| `application` | 분석 유스케이스, 규칙 엔진, 분석 규칙과 외부 데이터 포트 |
+| `infrastructure` | Git 명령 실행, diff 파싱, 기준·현재 파일 스냅샷 읽기 |
 | `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON 출력 |
 
 하위 계층이 외부 구현을 참조하지 않도록 아키텍처 테스트가 import 방향을 검사합니다.
@@ -146,19 +177,23 @@ npm run build
 
 ## 로드맵
 
-1. `package.json`과 lockfile diff를 이용한 신규 dependency 탐지
-2. TypeScript AST 기반 함수·클래스·인터페이스 변경 분석
-3. import graph 기반 변경 영향 범위 계산
-4. 과잉 구현과 중복 가능성을 탐지하는 규칙 엔진
-5. 분석 결과와 영향 범위를 보여주는 웹 UI
-6. GitHub Action 및 Codex·Claude Code·Cursor adapter
-7. 근거 기반 결과에 대한 선택적 LLM 설명
+1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
+2. lockfile과 workspace를 고려한 package manager adapter
+3. TypeScript AST 기반 함수·클래스·인터페이스 변경 분석
+4. import graph 기반 변경 영향 범위 계산
+5. 과잉 구현과 중복 가능성을 탐지하는 추가 규칙
+6. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
+7. GitHub Action 및 Codex·Claude Code·Cursor adapter
+8. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 
 - 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
 - untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
 - 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
+- dependency 분석은 저장소 루트의 npm `package.json`에 선언된 `dependencies`와
+  `devDependencies`를 대상으로 합니다.
+- lockfile의 전이 dependency, workspace package, 코드에서의 실제 사용 여부는 아직 분석하지 않습니다.
 - 현재 버전은 코드의 의미나 dependency 영향 범위까지 분석하지 않습니다.
 
 ## 라이선스

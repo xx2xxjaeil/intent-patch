@@ -10,16 +10,21 @@ CLI 인자
   │
   ▼
 AnalyzeChanges 유스케이스
-  │ ChangeSource 포트
-  ▼
-GitChangeSource 어댑터
-  ├─ git diff --name-status -z
-  ├─ git diff --numstat -z
-  └─ git ls-files --others -z
+  ├─ ChangeSource 포트 ─────▶ GitChangeSource
+  │                           ├─ git diff --name-status -z
+  │                           ├─ git diff --numstat -z
+  │                           └─ git ls-files --others -z
+  │
+  └─ RuleEngine
+      └─ PackageDependencyRule
+          └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
+                                        ├─ 기준 revision의 package.json
+                                        └─ working tree 또는 head의 package.json
   │
   ▼
-createChangeSet 도메인 팩토리
-  │
+ChangeReport
+  ├─ ChangeSet
+  ├─ FindingSet
   ├─ 텍스트 보고서
   └─ JSON 보고서
 ```
@@ -34,19 +39,21 @@ presentation ───────▶ application ───────▶ domai
 
 ### Domain
 
-`FileChange`, `LineDelta`, `ChangeSet`처럼 분석 결과의 의미를 표현합니다. Git, 파일 시스템,
-CLI를 알지 못합니다. `LineDelta`는 측정된 값, binary, 측정 불가를 구별된 유니온으로 표현해
-`0줄 변경`과 `알 수 없음`이 섞이지 않게 합니다.
+`FileChange`, `LineDelta`, `ChangeSet`, `Finding`, `Severity`처럼 분석 결과의 의미를
+표현합니다. Git, 파일 시스템, CLI를 알지 못합니다. `LineDelta`는 측정된 값, binary, 측정
+불가를 구별된 유니온으로 표현해 `0줄 변경`과 `알 수 없음`이 섞이지 않게 합니다.
 
 ### Application
 
-`AnalyzeChanges` 유스케이스와 `ChangeSource` 포트를 포함합니다. 입력을 정규화하고 분석 흐름을
-조율하지만 데이터를 어떻게 수집하고 출력하는지는 결정하지 않습니다.
+`AnalyzeChanges` 유스케이스, `RuleEngine`, 분석 규칙과 외부 데이터 포트를 포함합니다.
+`PackageDependencyRule`은 package manifest의 의미만 알고, Git이나 파일 시스템에서 내용을
+읽는 방법은 `FileSnapshotSource`에 위임합니다.
 
 ### Infrastructure
 
-Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정을 담당합니다. 이 계층의 결과는 도메인
-모델로 변환되어 바깥 기술의 세부 형식이 내부로 전파되지 않습니다.
+Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기를
+담당합니다. 이 계층의 결과는 도메인 모델 또는 application 포트의 값으로 변환되어 바깥 기술의
+세부 형식이 내부로 전파되지 않습니다.
 
 ### Presentation
 
@@ -86,12 +93,25 @@ binary, symbolic link, 크기 제한 파일을 임의로 0줄로 계산하지 �
 `tests/architecture/dependency-direction.test.ts`가 소스 import를 검사합니다. 문서와 실제 코드의
 의존 방향이 달라지면 테스트가 실패합니다.
 
+### 7. 규칙은 주장과 근거를 함께 반환
+
+규칙은 문자열 경고 대신 `Finding`을 반환합니다. Finding에는 안정적인 규칙 ID, 심각도, 관련
+파일, 설명, 기계가 읽을 수 있는 evidence가 포함됩니다. CLI와 JSON 출력은 동일한 finding을
+사용하므로 CI 판단과 사람이 보는 보고서가 어긋나지 않습니다.
+
+### 8. diff와 동일한 기준점에서 파일 비교
+
+브랜치 비교는 `base...head` diff와 일치하도록 merge base의 파일을 기준으로 읽습니다. working
+tree 분석은 지정한 base ref와 현재 디스크 파일을 비교합니다. 따라서 dependency 결과와 변경
+파일 목록이 서로 다른 기준점을 사용하는 오류를 방지합니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
 - 새로운 언어 분석기: application 포트와 infrastructure 어댑터 추가
 - 새로운 출력 형식: `ChangeReport`를 입력받는 formatter 추가
-- 새로운 규칙: 도메인 finding 모델과 독립 규칙 구현 추가
+- 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
+- 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
 
 현재는 DI 컨테이너, 플러그인 프레임워크, 데이터베이스를 도입하지 않았습니다. 실제 두 번째
 구현이나 영속성 요구가 생기기 전까지는 단순한 생성자 주입과 명시적인 composition root가 더
