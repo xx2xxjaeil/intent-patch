@@ -7,8 +7,9 @@ import {
 } from "../../domain/change-contract.js";
 
 const defaultConfigurationFile = ".intentpatch.json";
-const rootFields = new Set(["intent", "scope"]);
+const rootFields = new Set(["intent", "scope", "tests"]);
 const scopeFields = new Set(["include", "allow", "maxFiles", "maxLines"]);
+const testFields = new Set(["requireFor", "include", "exclude"]);
 
 /** JSON 설정을 엄격하게 검증하고 ChangeContract 도메인 모델로 변환한다. */
 export class JsonChangeContractLoader {
@@ -69,6 +70,14 @@ function parseConfiguration(content: string): CreateChangeContractInput {
   const scope = scopeValue ?? {};
   assertKnownFields(scope, scopeFields, "scope");
 
+  const testsValue = value.tests;
+  if (testsValue !== undefined && !isRecord(testsValue)) {
+    throw new Error("tests must be a JSON object.");
+  }
+  if (testsValue !== undefined) {
+    assertKnownFields(testsValue, testFields, "tests");
+  }
+
   return {
     ...(intent === undefined ? {} : { intent }),
     scope: {
@@ -81,6 +90,15 @@ function parseConfiguration(content: string): CreateChangeContractInput {
         ? {}
         : { maxLines: requiredNumber(scope.maxLines, "scope.maxLines") }),
     },
+    ...(testsValue === undefined
+      ? {}
+      : {
+          tests: {
+            requireFor: optionalStringArray(testsValue.requireFor, "tests.requireFor"),
+            include: optionalStringArray(testsValue.include, "tests.include"),
+            exclude: optionalStringArray(testsValue.exclude, "tests.exclude"),
+          },
+        }),
   };
 }
 

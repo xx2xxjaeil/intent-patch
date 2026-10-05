@@ -32,6 +32,11 @@ describe("JsonChangeContractLoader", () => {
           maxFiles: 8,
           maxLines: 300,
         },
+        tests: {
+          requireFor: ["src/**"],
+          include: ["tests/**", "**/*.test.ts"],
+          exclude: ["src/**/*.d.ts"],
+        },
       }),
     );
 
@@ -42,6 +47,11 @@ describe("JsonChangeContractLoader", () => {
         allow: ["package.json"],
         maxFiles: 8,
         maxLines: 300,
+      },
+      tests: {
+        requireFor: ["src/**"],
+        include: ["**/*.test.ts", "tests/**"],
+        exclude: ["src/**/*.d.ts"],
       },
     });
   });
@@ -68,6 +78,9 @@ describe("JsonChangeContractLoader", () => {
 
     await writeFile(path, JSON.stringify({ scope: { include: "src/**" } }));
     await assert.rejects(() => loader.load(directory, path), /array of strings/);
+
+    await writeFile(path, JSON.stringify({ tests: { requireFor: ["src/**"] } }));
+    await assert.rejects(() => loader.load(directory, path), /tests.include must contain/);
   });
 });
 

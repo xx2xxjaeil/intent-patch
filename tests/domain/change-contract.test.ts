@@ -12,6 +12,11 @@ describe("createChangeContract", () => {
         maxFiles: 8,
         maxLines: 300,
       },
+      tests: {
+        requireFor: ["src/**/*.ts"],
+        include: ["tests/**", "**/*.test.ts"],
+        exclude: ["src/**/*.d.ts"],
+      },
     });
 
     assert.deepEqual(contract, {
@@ -21,6 +26,11 @@ describe("createChangeContract", () => {
         allow: ["package.json"],
         maxFiles: 8,
         maxLines: 300,
+      },
+      tests: {
+        requireFor: ["src/**/*.ts"],
+        include: ["**/*.test.ts", "tests/**"],
+        exclude: ["src/**/*.d.ts"],
       },
     });
     assert.equal(Object.isFrozen(contract), true);
@@ -42,5 +52,13 @@ describe("createChangeContract", () => {
     );
     assert.throws(() => createChangeContract({ scope: { maxFiles: 1.5 } }), /non-negative integer/);
     assert.throws(() => createChangeContract({ scope: { maxLines: -1 } }), /non-negative integer/);
+    assert.throws(
+      () => createChangeContract({ tests: { include: ["tests/**"] } }),
+      /tests.requireFor must contain/,
+    );
+    assert.throws(
+      () => createChangeContract({ tests: { requireFor: ["src/**"] } }),
+      /tests.include must contain/,
+    );
   });
 });
