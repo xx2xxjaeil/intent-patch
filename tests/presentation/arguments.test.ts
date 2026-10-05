@@ -14,7 +14,18 @@ describe("parseArguments", () => {
   it("parses an explicit range and JSON output", () => {
     assert.deepEqual(
       parseArguments(
-        ["analyze", "--base", "main", "--head", "feature", "--cwd", "/code", "--json"],
+        [
+          "analyze",
+          "--base",
+          "main",
+          "--head",
+          "feature",
+          "--cwd",
+          "/code",
+          "--json",
+          "--fail-on",
+          "medium",
+        ],
         "/repo",
       ),
       {
@@ -23,11 +34,19 @@ describe("parseArguments", () => {
         headRef: "feature",
         workingDirectory: "/code",
         outputFormat: "json",
+        failOn: "medium",
       },
     );
   });
 
   it("rejects an option without a value", () => {
     assert.throws(() => parseArguments(["analyze", "--base"], "/repo"), CliUsageError);
+  });
+
+  it("rejects an unknown failure severity", () => {
+    assert.throws(
+      () => parseArguments(["analyze", "--fail-on", "critical"], "/repo"),
+      /Invalid severity/,
+    );
   });
 });

@@ -1,4 +1,5 @@
 import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.js";
+import type { Finding } from "../../domain/finding.js";
 import type { ChangeReport } from "../../domain/report.js";
 
 const statusLabels: Readonly<Record<FileChangeKind, string>> = {
@@ -14,6 +15,10 @@ const statusLabels: Readonly<Record<FileChangeKind, string>> = {
 
 export function formatTextReport(report: ChangeReport): string {
   const { summary, files } = report.changes;
+  const { items: findings, summary: findingSummary } = report.findings;
+  const newDependencies = findings.filter((finding) =>
+    finding.ruleId.startsWith("dependency/new-"),
+  ).length;
   const target =
     report.target.headRef === undefined
       ? `${report.target.baseRef} → working tree`
@@ -27,6 +32,8 @@ export function formatTextReport(report: ChangeReport): string {
     `Lines                +${summary.additions} / -${summary.deletions}`,
     `Binary files         ${summary.binaryFiles}`,
     `Unmeasured files     ${summary.unmeasuredFiles}`,
+    `New dependencies     ${newDependencies}`,
+    `Findings             ${findingSummary.total}`,
   ];
 
   if (files.length > 0) {
@@ -34,7 +41,21 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push(...files.map(formatFile));
   }
 
+  if (findings.length > 0) {
+    lines.push("", "Potential issues", "");
+    lines.push(...findings.flatMap((finding, index) => formatFinding(finding, index > 0)));
+  }
+
   return `${lines.join("\n")}\n`;
+}
+
+function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[] {
+  const lines = [
+    `${finding.severity.toUpperCase().padEnd(8)}${finding.title}`,
+    `        ${finding.file} · ${finding.ruleId}`,
+    `        ${finding.description}`,
+  ];
+  return addLeadingBlankLine ? ["", ...lines] : lines;
 }
 
 function formatFile(file: FileChange): string {

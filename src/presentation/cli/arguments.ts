@@ -1,3 +1,5 @@
+import { type Severity, severities } from "../../domain/finding.js";
+
 export type OutputFormat = "text" | "json";
 
 export interface AnalyzeCommandOptions {
@@ -6,6 +8,7 @@ export interface AnalyzeCommandOptions {
   readonly headRef?: string;
   readonly workingDirectory: string;
   readonly outputFormat: OutputFormat;
+  readonly failOn?: Severity;
 }
 
 export interface HelpCommandOptions {
@@ -38,6 +41,7 @@ export function parseArguments(
   let headRef: string | undefined;
   let workingDirectory = currentDirectory;
   let outputFormat: OutputFormat = "text";
+  let failOn: Severity | undefined;
 
   for (let index = 0; index < options.length; index += 1) {
     const option = options[index];
@@ -54,6 +58,9 @@ export function parseArguments(
       case "--json":
         outputFormat = "json";
         break;
+      case "--fail-on":
+        failOn = parseSeverity(requireOptionValue(options, ++index, option));
+        break;
       default:
         throw new CliUsageError(`Unknown option: ${option ?? ""}`);
     }
@@ -65,6 +72,7 @@ export function parseArguments(
     ...(headRef === undefined ? {} : { headRef }),
     workingDirectory,
     outputFormat,
+    ...(failOn === undefined ? {} : { failOn }),
   };
 }
 
@@ -79,8 +87,17 @@ Options:
   --head <ref>   Head Git reference; omit to analyze the working tree
   --cwd <path>   Repository directory (default: current directory)
   --json         Print machine-readable JSON
+  --fail-on <severity>
+                 Exit with code 1 for findings at or above high, medium, or low
   -h, --help     Show this help
 `;
+}
+
+function parseSeverity(value: string): Severity {
+  if (severities.some((severity) => severity === value)) {
+    return value as Severity;
+  }
+  throw new CliUsageError(`Invalid severity for --fail-on: ${value}`);
 }
 
 function requireOptionValue(options: readonly string[], index: number, optionName: string): string {
