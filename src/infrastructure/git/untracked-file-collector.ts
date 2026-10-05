@@ -1,6 +1,6 @@
 import { lstat, readFile } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
 import type { FileChange, LineDelta } from "../../domain/change.js";
+import { resolveRepositoryPath } from "../filesystem/repository-path.js";
 import type { CommandRunner } from "../process/command-runner.js";
 
 const maximumMeasuredFileSize = 10 * 1024 * 1024;
@@ -19,7 +19,7 @@ export async function collectUntrackedFiles(
 
   // Deliberately sequential: an unbounded Promise.all can exhaust file descriptors in large repos.
   for (const path of paths) {
-    const absolutePath = safeRepositoryPath(repositoryRoot, path);
+    const absolutePath = resolveRepositoryPath(repositoryRoot, path);
     changes.push({
       path,
       kind: "added",
@@ -61,14 +61,4 @@ async function measureUntrackedFile(path: string): Promise<LineDelta> {
   }
 
   return { kind: "measured", additions: lineCount, deletions: 0 };
-}
-
-function safeRepositoryPath(repositoryRoot: string, path: string): string {
-  // 심볼릭 링크는 위에서 읽지 않으며, Git이 저장소 밖의 경로를 반환하는 경우도 차단한다.
-  const absolutePath = resolve(repositoryRoot, path);
-  const relativePath = relative(repositoryRoot, absolutePath);
-  if (relativePath === ".." || relativePath.startsWith(`..${sep}`) || isAbsolute(relativePath)) {
-    throw new Error(`Git returned a path outside the repository: ${path}`);
-  }
-  return absolutePath;
 }
