@@ -1,3 +1,4 @@
+import type { ChangeContract } from "../../domain/change-contract.js";
 import { createImpactAnalysis } from "../../domain/impact.js";
 import type { ChangeReport } from "../../domain/report.js";
 import { createSymbolChangeSet } from "../../domain/symbol-change.js";
@@ -9,6 +10,7 @@ import { RuleEngine } from "../services/rule-engine.js";
 export interface AnalyzeChangesInput {
   readonly baseRef?: string;
   readonly headRef?: string;
+  readonly contract?: ChangeContract;
 }
 
 const emptySymbolChangeAnalyzer: SymbolChangeAnalyzer = {
@@ -47,7 +49,11 @@ export class AnalyzeChanges {
     const target = headRef === undefined ? { baseRef } : { baseRef, headRef };
 
     const changes = await this.changeSource.collect(target);
-    const context = { target, changes };
+    const context = {
+      target,
+      changes,
+      ...(input.contract === undefined ? {} : { contract: input.contract }),
+    };
     const [findings, symbolChanges, impact] = await Promise.all([
       this.ruleEngine.run(context),
       this.symbolChangeAnalyzer.analyze(context),
@@ -56,6 +62,7 @@ export class AnalyzeChanges {
 
     return {
       target,
+      ...(input.contract === undefined ? {} : { contract: input.contract }),
       changes,
       findings,
       symbolChanges,

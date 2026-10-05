@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createChangeSet } from "../../src/domain/change.js";
+import { createChangeContract } from "../../src/domain/change-contract.js";
 import { createFindingSet } from "../../src/domain/finding.js";
 import { createImpactAnalysis } from "../../src/domain/impact.js";
 import { createSymbolChangeSet } from "../../src/domain/symbol-change.js";
@@ -10,6 +11,15 @@ describe("formatTextReport", () => {
   it("shows dependency counts and evidence-based findings", () => {
     const output = formatTextReport({
       target: { baseRef: "HEAD" },
+      contract: createChangeContract({
+        intent: "회원 탈퇴 구현",
+        scope: {
+          include: ["src/user/**", "tests/user/**"],
+          allow: ["package.json"],
+          maxFiles: 8,
+          maxLines: 300,
+        },
+      }),
       changes: createChangeSet([
         {
           path: "package.json",
@@ -54,6 +64,9 @@ describe("formatTextReport", () => {
     assert.match(output, /New dependencies {5}1/);
     assert.match(output, /Findings {13}1/);
     assert.match(output, /Changed symbols {6}1/);
+    assert.match(output, /Intent {10}회원 탈퇴 구현/);
+    assert.match(output, /Expected paths {2}src\/user\/\*\*, tests\/user\/\*\*/);
+    assert.match(output, /Budget {10}8 files, 300 measured lines/);
     assert.match(output, /Direct dependents {4}1/);
     assert.match(output, /Transitive impact {4}1/);
     assert.match(output, /A {2}Function {6}deleteUser/);

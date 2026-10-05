@@ -7,6 +7,7 @@ export interface AnalyzeCommandOptions {
   readonly baseRef?: string;
   readonly headRef?: string;
   readonly workingDirectory: string;
+  readonly configurationPath?: string;
   readonly outputFormat: OutputFormat;
   readonly failOn?: Severity;
 }
@@ -40,6 +41,7 @@ export function parseArguments(
   let baseRef: string | undefined;
   let headRef: string | undefined;
   let workingDirectory = currentDirectory;
+  let configurationPath: string | undefined;
   let outputFormat: OutputFormat = "text";
   let failOn: Severity | undefined;
 
@@ -54,6 +56,9 @@ export function parseArguments(
         break;
       case "--cwd":
         workingDirectory = requireOptionValue(options, ++index, option);
+        break;
+      case "--config":
+        configurationPath = requireOptionValue(options, ++index, option);
         break;
       case "--json":
         outputFormat = "json";
@@ -71,6 +76,7 @@ export function parseArguments(
     ...(baseRef === undefined ? {} : { baseRef }),
     ...(headRef === undefined ? {} : { headRef }),
     workingDirectory,
+    ...(configurationPath === undefined ? {} : { configurationPath }),
     outputFormat,
     ...(failOn === undefined ? {} : { failOn }),
   };
@@ -86,6 +92,8 @@ Options:
   --base <ref>   Base Git reference (default: HEAD)
   --head <ref>   Head Git reference; omit to analyze the working tree
   --cwd <path>   Repository directory (default: current directory)
+  --config <path>
+                 Change contract JSON (default: <cwd>/.intentpatch.json when present)
   --json         Print machine-readable JSON
   --fail-on <severity>
                  Exit with code 1 for findings at or above high, medium, or low

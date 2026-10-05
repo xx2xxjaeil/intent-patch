@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { ChangeSource } from "../../src/application/ports/change-source.js";
+import { RuleEngine } from "../../src/application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../src/application/use-cases/analyze-changes.js";
 import { createChangeSet } from "../../src/domain/change.js";
+import { createChangeContract } from "../../src/domain/change-contract.js";
 
 describe("AnalyzeChanges", () => {
   it("uses HEAD and the working tree by default", async () => {
@@ -70,6 +72,31 @@ describe("AnalyzeChanges", () => {
       baseRef: "main",
       headRef: "feature/account",
     });
+  });
+
+  it("passes a change contract to rules and preserves it in the report", async () => {
+    const changes = createChangeSet([]);
+    const contract = createChangeContract({
+      intent: "회원 탈퇴 구현",
+      scope: { include: ["src/user/**"] },
+    });
+    let receivedContract: unknown;
+    const useCase = new AnalyzeChanges(
+      { collect: async () => changes },
+      new RuleEngine([
+        {
+          analyze: async (context) => {
+            receivedContract = context.contract;
+            return [];
+          },
+        },
+      ]),
+    );
+
+    const report = await useCase.execute({ contract });
+
+    assert.equal(receivedContract, contract);
+    assert.equal(report.contract, contract);
   });
 
   it("rejects references that Git could interpret as options", async () => {

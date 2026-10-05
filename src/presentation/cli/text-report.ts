@@ -1,4 +1,5 @@
 import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.js";
+import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
 import type { ChangeReport } from "../../domain/report.js";
@@ -72,6 +73,11 @@ export function formatTextReport(report: ChangeReport): string {
     `Findings             ${findingSummary.total}`,
   ];
 
+  if (report.contract !== undefined) {
+    lines.push("", "Change contract", "");
+    lines.push(...formatChangeContract(report.contract));
+  }
+
   if (files.length > 0) {
     lines.push("", "Changed files", "");
     lines.push(...files.map(formatFile));
@@ -112,6 +118,20 @@ export function formatTextReport(report: ChangeReport): string {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function formatChangeContract(contract: ChangeContract): string[] {
+  const budgets = [
+    contract.scope.maxFiles === undefined ? undefined : `${contract.scope.maxFiles} files`,
+    contract.scope.maxLines === undefined ? undefined : `${contract.scope.maxLines} measured lines`,
+  ].filter((value): value is string => value !== undefined);
+
+  return [
+    `Intent          ${contract.intent ?? "(not specified)"}`,
+    `Expected paths  ${contract.scope.include.join(", ") || "(not configured)"}`,
+    `Allowed paths   ${contract.scope.allow.join(", ") || "(none)"}`,
+    `Budget          ${budgets.join(", ") || "(not configured)"}`,
+  ];
 }
 
 function formatImpactedFile(file: ImpactedFile): string[] {
