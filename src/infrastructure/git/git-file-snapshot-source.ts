@@ -16,7 +16,11 @@ export class GitFileSnapshotSource implements FileSnapshotSource {
     private readonly commandRunner: CommandRunner = new NodeCommandRunner(),
   ) {}
 
-  public async read(target: AnalysisTarget, path: string): Promise<TextFileSnapshot> {
+  public async read(
+    target: AnalysisTarget,
+    path: string,
+    basePath = path,
+  ): Promise<TextFileSnapshot> {
     const repositoryRoot = (
       await this.commandRunner.run({
         executable: "git",
@@ -27,7 +31,7 @@ export class GitFileSnapshotSource implements FileSnapshotSource {
     const baseRevision = await this.resolveBaseRevision(repositoryRoot, target);
 
     const [before, after] = await Promise.all([
-      this.readRevision(repositoryRoot, baseRevision, path),
+      this.readRevision(repositoryRoot, baseRevision, basePath),
       target.headRef === undefined
         ? this.readWorkingTree(repositoryRoot, path)
         : this.readRevision(repositoryRoot, target.headRef, path),

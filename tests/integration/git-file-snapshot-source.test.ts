@@ -45,6 +45,26 @@ describe("GitFileSnapshotSource integration", () => {
       dependencies: { existing: "1.0.0", added: "2.0.0" },
     });
   });
+
+  it("reads the previous path when a working-tree file was renamed", async () => {
+    const repository = await mkdtemp(join(tmpdir(), "intentpatch-snapshot-rename-test-"));
+    temporaryRepositories.push(repository);
+    await runGit(repository, ["init", "--quiet"]);
+    await writeFile(join(repository, "before.ts"), "export const before = true;\n");
+    await runGit(repository, ["add", "before.ts"]);
+    await commit(repository, "Initial fixture");
+    await runGit(repository, ["mv", "before.ts", "after.ts"]);
+    await writeFile(join(repository, "after.ts"), "export const after = true;\n");
+
+    const result = await new GitFileSnapshotSource(repository).read(
+      { baseRef: "HEAD" },
+      "after.ts",
+      "before.ts",
+    );
+
+    assert.equal(result.before, "export const before = true;\n");
+    assert.equal(result.after, "export const after = true;\n");
+  });
 });
 
 async function commit(repository: string, message: string): Promise<void> {
