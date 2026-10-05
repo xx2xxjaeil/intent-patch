@@ -43,8 +43,8 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderSummary(report, newDependencies)}
     ${renderSeverityBar(report)}
     ${renderContract(report.contract)}
-    ${renderFindings(report.findings.items)}
     ${renderImpact(report.impact.changedModules, report.impact.impactedFiles)}
+    ${renderFindings(report.findings.items)}
     ${renderTestCoverage(report.testChanges.sourceCoverage)}
     ${renderFiles(report.changes.files)}
     ${renderSymbols(report.symbolChanges.changes)}
@@ -424,6 +424,7 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .impact-graph { display:block; width:100%; min-width:820px; height:auto; }
 .graph-column-label { fill:#68758a; font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
 .graph-edge { fill:none; stroke:#56627a; stroke-width:1.5; marker-end:url(#arrow); }
+#arrow path { fill:#7a879e; }
 .graph-edge.direct { stroke:var(--cyan); }.graph-edge.transitive { stroke:var(--violet); stroke-dasharray:5 5; }
 .graph-node rect { fill:#151b26; stroke:#303a4b; }.graph-node.changed rect { stroke:#537b7b; }.graph-node.direct rect { stroke:#3d716f; }.graph-node.transitive rect { stroke:#615787; }
 .graph-node text { fill:#cbd5e5; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
