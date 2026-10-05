@@ -18,7 +18,14 @@ describe("AnalyzeChanges", () => {
     const report = await useCase.execute();
 
     assert.deepEqual(receivedTarget, { baseRef: "HEAD" });
-    assert.deepEqual(report, { target: { baseRef: "HEAD" }, changes });
+    assert.deepEqual(report, {
+      target: { baseRef: "HEAD" },
+      changes,
+      findings: {
+        items: [],
+        summary: { total: 0, bySeverity: { high: 0, medium: 0, low: 0 } },
+      },
+    });
   });
 
   it("normalizes an explicit comparison range", async () => {

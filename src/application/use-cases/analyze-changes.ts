@@ -1,5 +1,6 @@
 import type { ChangeReport } from "../../domain/report.js";
 import type { ChangeSource } from "../ports/change-source.js";
+import { RuleEngine } from "../services/rule-engine.js";
 
 export interface AnalyzeChangesInput {
   readonly baseRef?: string;
@@ -11,7 +12,10 @@ export interface AnalyzeChangesInput {
  * Git 명령이나 출력 형식은 외부 계층에 위임해 핵심 흐름을 기술 세부사항과 분리한다.
  */
 export class AnalyzeChanges {
-  public constructor(private readonly changeSource: ChangeSource) {}
+  public constructor(
+    private readonly changeSource: ChangeSource,
+    private readonly ruleEngine: RuleEngine = new RuleEngine([]),
+  ) {}
 
   public async execute(input: AnalyzeChangesInput = {}): Promise<ChangeReport> {
     const baseRef = input.baseRef?.trim() || "HEAD";
@@ -22,9 +26,12 @@ export class AnalyzeChanges {
     }
     const target = headRef === undefined ? { baseRef } : { baseRef, headRef };
 
+    const changes = await this.changeSource.collect(target);
+
     return {
       target,
-      changes: await this.changeSource.collect(target),
+      changes,
+      findings: await this.ruleEngine.run({ target, changes }),
     };
   }
 }
