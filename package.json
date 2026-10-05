@@ -1,0 +1,44 @@
+{
+  "name": "intentpatch",
+  "version": "0.1.0",
+  "description": "Evidence-based change scope analysis for AI-authored code patches.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xx2xxjaeil/intent-patch.git"
+  },
+  "bugs": {
+    "url": "https://github.com/xx2xxjaeil/intent-patch/issues"
+  },
+  "homepage": "https://github.com/xx2xxjaeil/intent-patch#readme",
+  "keywords": [
+    "ai-coding-agent",
+    "code-review",
+    "git-diff",
+    "static-analysis"
+  ],
+  "type": "module",
+  "private": true,
+  "bin": {
+    "intentpatch": "./dist/presentation/cli/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "npm run typecheck && npm run lint && npm run test",
+    "dev": "node --import tsx src/presentation/cli/main.ts",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "node --import tsx --test tests/**/*.test.ts",
+    "test:watch": "node --import tsx --test --watch tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.4",
+    "@types/node": "^20.19.17",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.3"
+  }
+}
