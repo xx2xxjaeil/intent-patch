@@ -20,6 +20,10 @@ AnalyzeChanges 유스케이스
   ├─ TestChangeAnalyzer 포트 ─▶ AnalyzeTestChanges
   │                              └─ Contract 경로 분류 + 파일명 기반 테스트 연결
   │
+  ├─ CompareSourceSymbols
+  │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
+  │   └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
+  │
   ├─ RuleEngine
   │   ├─ PackageDependencyRule
   │   │   └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
@@ -27,11 +31,8 @@ AnalyzeChanges 유스케이스
   │   │                                 └─ working tree 또는 head의 package.json
   │   ├─ ExpectedScopeRule
   │   ├─ ChangeBudgetRule
-  │   └─ MissingTestChangeRule
-  │
-  ├─ CompareSourceSymbols
-  │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
-  │   └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
+  │   ├─ MissingTestChangeRule
+  │   └─ PublicApiRemovalRule
   │
   └─ AnalyzeImportImpact
       ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
@@ -77,14 +78,16 @@ presentation ───────▶ application ───────▶ domai
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
 문법은 각각 `ProjectFileSource`, `ModuleReferenceExtractor` 포트에 위임합니다.
 `AnalyzeTestChanges`는 Contract 경로에 따라 변경 파일을 분류하고 소스와 테스트를 연결합니다.
-`ExpectedScopeRule`, `ChangeBudgetRule`, `MissingTestChangeRule`은 정규화된 분석 사실과 Contract만
-읽으며 설정 파일의 형식이나 위치를 알지 못합니다.
+`ExpectedScopeRule`, `ChangeBudgetRule`, `MissingTestChangeRule`, `PublicApiRemovalRule`은 정규화된
+분석 사실과 Contract만 읽으며 설정 파일의 형식이나 위치를 알지 못합니다. `AnalyzeChanges`는
+테스트와 심볼 분석을 먼저 완료한 뒤 그 사실을 규칙 엔진에 전달합니다.
 
 ### Infrastructure
 
 Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기와
 TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
 목록을 제공하고, TypeScript 어댑터는 최상위 선언 또는 정적 module specifier로 변환합니다.
+심볼 어댑터는 선언에 직접 지정된 `export` modifier도 분석 사실로 보존합니다.
 Compiler API의 노드 타입은 application과 domain 계층으로 전파되지 않습니다.
 `JsonChangeContractLoader`는 외부 JSON 형식을 검증한 뒤 정규화된 도메인 모델로 변환합니다.
 
@@ -189,6 +192,14 @@ SVG를 HTML 안에 포함합니다. 외부 CDN과 클라이언트 dependency를 
 동일하게 열리고, 분석 대상 저장소에서 온 문자열은 HTML entity로 변환해 코드나 intent가 markup으로
 실행되지 않게 합니다. 영향 그래프는 `ImpactAnalysis`의 변경 모듈과 직접·간접 영향 관계만
 시각화하므로 텍스트 보고서와 판단 근거가 달라지지 않습니다.
+
+### 17. 공개 API 위험은 확인 가능한 직접 export부터 판정
+
+현재 규칙은 TypeScript 최상위 선언의 직접 `export` 여부가 확인될 때만 공개 API 삭제 또는 export
+해제를 `high` finding으로 보고합니다. 선언 본문 수정은 변경 사실로만 남기며 호환성 파괴라고
+단정하지 않습니다. `export { name }`, `export *`, package entrypoint와 함수 시그니처 호환성은
+별도의 symbol resolution이 필요하므로 현재 결과에 포함하지 않습니다. 지원 범위를 좁히는 대신
+같은 diff에서 항상 같은 근거와 결과를 제공하고 오탐 가능성을 낮춥니다.
 
 ## 확장 지점
 

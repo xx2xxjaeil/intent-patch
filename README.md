@@ -30,6 +30,7 @@ Transitive impact    4
 Tests changed        3
 Missing test changes 1
 New dependencies     2
+Risky API changes    1
 
 Impacted files
 
@@ -70,6 +71,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
 - `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
+- 직접 `export`된 선언과 내부 선언을 구분해 심볼 변경 근거에 보존
+- 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
 - rename 전후 파일 경로를 사용한 심볼 비교
 - 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
 - `.ts`·`.tsx` 파일의 상대 경로 정적 import와 re-export 관계 수집
@@ -85,7 +88,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
 
-아직 lockfile의 전이 dependency 분석, path alias 해석, AI 리뷰 기능은 구현되지 않았습니다.
+아직 re-export와 함수 시그니처 호환성, lockfile의 전이 dependency 분석, path alias 해석,
+AI 리뷰 기능은 구현되지 않았습니다.
 
 ## 실행 방법
 
@@ -203,7 +207,8 @@ Tests changed        1
 Tests added          0
 Missing test changes 1
 New dependencies     1
-Findings             3
+Risky API changes    1
+Findings             4
 
 Changed symbols
 
@@ -218,6 +223,10 @@ Impacted files
    changed: src/user/service.ts
 
 Potential issues
+
+HIGH    Public export removed
+        src/user/service.ts · api/export-removed
+        The function deleteUser is no longer exported.
 
 MEDIUM  New production dependency
         package.json · dependency/new-production
@@ -295,10 +304,11 @@ npm run build
 4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
 5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
 6. lockfile과 workspace를 고려한 package manager adapter
-7. 공개 API 위험 변경과 중복 가능성을 탐지하는 추가 규칙
+7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
-9. GitHub Action 및 Codex·Claude Code·Cursor adapter
-10. 근거 기반 결과에 대한 선택적 LLM 설명
+9. re-export·함수 시그니처 호환성과 기존 코드 중복 가능성 탐지
+10. GitHub Action 및 Codex·Claude Code·Cursor adapter
+11. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 
@@ -310,6 +320,8 @@ npm run build
 - lockfile의 전이 dependency, workspace package, 코드에서의 실제 사용 여부는 아직 분석하지 않습니다.
 - 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
+- 공개 API 규칙은 선언에 직접 붙은 `export` modifier만 확인합니다. `export { name }`,
+  `export *`, package `exports`, 익명 default export와 함수 시그니처 호환성은 아직 해석하지 않습니다.
 - 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
 - 영향 분석은 `.ts`·`.tsx` 파일의 상대 경로 정적 `import`, side-effect import,
