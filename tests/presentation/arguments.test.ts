@@ -42,6 +42,18 @@ describe("parseArguments", () => {
     );
   });
 
+  it("parses HTML output to a file", () => {
+    assert.deepEqual(
+      parseArguments(["analyze", "--format", "html", "--output", "report.html"], "/repo"),
+      {
+        command: "analyze",
+        workingDirectory: "/repo",
+        outputFormat: "html",
+        outputPath: "report.html",
+      },
+    );
+  });
+
   it("rejects an option without a value", () => {
     assert.throws(() => parseArguments(["analyze", "--base"], "/repo"), CliUsageError);
   });
@@ -50,6 +62,17 @@ describe("parseArguments", () => {
     assert.throws(
       () => parseArguments(["analyze", "--fail-on", "critical"], "/repo"),
       /Invalid severity/,
+    );
+  });
+
+  it("rejects unknown and conflicting output formats", () => {
+    assert.throws(
+      () => parseArguments(["analyze", "--format", "xml"], "/repo"),
+      /Invalid output format/,
+    );
+    assert.throws(
+      () => parseArguments(["analyze", "--json", "--format", "html"], "/repo"),
+      /Output format already set/,
     );
   });
 });

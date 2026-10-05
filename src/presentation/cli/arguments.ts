@@ -1,6 +1,8 @@
 import { type Severity, severities } from "../../domain/finding.js";
 
-export type OutputFormat = "text" | "json";
+export const outputFormats = ["text", "json", "html"] as const;
+
+export type OutputFormat = (typeof outputFormats)[number];
 
 export interface AnalyzeCommandOptions {
   readonly command: "analyze";
@@ -9,6 +11,7 @@ export interface AnalyzeCommandOptions {
   readonly workingDirectory: string;
   readonly configurationPath?: string;
   readonly outputFormat: OutputFormat;
+  readonly outputPath?: string;
   readonly failOn?: Severity;
 }
 
@@ -43,6 +46,8 @@ export function parseArguments(
   let workingDirectory = currentDirectory;
   let configurationPath: string | undefined;
   let outputFormat: OutputFormat = "text";
+  let outputFormatOption: "--format" | "--json" | undefined;
+  let outputPath: string | undefined;
   let failOn: Severity | undefined;
 
   for (let index = 0; index < options.length; index += 1) {
@@ -61,7 +66,17 @@ export function parseArguments(
         configurationPath = requireOptionValue(options, ++index, option);
         break;
       case "--json":
+        assertOutputFormatNotSet(outputFormatOption, option);
         outputFormat = "json";
+        outputFormatOption = option;
+        break;
+      case "--format":
+        assertOutputFormatNotSet(outputFormatOption, option);
+        outputFormat = parseOutputFormat(requireOptionValue(options, ++index, option));
+        outputFormatOption = option;
+        break;
+      case "--output":
+        outputPath = requireOptionValue(options, ++index, option);
         break;
       case "--fail-on":
         failOn = parseSeverity(requireOptionValue(options, ++index, option));
@@ -78,6 +93,7 @@ export function parseArguments(
     workingDirectory,
     ...(configurationPath === undefined ? {} : { configurationPath }),
     outputFormat,
+    ...(outputPath === undefined ? {} : { outputPath }),
     ...(failOn === undefined ? {} : { failOn }),
   };
 }
@@ -94,11 +110,32 @@ Options:
   --cwd <path>   Repository directory (default: current directory)
   --config <path>
                  Change contract JSON (default: <cwd>/.intentpatch.json when present)
-  --json         Print machine-readable JSON
+  --format <type> Output format: text, json, or html (default: text)
+  --json         Alias for --format json
+  --output <path>
+                 Write the report to a file instead of standard output
   --fail-on <severity>
                  Exit with code 1 for findings at or above high, medium, or low
   -h, --help     Show this help
 `;
+}
+
+function parseOutputFormat(value: string): OutputFormat {
+  if (outputFormats.some((format) => format === value)) {
+    return value as OutputFormat;
+  }
+  throw new CliUsageError(`Invalid output format: ${value}`);
+}
+
+function assertOutputFormatNotSet(
+  currentOption: "--format" | "--json" | undefined,
+  nextOption: "--format" | "--json",
+): void {
+  if (currentOption !== undefined) {
+    throw new CliUsageError(
+      `Output format already set by ${currentOption}; cannot use ${nextOption}`,
+    );
+  }
 }
 
 function parseSeverity(value: string): Severity {
