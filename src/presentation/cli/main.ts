@@ -22,11 +22,13 @@ import { TypeScriptModuleReferenceExtractor } from "../../infrastructure/typescr
 import { TypeScriptSymbolExtractor } from "../../infrastructure/typescript/typescript-symbol-extractor.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
-import { formatTextReport } from "./text-report.js";
+import { writeReportFile } from "./report-file-writer.js";
+import { formatReport } from "./report-formatter.js";
 
 async function main(): Promise<void> {
   try {
-    const options = parseArguments(process.argv.slice(2), process.cwd());
+    const invocationDirectory = process.cwd();
+    const options = parseArguments(process.argv.slice(2), invocationDirectory);
     if (options.command === "help") {
       process.stdout.write(helpText());
       return;
@@ -65,11 +67,13 @@ async function main(): Promise<void> {
       ...(contract === undefined ? {} : { contract }),
     });
 
-    const output =
-      options.outputFormat === "json"
-        ? `${JSON.stringify(report, null, 2)}\n`
-        : formatTextReport(report);
-    process.stdout.write(output);
+    const output = formatReport(report, options.outputFormat);
+    if (options.outputPath === undefined) {
+      process.stdout.write(output);
+    } else {
+      const destination = await writeReportFile(output, options.outputPath, invocationDirectory);
+      process.stdout.write(`IntentPatch report written to ${destination}\n`);
+    }
 
     if (options.failOn !== undefined && shouldFail(report.findings.items, options.failOn)) {
       process.exitCode = 1;
