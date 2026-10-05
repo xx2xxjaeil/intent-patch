@@ -21,15 +21,22 @@ AnalyzeChanges 유스케이스
   │                                     ├─ 기준 revision의 package.json
   │                                     └─ working tree 또는 head의 package.json
   │
-  └─ CompareSourceSymbols
-      ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
-      └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
+  ├─ CompareSourceSymbols
+  │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
+  │   └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
+  │
+  └─ AnalyzeImportImpact
+      ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
+      │                                ├─ working tree의 tracked·untracked 파일
+      │                                └─ head ref의 전체 파일 tree
+      └─ ModuleReferenceExtractor ────▶ TypeScriptModuleReferenceExtractor
   │
   ▼
 ChangeReport
   ├─ ChangeSet
   ├─ FindingSet
   ├─ SymbolChangeSet
+  ├─ ImpactAnalysis
   ├─ 텍스트 보고서
   └─ JSON 보고서
 ```
@@ -44,7 +51,7 @@ presentation ───────▶ application ───────▶ domai
 
 ### Domain
 
-`FileChange`, `ChangeSet`, `Finding`, `Severity`, `SymbolChange`처럼 분석 결과의
+`FileChange`, `ChangeSet`, `Finding`, `Severity`, `SymbolChange`, `ImpactAnalysis`처럼 분석 결과의
 의미를 표현합니다. Git, TypeScript Compiler API, 파일 시스템, CLI를 알지 못합니다.
 `LineDelta`는 측정된 값, binary, 측정 불가를 구별된 유니온으로 표현해 `0줄 변경`과
 `알 수 없음`이 섞이지 않게 합니다.
@@ -55,12 +62,15 @@ presentation ───────▶ application ───────▶ domai
 `PackageDependencyRule`은 package manifest의 의미만 알고, Git이나 파일 시스템에서 내용을
 읽는 방법은 `FileSnapshotSource`에 위임합니다. `CompareSourceSymbols`는 이전·현재 심볼
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
+`AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
+문법은 각각 `ProjectFileSource`, `ModuleReferenceExtractor` 포트에 위임합니다.
 
 ### Infrastructure
 
 Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기와
-TypeScript AST 파싱을 담당합니다. TypeScript 어댑터는 최상위 선언을 이름·종류·라인·fingerprint로
-변환하므로 Compiler API의 노드 타입이 application과 domain 계층으로 전파되지 않습니다.
+TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
+목록을 제공하고, TypeScript 어댑터는 최상위 선언 또는 정적 module specifier로 변환합니다.
+Compiler API의 노드 타입은 application과 domain 계층으로 전파되지 않습니다.
 
 ### Presentation
 
@@ -124,13 +134,27 @@ TypeScript 어댑터는 선언 원문을 SHA-256 fingerprint로 바꾸고 applic
 전달하지 않습니다. 보고서 크기와 코드 노출을 줄이면서 동일 선언의 변경 여부를 결정적으로
 비교할 수 있습니다.
 
+### 11. 현재 그래프를 역방향으로 탐색
+
+각 `importer → imported` 관계를 만든 뒤 역방향 인접 목록을 너비 우선 탐색합니다. 변경 모듈을
+직접 import하는 파일은 거리 1, 그 파일을 다시 import하는 파일은 거리 2 이상으로 기록합니다.
+여러 변경 모듈에서 같은 파일에 도달하면 최단 거리와 모든 변경 원인을 함께 보존합니다.
+
+### 12. 영향 사실과 위험 판단을 분리
+
+영향을 받는 파일이 많다는 사실만으로 잘못된 변경이라고 단정하지 않습니다. import graph 결과는
+`ImpactAnalysis`라는 관찰 결과로 제공하고, 위험 여부는 이후 scope 규칙이 근거와 함께
+`Finding`으로 판단하도록 경계를 나눴습니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
 - 새로운 언어 분석기: `SourceSymbolExtractor` 포트의 infrastructure 어댑터 추가
+- 새로운 import 문법 분석기: `ModuleReferenceExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 출력 형식: `ChangeReport`를 입력받는 formatter 추가
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
 - 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
+- 새로운 프로젝트 tree 공급자: `ProjectFileSource` 구현 추가
 
 현재는 DI 컨테이너, 플러그인 프레임워크, 데이터베이스를 도입하지 않았습니다. 실제 두 번째
 구현이나 영속성 요구가 생기기 전까지는 단순한 생성자 주입과 명시적인 composition root가 더

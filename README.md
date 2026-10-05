@@ -25,8 +25,16 @@ IntentPatch Change Report
 Target               HEAD → working tree
 Files changed        12
 Lines                +438 / -51
+Direct dependents    2
+Transitive impact    4
 New dependencies     2
-Tests added          3
+
+Impacted files
+
+→  direct              src/api/delete-user.ts
+   changed: src/lib/auth.ts
+→  transitive · 2 hops src/app.ts
+   changed: src/lib/auth.ts
 
 Potential issues
 
@@ -41,7 +49,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 ## 현재 구현된 기능
 
 현재 버전은 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
-최상위 심볼 변경 분석을 제공합니다.
+최상위 심볼 변경 분석과 import graph 기반 영향 범위 분석을 제공합니다.
 
 - `HEAD`와 현재 working tree 비교
 - 두 Git reference 또는 브랜치 비교
@@ -60,9 +68,13 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
 - rename 전후 파일 경로를 사용한 심볼 비교
 - 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
+- `.ts`·`.tsx` 파일의 상대 경로 정적 import와 re-export 관계 수집
+- `.js`·`.jsx`·`.mjs`·`.cjs` specifier를 대응하는 TypeScript 소스로 해석
+- 변경 모듈을 import하는 직접 의존자와 여러 단계를 거친 간접 영향 파일 계산
+- 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
+- working tree의 tracked·untracked 파일 또는 지정한 head ref를 동일한 결과점에서 분석
 
-아직 lockfile의 전이 dependency 분석, import 영향 범위 그래프, AI 리뷰 기능은 구현되지
-않았습니다.
+아직 lockfile의 전이 dependency 분석, path alias 해석, AI 리뷰 기능은 구현되지 않았습니다.
 
 ## 실행 방법
 
@@ -109,13 +121,16 @@ node dist/presentation/cli/main.js analyze --fail-on medium
 `medium`은 `medium`과 `high` finding에 반응하며, `low`를 지정하면 모든 finding을 품질
 게이트 대상으로 취급합니다. 잘못된 CLI 사용은 종료 코드 `2`를 반환합니다.
 
-dependency가 추가된 경우 다음과 같이 판단 근거를 함께 출력합니다.
+dependency 변경과 코드 영향 범위를 다음과 같이 근거와 함께 출력합니다.
 
 ```text
 IntentPatch Change Report
 
 Files changed        2
 Changed symbols      2
+Import edges         18
+Direct dependents    1
+Transitive impact    2
 New dependencies     1
 Findings             1
 
@@ -123,6 +138,13 @@ Changed symbols
 
 M  Class         UserService                  src/user/service.ts:12
 A  Function      deleteUser                   src/user/service.ts:48
+
+Impacted files
+
+→  direct              src/api/delete-user.ts
+   changed: src/user/service.ts
+→  transitive · 2 hops src/app.ts
+   changed: src/user/service.ts
 
 Potential issues
 
@@ -150,9 +172,9 @@ presentation ───────▶ application ───────▶ domai
 
 | 계층 | 책임 |
 | --- | --- |
-| `domain` | 변경 파일, finding, 심각도, 심볼 변경 등 핵심 모델 |
-| `application` | 분석 유스케이스, 규칙 엔진, 심볼 비교와 외부 데이터 포트 |
-| `infrastructure` | Git 명령·diff 파싱·파일 스냅샷·TypeScript AST 파싱 |
+| `domain` | 변경 파일, finding, 심볼 변경, dependency 영향 등 핵심 모델 |
+| `application` | 분석 유스케이스, 규칙 엔진, 심볼·영향 계산과 외부 데이터 포트 |
+| `infrastructure` | Git 명령·diff 파싱·프로젝트 파일 공급·TypeScript AST 파싱 |
 | `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON 출력 |
 
 하위 계층이 외부 구현을 참조하지 않도록 아키텍처 테스트가 import 방향을 검사합니다.
@@ -190,8 +212,8 @@ npm run build
 
 1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
 2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
-3. lockfile과 workspace를 고려한 package manager adapter
-4. import graph 기반 변경 영향 범위 계산
+3. ✅ 상대 경로 정적 import graph 기반 변경 영향 범위 계산
+4. lockfile과 workspace를 고려한 package manager adapter
 5. 과잉 구현과 중복 가능성을 탐지하는 추가 규칙
 6. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
 7. GitHub Action 및 Codex·Claude Code·Cursor adapter
@@ -209,7 +231,13 @@ npm run build
   별칭만 지원합니다.
 - 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
-- 현재 버전은 import 관계나 dependency 영향 범위까지 분석하지 않습니다.
+- 영향 분석은 `.ts`·`.tsx` 파일의 상대 경로 정적 `import`, side-effect import,
+  `export ... from`, `import = require()`를 대상으로 합니다.
+- 외부 package import는 그래프에서 제외하며 path alias, dynamic `import()`, 일반 `require()`는
+  아직 해석하지 않습니다.
+- 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
+  삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
+- 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
 
 ## 라이선스
 
