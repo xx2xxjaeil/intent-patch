@@ -17,13 +17,17 @@ AnalyzeChanges 유스케이스
   │                           ├─ git diff --numstat -z
   │                           └─ git ls-files --others -z
   │
+  ├─ TestChangeAnalyzer 포트 ─▶ AnalyzeTestChanges
+  │                              └─ Contract 경로 분류 + 파일명 기반 테스트 연결
+  │
   ├─ RuleEngine
   │   ├─ PackageDependencyRule
   │   │   └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
   │   │                                 ├─ 기준 revision의 package.json
   │   │                                 └─ working tree 또는 head의 package.json
   │   ├─ ExpectedScopeRule
-  │   └─ ChangeBudgetRule
+  │   ├─ ChangeBudgetRule
+  │   └─ MissingTestChangeRule
   │
   ├─ CompareSourceSymbols
   │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
@@ -42,6 +46,7 @@ ChangeReport
   ├─ FindingSet
   ├─ SymbolChangeSet
   ├─ ImpactAnalysis
+  ├─ TestChangeAnalysis
   ├─ 텍스트 보고서
   └─ JSON 보고서
 ```
@@ -70,8 +75,9 @@ presentation ───────▶ application ───────▶ domai
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
 문법은 각각 `ProjectFileSource`, `ModuleReferenceExtractor` 포트에 위임합니다.
-`ExpectedScopeRule`과 `ChangeBudgetRule`은 선택적으로 전달된 `ChangeContract`만 읽으며 설정 파일의
-형식이나 위치를 알지 못합니다.
+`AnalyzeTestChanges`는 Contract 경로에 따라 변경 파일을 분류하고 소스와 테스트를 연결합니다.
+`ExpectedScopeRule`, `ChangeBudgetRule`, `MissingTestChangeRule`은 정규화된 분석 사실과 Contract만
+읽으며 설정 파일의 형식이나 위치를 알지 못합니다.
 
 ### Infrastructure
 
@@ -167,6 +173,13 @@ LLM은 Contract 초안을 제안할 수 있지만, 실제 규칙 입력은 항�
 없거나 JSON 필드 이름·타입이 잘못되면 분석을 중단하고 원인을 표시합니다. 잘못된 계약을 적용한
 것처럼 보이는 결과보다 빠른 실패가 CI와 코드 리뷰에서 안전합니다.
 
+### 15. 테스트 변경 사실과 누락 판단을 분리
+
+변경된 테스트 수와 소스별 관련 테스트 목록은 `TestChangeAnalysis`에 관찰 사실로 보존합니다.
+테스트 변경이 없다는 위험 판단은 `MissingTestChangeRule`이 별도의 finding으로 만듭니다. 현재는
+언어별 호출 관계를 추측하지 않고 정규화된 파일명이 같은 경우만 연결해 결과를 재현 가능하게
+유지합니다. 수정·추가된 소스에 대해 삭제된 테스트는 동반 변경으로 인정하지 않습니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
@@ -176,6 +189,7 @@ LLM은 Contract 초안을 제안할 수 있지만, 실제 규칙 입력은 항�
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
 - 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
 - 새로운 프로젝트 tree 공급자: `ProjectFileSource` 구현 추가
+- 새로운 테스트 연결 방식: `TestChangeAnalyzer` 구현 추가
 - 새로운 계약 형식: 로더에서 `ChangeContract`로 변환하는 infrastructure 어댑터 추가
 
 현재는 DI 컨테이너, 플러그인 프레임워크, 데이터베이스를 도입하지 않았습니다. 실제 두 번째

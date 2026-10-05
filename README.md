@@ -27,6 +27,8 @@ Files changed        12
 Lines                +438 / -51
 Direct dependents    2
 Transitive impact    4
+Tests changed        3
+Missing test changes 1
 New dependencies     2
 
 Impacted files
@@ -49,7 +51,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 ## 현재 구현된 기능
 
 현재 버전은 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
-최상위 심볼 변경 분석과 import graph 기반 영향 범위 분석을 제공합니다.
+최상위 심볼 변경 분석, import graph 기반 영향 범위와 테스트 동반 변경 분석을 제공합니다.
 
 - `HEAD`와 현재 working tree 비교
 - 두 Git reference 또는 브랜치 비교
@@ -76,6 +78,9 @@ LOW     구현체가 하나뿐인 추상화 추가
 - `.intentpatch.json`에 요청 의도, 예상 경로, 허용 경로와 변경량 예산 선언
 - 예상·허용 패턴을 벗어난 변경 파일을 파일별 `medium` finding으로 탐지
 - 변경 파일 수와 측정 라인 예산 초과를 수치 근거가 있는 `low` finding으로 탐지
+- Contract가 지정한 소스·테스트 경로를 분류하고 파일명 기준으로 관련 변경 연결
+- 테스트 변경 수와 추가·삭제 수를 별도의 분석 사실로 집계
+- 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
 
 아직 lockfile의 전이 dependency 분석, path alias 해석, AI 리뷰 기능은 구현되지 않았습니다.
@@ -128,6 +133,11 @@ node dist/presentation/cli/main.js analyze --json
     "allow": ["package.json", "package-lock.json"],
     "maxFiles": 8,
     "maxLines": 300
+  },
+  "tests": {
+    "requireFor": ["src/**/*.ts", "src/**/*.tsx"],
+    "include": ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
+    "exclude": ["src/**/*.d.ts"]
   }
 }
 ```
@@ -136,6 +146,12 @@ node dist/presentation/cli/main.js analyze --json
 - `allow`: 설정이나 lockfile처럼 함께 변경되어도 허용하는 예외 경로
 - `maxFiles`: 변경 파일 수의 상한
 - `maxLines`: 측정 가능한 추가·삭제 라인 합의 상한
+- `tests.requireFor`: 테스트 동반 변경을 확인할 소스 경로
+- `tests.include`: 테스트 파일로 분류할 경로
+- `tests.exclude`: 생성 파일이나 선언 파일처럼 검사에서 제외할 소스 경로
+
+테스트 연결은 결정적인 결과를 위해 파일명을 사용합니다. 예를 들어 `src/user.ts`는
+`tests/user.test.ts`, `user.spec.ts`, `user.integration.test.ts` 같은 변경과 연결됩니다.
 
 기본 파일 대신 별도 계약을 사용하려면 `--config`를 지정합니다. 상대 경로는 `--cwd`를 기준으로
 해석합니다.
@@ -168,8 +184,11 @@ Changed symbols      2
 Import edges         18
 Direct dependents    1
 Transitive impact    2
+Tests changed        1
+Tests added          0
+Missing test changes 1
 New dependencies     1
-Findings             2
+Findings             3
 
 Changed symbols
 
@@ -192,6 +211,10 @@ MEDIUM  New production dependency
 MEDIUM  Change outside expected scope
         src/payment/billing.ts · scope/outside-expected-path
         src/payment/billing.ts does not match any expected or allowed path pattern.
+
+MEDIUM  Source change without matching test change
+        src/payment/billing.ts · tests/missing-related-change
+        src/payment/billing.ts changed without a changed test sharing the same basename.
 ```
 
 개발 중에는 빌드 없이 실행할 수 있습니다.
@@ -255,11 +278,12 @@ npm run build
 2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
 3. ✅ 상대 경로 정적 import graph 기반 변경 영향 범위 계산
 4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
-5. lockfile과 workspace를 고려한 package manager adapter
-6. 테스트 누락, 위험 변경과 중복 가능성을 탐지하는 추가 규칙
-7. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
-8. GitHub Action 및 Codex·Claude Code·Cursor adapter
-9. 근거 기반 결과에 대한 선택적 LLM 설명
+5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
+6. lockfile과 workspace를 고려한 package manager adapter
+7. 공개 API 위험 변경과 중복 가능성을 탐지하는 추가 규칙
+8. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
+9. GitHub Action 및 Codex·Claude Code·Cursor adapter
+10. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 
@@ -286,6 +310,10 @@ npm run build
   지원하지 않습니다.
 - `maxLines`는 측정 가능한 텍스트 파일의 추가·삭제 라인만 합산합니다. Binary와 측정 불가 파일을
   0줄이라고 간주하지 않지만, 해당 파일의 크기를 라인 예산에 포함하지도 않습니다.
+- 테스트 분석은 실행 결과나 코드 커버리지를 측정하지 않고 Contract에 지정된 변경 파일만
+  비교합니다.
+- 관련 테스트는 현재 소스와 테스트의 파일명이 같은지로 판단하므로 이름이 다른 통합 테스트나
+  하나의 테스트가 여러 소스를 검증하는 관계는 자동으로 연결하지 못합니다.
 
 ## 라이선스
 
