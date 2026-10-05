@@ -2,11 +2,13 @@ import type { ChangeSet } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { AnalysisTarget } from "../../domain/report.js";
+import type { TestChangeAnalysis } from "../../domain/test-change.js";
 
 export interface AnalysisContext {
   readonly target: AnalysisTarget;
   readonly changes: ChangeSet;
   readonly contract?: ChangeContract;
+  readonly testChanges?: TestChangeAnalysis;
 }
 
 /**

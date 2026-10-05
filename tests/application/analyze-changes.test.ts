@@ -53,6 +53,17 @@ describe("AnalyzeChanges", () => {
           filesUnavailable: 0,
         },
       },
+      testChanges: {
+        testFiles: [],
+        sourceCoverage: [],
+        summary: {
+          testsChanged: 0,
+          testsAdded: 0,
+          testsDeleted: 0,
+          sourceFilesChecked: 0,
+          sourceFilesWithoutTestChanges: 0,
+        },
+      },
     });
   });
 
@@ -81,12 +92,14 @@ describe("AnalyzeChanges", () => {
       scope: { include: ["src/user/**"] },
     });
     let receivedContract: unknown;
+    let receivedTestChanges: unknown;
     const useCase = new AnalyzeChanges(
       { collect: async () => changes },
       new RuleEngine([
         {
           analyze: async (context) => {
             receivedContract = context.contract;
+            receivedTestChanges = context.testChanges;
             return [];
           },
         },
@@ -96,6 +109,7 @@ describe("AnalyzeChanges", () => {
     const report = await useCase.execute({ contract });
 
     assert.equal(receivedContract, contract);
+    assert.equal(receivedTestChanges, report.testChanges);
     assert.equal(report.contract, contract);
   });
 

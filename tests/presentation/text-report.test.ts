@@ -5,6 +5,7 @@ import { createChangeContract } from "../../src/domain/change-contract.js";
 import { createFindingSet } from "../../src/domain/finding.js";
 import { createImpactAnalysis } from "../../src/domain/impact.js";
 import { createSymbolChangeSet } from "../../src/domain/symbol-change.js";
+import { createTestChangeAnalysis } from "../../src/domain/test-change.js";
 import { formatTextReport } from "../../src/presentation/cli/text-report.js";
 
 describe("formatTextReport", () => {
@@ -58,6 +59,16 @@ describe("formatTextReport", () => {
           { path: "src/app.ts", distance: 2, changedModules: ["src/core.ts"] },
         ],
         unresolvedReferences: [{ importer: "src/app.ts", specifier: "./missing.js" }],
+      }),
+      testChanges: createTestChangeAnalysis({
+        testFiles: [{ path: "tests/user.test.ts", changeKind: "modified" }],
+        sourceCoverage: [
+          {
+            sourcePath: "src/user.ts",
+            sourceChangeKind: "modified",
+            matchingTests: ["tests/user.test.ts"],
+          },
+        ],
       }),
     });
 
