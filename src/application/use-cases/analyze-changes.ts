@@ -61,11 +61,13 @@ export class AnalyzeChanges {
       changes,
       ...(input.contract === undefined ? {} : { contract: input.contract }),
     };
-    const testChanges = await this.testChangeAnalyzer.analyze(initialContext);
-    const context = { ...initialContext, testChanges };
-    const [findings, symbolChanges, impact] = await Promise.all([
+    const [testChanges, symbolChanges] = await Promise.all([
+      this.testChangeAnalyzer.analyze(initialContext),
+      this.symbolChangeAnalyzer.analyze(initialContext),
+    ]);
+    const context = { ...initialContext, testChanges, symbolChanges };
+    const [findings, impact] = await Promise.all([
       this.ruleEngine.run(context),
-      this.symbolChangeAnalyzer.analyze(context),
       this.impactAnalyzer.analyze(context),
     ]);
 

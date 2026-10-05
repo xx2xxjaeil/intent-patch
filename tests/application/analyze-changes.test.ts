@@ -93,6 +93,7 @@ describe("AnalyzeChanges", () => {
     });
     let receivedContract: unknown;
     let receivedTestChanges: unknown;
+    let receivedSymbolChanges: unknown;
     const useCase = new AnalyzeChanges(
       { collect: async () => changes },
       new RuleEngine([
@@ -100,6 +101,7 @@ describe("AnalyzeChanges", () => {
           analyze: async (context) => {
             receivedContract = context.contract;
             receivedTestChanges = context.testChanges;
+            receivedSymbolChanges = context.symbolChanges;
             return [];
           },
         },
@@ -110,6 +112,7 @@ describe("AnalyzeChanges", () => {
 
     assert.equal(receivedContract, contract);
     assert.equal(receivedTestChanges, report.testChanges);
+    assert.equal(receivedSymbolChanges, report.symbolChanges);
     assert.equal(report.contract, contract);
   });
 

@@ -2,6 +2,7 @@ import type { ChangeSet } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { AnalysisTarget } from "../../domain/report.js";
+import type { SymbolChangeSet } from "../../domain/symbol-change.js";
 import type { TestChangeAnalysis } from "../../domain/test-change.js";
 
 export interface AnalysisContext {
@@ -9,6 +10,7 @@ export interface AnalysisContext {
   readonly changes: ChangeSet;
   readonly contract?: ChangeContract;
   readonly testChanges?: TestChangeAnalysis;
+  readonly symbolChanges?: SymbolChangeSet;
 }
 
 /**
