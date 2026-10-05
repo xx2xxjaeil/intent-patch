@@ -40,7 +40,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 ## 현재 구현된 기능
 
-현재 버전은 Git 변경사항 수집과 루트 `package.json`의 직접 dependency 분석을 제공합니다.
+현재 버전은 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
+최상위 심볼 변경 분석을 제공합니다.
 
 - `HEAD`와 현재 working tree 비교
 - 두 Git reference 또는 브랜치 비교
@@ -55,8 +56,12 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
 - finding 심각도(`high`, `medium`, `low`) 집계
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
+- `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
+- 심볼 추가·수정·삭제 탐지와 소스 위치 표시
+- rename 전후 파일 경로를 사용한 심볼 비교
+- 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
 
-아직 lockfile의 전이 dependency 분석, AST 분석, 영향 범위 그래프, AI 리뷰 기능은 구현되지
+아직 lockfile의 전이 dependency 분석, import 영향 범위 그래프, AI 리뷰 기능은 구현되지
 않았습니다.
 
 ## 실행 방법
@@ -110,8 +115,14 @@ dependency가 추가된 경우 다음과 같이 판단 근거를 함께 출력�
 IntentPatch Change Report
 
 Files changed        2
+Changed symbols      2
 New dependencies     1
 Findings             1
+
+Changed symbols
+
+M  Class         UserService                  src/user/service.ts:12
+A  Function      deleteUser                   src/user/service.ts:48
 
 Potential issues
 
@@ -139,9 +150,9 @@ presentation ───────▶ application ───────▶ domai
 
 | 계층 | 책임 |
 | --- | --- |
-| `domain` | 변경 파일, 라인 변화량, finding, 심각도 등 핵심 모델 |
-| `application` | 분석 유스케이스, 규칙 엔진, 분석 규칙과 외부 데이터 포트 |
-| `infrastructure` | Git 명령 실행, diff 파싱, 기준·현재 파일 스냅샷 읽기 |
+| `domain` | 변경 파일, finding, 심각도, 심볼 변경 등 핵심 모델 |
+| `application` | 분석 유스케이스, 규칙 엔진, 심볼 비교와 외부 데이터 포트 |
+| `infrastructure` | Git 명령·diff 파싱·파일 스냅샷·TypeScript AST 파싱 |
 | `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON 출력 |
 
 하위 계층이 외부 구현을 참조하지 않도록 아키텍처 테스트가 import 방향을 검사합니다.
@@ -178,8 +189,8 @@ npm run build
 ## 로드맵
 
 1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
-2. lockfile과 workspace를 고려한 package manager adapter
-3. TypeScript AST 기반 함수·클래스·인터페이스 변경 분석
+2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
+3. lockfile과 workspace를 고려한 package manager adapter
 4. import graph 기반 변경 영향 범위 계산
 5. 과잉 구현과 중복 가능성을 탐지하는 추가 규칙
 6. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
@@ -194,7 +205,11 @@ npm run build
 - dependency 분석은 저장소 루트의 npm `package.json`에 선언된 `dependencies`와
   `devDependencies`를 대상으로 합니다.
 - lockfile의 전이 dependency, workspace package, 코드에서의 실제 사용 여부는 아직 분석하지 않습니다.
-- 현재 버전은 코드의 의미나 dependency 영향 범위까지 분석하지 않습니다.
+- 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
+  별칭만 지원합니다.
+- 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
+- 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
+- 현재 버전은 import 관계나 dependency 영향 범위까지 분석하지 않습니다.
 
 ## 라이선스
 

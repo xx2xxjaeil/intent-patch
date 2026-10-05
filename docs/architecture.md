@@ -15,16 +15,21 @@ AnalyzeChanges 유스케이스
   │                           ├─ git diff --numstat -z
   │                           └─ git ls-files --others -z
   │
-  └─ RuleEngine
-      └─ PackageDependencyRule
-          └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
-                                        ├─ 기준 revision의 package.json
-                                        └─ working tree 또는 head의 package.json
+  ├─ RuleEngine
+  │   └─ PackageDependencyRule
+  │       └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
+  │                                     ├─ 기준 revision의 package.json
+  │                                     └─ working tree 또는 head의 package.json
+  │
+  └─ CompareSourceSymbols
+      ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
+      └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
   │
   ▼
 ChangeReport
   ├─ ChangeSet
   ├─ FindingSet
+  ├─ SymbolChangeSet
   ├─ 텍스트 보고서
   └─ JSON 보고서
 ```
@@ -39,21 +44,23 @@ presentation ───────▶ application ───────▶ domai
 
 ### Domain
 
-`FileChange`, `LineDelta`, `ChangeSet`, `Finding`, `Severity`처럼 분석 결과의 의미를
-표현합니다. Git, 파일 시스템, CLI를 알지 못합니다. `LineDelta`는 측정된 값, binary, 측정
-불가를 구별된 유니온으로 표현해 `0줄 변경`과 `알 수 없음`이 섞이지 않게 합니다.
+`FileChange`, `ChangeSet`, `Finding`, `Severity`, `SymbolChange`처럼 분석 결과의
+의미를 표현합니다. Git, TypeScript Compiler API, 파일 시스템, CLI를 알지 못합니다.
+`LineDelta`는 측정된 값, binary, 측정 불가를 구별된 유니온으로 표현해 `0줄 변경`과
+`알 수 없음`이 섞이지 않게 합니다.
 
 ### Application
 
 `AnalyzeChanges` 유스케이스, `RuleEngine`, 분석 규칙과 외부 데이터 포트를 포함합니다.
 `PackageDependencyRule`은 package manifest의 의미만 알고, Git이나 파일 시스템에서 내용을
-읽는 방법은 `FileSnapshotSource`에 위임합니다.
+읽는 방법은 `FileSnapshotSource`에 위임합니다. `CompareSourceSymbols`는 이전·현재 심볼
+목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
 
 ### Infrastructure
 
-Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기를
-담당합니다. 이 계층의 결과는 도메인 모델 또는 application 포트의 값으로 변환되어 바깥 기술의
-세부 형식이 내부로 전파되지 않습니다.
+Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기와
+TypeScript AST 파싱을 담당합니다. TypeScript 어댑터는 최상위 선언을 이름·종류·라인·fingerprint로
+변환하므로 Compiler API의 노드 타입이 application과 domain 계층으로 전파되지 않습니다.
 
 ### Presentation
 
@@ -105,10 +112,22 @@ binary, symbolic link, 크기 제한 파일을 임의로 0줄로 계산하지 �
 tree 분석은 지정한 base ref와 현재 디스크 파일을 비교합니다. 따라서 dependency 결과와 변경
 파일 목록이 서로 다른 기준점을 사용하는 오류를 방지합니다.
 
+### 9. 심볼 변경과 위험 finding을 분리
+
+함수 추가나 클래스 수정은 그 자체로 문제가 아니라 관찰된 사실입니다. 따라서 심볼 변경은
+`Finding`으로 만들지 않고 `SymbolChangeSet`에 별도로 보존합니다. 이후 테스트 누락이나 공개 API
+삭제 규칙이 이 사실을 근거로 위험 finding을 만들 수 있습니다.
+
+### 10. 원문 코드 대신 fingerprint 비교
+
+TypeScript 어댑터는 선언 원문을 SHA-256 fingerprint로 바꾸고 application 계층에는 원문 코드를
+전달하지 않습니다. 보고서 크기와 코드 노출을 줄이면서 동일 선언의 변경 여부를 결정적으로
+비교할 수 있습니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
-- 새로운 언어 분석기: application 포트와 infrastructure 어댑터 추가
+- 새로운 언어 분석기: `SourceSymbolExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 출력 형식: `ChangeReport`를 입력받는 formatter 추가
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
 - 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
