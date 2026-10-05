@@ -61,6 +61,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 - working tree 분석 시 untracked 파일 포함
 - 터미널용 텍스트 보고서
 - 후속 도구 연동을 위한 JSON 보고서
+- 요약 카드, finding, 테스트 신호와 영향 그래프를 담은 단일 HTML 보고서
+- 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
 - production·development dependency 추가 탐지
 - dependency 삭제, 버전 변경, 섹션 이동 탐지
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
@@ -120,6 +122,19 @@ JSON으로 출력합니다.
 ```bash
 node dist/presentation/cli/main.js analyze --json
 ```
+
+브라우저에서 볼 수 있는 HTML 보고서를 파일로 생성합니다.
+
+```bash
+node dist/presentation/cli/main.js analyze \
+  --format html \
+  --output intentpatch-report.html
+```
+
+HTML 파일에는 스타일과 dependency 영향 SVG 그래프가 모두 포함되므로 별도 서버나 API key 없이
+바로 열 수 있습니다. `--output`은 텍스트와 JSON 형식에도 사용할 수 있으며 상대 경로는
+IntentPatch를 실행한 현재 디렉터리를 기준으로 해석합니다. 기존 `--json`은
+`--format json`의 단축 옵션입니다.
 
 ### Change Contract로 요청 범위 검사
 
@@ -239,7 +254,7 @@ presentation ───────▶ application ───────▶ domai
 | `domain` | 변경 파일, Change Contract, finding, 심볼 변경, dependency 영향 등 핵심 모델 |
 | `application` | 분석 유스케이스, 규칙 엔진, 심볼·영향 계산과 외부 데이터 포트 |
 | `infrastructure` | Git 명령·diff 파싱·프로젝트 파일 공급·TypeScript AST 파싱 |
-| `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON 출력 |
+| `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON·HTML 출력 |
 
 하위 계층이 외부 구현을 참조하지 않도록 아키텍처 테스트가 import 방향을 검사합니다.
 구현상의 주요 판단과 확장 지점은 [상세 아키텍처 문서](./docs/architecture.md)에서 설명합니다.
@@ -281,7 +296,7 @@ npm run build
 5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
 6. lockfile과 workspace를 고려한 package manager adapter
 7. 공개 API 위험 변경과 중복 가능성을 탐지하는 추가 규칙
-8. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
+8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
 9. GitHub Action 및 Codex·Claude Code·Cursor adapter
 10. 근거 기반 결과에 대한 선택적 LLM 설명
 
@@ -314,6 +329,8 @@ npm run build
   비교합니다.
 - 관련 테스트는 현재 소스와 테스트의 파일명이 같은지로 판단하므로 이름이 다른 통합 테스트나
   하나의 테스트가 여러 소스를 검증하는 관계는 자동으로 연결하지 못합니다.
+- HTML 영향 그래프는 변경 모듈과 영향 파일을 결정적인 두 열 레이아웃으로 표시합니다. 노드 이동,
+  확대·축소와 필터링을 제공하는 대화형 웹 UI는 아직 구현하지 않았습니다.
 
 ## 라이선스
 

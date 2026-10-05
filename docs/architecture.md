@@ -48,7 +48,8 @@ ChangeReport
   ├─ ImpactAnalysis
   ├─ TestChangeAnalysis
   ├─ 텍스트 보고서
-  └─ JSON 보고서
+  ├─ JSON 보고서
+  └─ 단일 HTML 보고서 + SVG 영향 그래프
 ```
 
 ## 계층과 의존 방향
@@ -90,7 +91,8 @@ Compiler API의 노드 타입은 application과 domain 계층으로 전파되지
 ### Presentation
 
 CLI 인자와 출력 형식을 담당합니다. `main.ts`는 유스케이스와 Git 어댑터를 연결하는 composition
-root 역할도 수행합니다.
+root 역할도 수행합니다. 텍스트, JSON, HTML formatter는 모두 동일한 `ChangeReport`를 입력으로
+받으며 HTML renderer는 분석 로직을 다시 수행하지 않습니다.
 
 ## 주요 설계 판단
 
@@ -180,12 +182,20 @@ LLM은 Contract 초안을 제안할 수 있지만, 실제 규칙 입력은 항�
 언어별 호출 관계를 추측하지 않고 정규화된 파일명이 같은 경우만 연결해 결과를 재현 가능하게
 유지합니다. 수정·추가된 소스에 대해 삭제된 테스트는 동반 변경으로 인정하지 않습니다.
 
+### 16. HTML 보고서는 하나의 이식 가능한 파일로 생성
+
+보고서를 공유하거나 CI artifact로 보존할 때 별도 웹 서버와 asset 배포가 필요하지 않도록 CSS와
+SVG를 HTML 안에 포함합니다. 외부 CDN과 클라이언트 dependency를 사용하지 않아 오프라인에서도
+동일하게 열리고, 분석 대상 저장소에서 온 문자열은 HTML entity로 변환해 코드나 intent가 markup으로
+실행되지 않게 합니다. 영향 그래프는 `ImpactAnalysis`의 변경 모듈과 직접·간접 영향 관계만
+시각화하므로 텍스트 보고서와 판단 근거가 달라지지 않습니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
 - 새로운 언어 분석기: `SourceSymbolExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 import 문법 분석기: `ModuleReferenceExtractor` 포트의 infrastructure 어댑터 추가
-- 새로운 출력 형식: `ChangeReport`를 입력받는 formatter 추가
+- 새로운 출력 형식: `ChangeReport`를 입력받는 formatter를 만들고 `report-formatter.ts`에 등록
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
 - 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
 - 새로운 프로젝트 tree 공급자: `ProjectFileSource` 구현 추가
