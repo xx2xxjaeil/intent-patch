@@ -44,7 +44,7 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderSeverityBar(report)}
     ${renderContract(report.contract)}
     ${renderFindings(report.findings.items)}
-    ${renderImpact(report.impact.impactedFiles)}
+    ${renderImpact(report.impact.changedModules, report.impact.impactedFiles)}
     ${renderTestCoverage(report.testChanges.sourceCoverage)}
     ${renderFiles(report.changes.files)}
     ${renderSymbols(report.symbolChanges.changes)}
@@ -167,21 +167,81 @@ function renderFindings(findings: readonly Finding[]): string {
   return renderSection("Potential issues", `${findings.length} findings`, body);
 }
 
-function renderImpact(files: readonly ImpactedFile[]): string {
+function renderImpact(changedModules: readonly string[], files: readonly ImpactedFile[]): string {
   const body =
     files.length === 0
       ? renderEmpty("No dependent files were reached from changed modules.")
-      : `<div class="impact-list">${files
-          .map(
-            (file) => `<article>
+      : `${renderImpactGraph(changedModules, files)}
+      <div class="impact-list">${files
+        .map(
+          (file) => `<article>
           <span class="distance">${file.distance === 1 ? "DIRECT" : `${file.distance} HOPS`}</span>
           <code>${escapeHtml(file.path)}</code>
           <small>from ${escapeHtml(file.changedModules.join(", "))}</small>
         </article>`,
-          )
-          .join("")}</div>`;
+        )
+        .join("")}</div>`;
 
   return renderSection("Impact reach", `${files.length} affected files`, body);
+}
+
+function renderImpactGraph(
+  changedModules: readonly string[],
+  impactedFiles: readonly ImpactedFile[],
+): string {
+  const rowHeight = 64;
+  const top = 54;
+  const nodeHeight = 42;
+  const height = Math.max(changedModules.length, impactedFiles.length) * rowHeight + 76;
+  const moduleIndexes = new Map(changedModules.map((path, index) => [path, index]));
+  const edges = impactedFiles.flatMap((file, fileIndex) =>
+    file.changedModules.flatMap((module) => {
+      const moduleIndex = moduleIndexes.get(module);
+      if (moduleIndex === undefined) {
+        return [];
+      }
+      const startY = top + moduleIndex * rowHeight + nodeHeight / 2;
+      const endY = top + fileIndex * rowHeight + nodeHeight / 2;
+      return [
+        `<path class="graph-edge ${file.distance === 1 ? "direct" : "transitive"}" d="M 390 ${startY} C 480 ${startY}, 520 ${endY}, 610 ${endY}" />`,
+      ];
+    }),
+  );
+
+  return `<div class="impact-graph-wrap">
+      <svg class="impact-graph" viewBox="0 0 1000 ${height}" role="img" aria-label="Dependency impact graph">
+        <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker></defs>
+        <text class="graph-column-label" x="40" y="24">CHANGED MODULES</text>
+        <text class="graph-column-label" x="610" y="24">AFFECTED FILES</text>
+        ${edges.join("\n        ")}
+        ${changedModules
+          .map((path, index) => renderGraphNode(path, 40, top + index * rowHeight, "changed"))
+          .join("\n        ")}
+        ${impactedFiles
+          .map((file, index) =>
+            renderGraphNode(
+              file.path,
+              610,
+              top + index * rowHeight,
+              file.distance === 1 ? "direct" : "transitive",
+            ),
+          )
+          .join("\n        ")}
+      </svg>
+    </div>`;
+}
+
+function renderGraphNode(path: string, x: number, y: number, kind: string): string {
+  return `<g class="graph-node ${kind}"><title>${escapeHtml(path)}</title><rect x="${x}" y="${y}" width="350" height="42" rx="9"></rect><text x="${x + 16}" y="${y + 26}">${escapeHtml(shortenPath(path))}</text></g>`;
+}
+
+function shortenPath(path: string): string {
+  const maximumLength = 46;
+  if (path.length <= maximumLength) {
+    return path;
+  }
+  const retainedLength = Math.floor((maximumLength - 1) / 2);
+  return `${path.slice(0, retainedLength)}…${path.slice(-retainedLength)}`;
 }
 
 function renderTestCoverage(coverage: readonly SourceTestCoverage[]): string {
@@ -360,6 +420,13 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .impact-list article { display:grid; grid-template-columns:70px 1fr; gap:5px 12px; padding:15px; border:1px solid var(--line); border-radius:11px; background:var(--panel-2); }
 .impact-list .distance { grid-row:1/3; color:var(--violet); font-size:10px; font-weight:800; letter-spacing:.08em; }
 .impact-list small { color:var(--muted); overflow-wrap:anywhere; }
+.impact-graph-wrap { overflow-x:auto; margin-bottom:14px; border:1px solid var(--line); border-radius:12px; background:#0c1017; }
+.impact-graph { display:block; width:100%; min-width:820px; height:auto; }
+.graph-column-label { fill:#68758a; font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
+.graph-edge { fill:none; stroke:#56627a; stroke-width:1.5; marker-end:url(#arrow); }
+.graph-edge.direct { stroke:var(--cyan); }.graph-edge.transitive { stroke:var(--violet); stroke-dasharray:5 5; }
+.graph-node rect { fill:#151b26; stroke:#303a4b; }.graph-node.changed rect { stroke:#537b7b; }.graph-node.direct rect { stroke:#3d716f; }.graph-node.transitive rect { stroke:#615787; }
+.graph-node text { fill:#cbd5e5; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 th { padding:10px 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:10px; letter-spacing:.1em; text-align:left; text-transform:uppercase; }

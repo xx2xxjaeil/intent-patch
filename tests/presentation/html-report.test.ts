@@ -23,6 +23,9 @@ describe("formatHtmlReport", () => {
     assert.match(output, /tests\/user\.test\.ts/);
     assert.match(output, /Changed symbols/);
     assert.match(output, /deleteUser/);
+    assert.match(output, /<svg[^>]+aria-label="Dependency impact graph"/);
+    assert.match(output, /graph-edge direct/);
+    assert.match(output, /graph-edge transitive/);
     assert.doesNotMatch(output, /https?:\/\//);
   });
 
@@ -78,7 +81,10 @@ function createReport(): ChangeReport {
       sourceFiles: 2,
       changedModules: ["src/user.ts"],
       dependencies: [{ importer: "src/api.ts", imported: "src/user.ts" }],
-      impactedFiles: [{ path: "src/api.ts", distance: 1, changedModules: ["src/user.ts"] }],
+      impactedFiles: [
+        { path: "src/api.ts", distance: 1, changedModules: ["src/user.ts"] },
+        { path: "src/app.ts", distance: 2, changedModules: ["src/user.ts"] },
+      ],
     }),
     testChanges: createTestChangeAnalysis({
       testFiles: [{ path: "tests/user.test.ts", changeKind: "added" }],
