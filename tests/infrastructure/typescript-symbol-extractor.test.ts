@@ -22,6 +22,7 @@ describe("TypeScriptSymbolExtractor", () => {
         "export interface User { id: string }",
         "export type UserId = string;",
         "export const ignored = true;",
+        "function internalOnly() {}",
       ].join("\n"),
     );
 
@@ -30,12 +31,13 @@ describe("TypeScriptSymbolExtractor", () => {
       return;
     }
     assert.deepEqual(
-      result.symbols.map(({ name, kind, line }) => ({ name, kind, line })),
+      result.symbols.map(({ name, kind, line, exported }) => ({ name, kind, line, exported })),
       [
-        { name: "createUser", kind: "function", line: 1 },
-        { name: "UserService", kind: "class", line: 4 },
-        { name: "User", kind: "interface", line: 5 },
-        { name: "UserId", kind: "type-alias", line: 6 },
+        { name: "createUser", kind: "function", line: 1, exported: true },
+        { name: "UserService", kind: "class", line: 4, exported: true },
+        { name: "User", kind: "interface", line: 5, exported: true },
+        { name: "UserId", kind: "type-alias", line: 6, exported: true },
+        { name: "internalOnly", kind: "function", line: 8, exported: false },
       ],
     );
     assert.equal(

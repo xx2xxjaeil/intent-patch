@@ -12,6 +12,7 @@ interface SymbolGroup {
   readonly kind: SourceSymbolKind;
   readonly line: number;
   readonly declarations: string[];
+  exported: boolean;
 }
 
 /** TypeScript Compiler API로 이름이 있는 최상위 선언만 추출한다. */
@@ -37,15 +38,18 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
       const key = `${identity.kind}\0${identity.name}`;
       const existing = groups.get(key);
       const text = statement.getText(sourceFile);
+      const exported = hasExportModifier(statement);
       if (existing === undefined) {
         const position = sourceFile.getLineAndCharacterOfPosition(statement.getStart(sourceFile));
         groups.set(key, {
           ...identity,
           line: position.line + 1,
           declarations: [text],
+          exported,
         });
       } else {
         existing.declarations.push(text);
+        existing.exported ||= exported;
       }
     }
 
@@ -59,6 +63,16 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
       );
     return { kind: "success", symbols };
   }
+}
+
+function hasExportModifier(statement: ts.Statement): boolean {
+  return (
+    ts.canHaveModifiers(statement) &&
+    (ts
+      .getModifiers(statement)
+      ?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ??
+      false)
+  );
 }
 
 function declarationIdentity(
@@ -84,6 +98,7 @@ function toSourceSymbol(group: SymbolGroup): SourceSymbol {
     name: group.name,
     kind: group.kind,
     line: group.line,
+    exported: group.exported,
     fingerprint: createHash("sha256").update(group.declarations.join("\0")).digest("hex"),
   };
 }
