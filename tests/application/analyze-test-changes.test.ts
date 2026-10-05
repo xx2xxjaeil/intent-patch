@@ -78,12 +78,42 @@ describe("AnalyzeTestChanges", () => {
       },
     ]);
   });
+
+  it("does not count a deleted test as coverage for an active source file", async () => {
+    const analyzer = new AnalyzeTestChanges();
+    const contract = createChangeContract({
+      tests: {
+        requireFor: ["src/**"],
+        include: ["tests/**"],
+      },
+    });
+
+    const modifiedSource = await analyzer.analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([
+        changedFile("src/user.ts"),
+        changedFile("tests/user.test.ts", "deleted"),
+      ]),
+      contract,
+    });
+    const deletedSource = await analyzer.analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([
+        changedFile("src/user.ts", "deleted"),
+        changedFile("tests/user.test.ts", "deleted"),
+      ]),
+      contract,
+    });
+
+    assert.deepEqual(modifiedSource.sourceCoverage[0]?.matchingTests, []);
+    assert.deepEqual(deletedSource.sourceCoverage[0]?.matchingTests, ["tests/user.test.ts"]);
+  });
 });
 
-function changedFile(path: string): FileChange {
+function changedFile(path: string, kind: FileChange["kind"] = "modified"): FileChange {
   return {
     path,
-    kind: "modified",
+    kind,
     lines: { kind: "measured", additions: 1, deletions: 1 },
   };
 }

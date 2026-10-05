@@ -31,7 +31,11 @@ export class AnalyzeTestChanges implements TestChangeAnalyzer {
         sourcePath: source.path,
         sourceChangeKind: source.kind,
         matchingTests: testFiles
-          .filter((test) => testIdentity(test.path) === sourceIdentity(source.path))
+          .filter(
+            (test) =>
+              testIdentity(test.path) === sourceIdentity(source.path) &&
+              (source.kind === "deleted" || test.changeKind !== "deleted"),
+          )
           .map((test) => test.path),
       })),
     });
