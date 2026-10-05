@@ -5,6 +5,7 @@ import { ChangeBudgetRule } from "../../application/rules/change-budget-rule.js"
 import { ExpectedScopeRule } from "../../application/rules/expected-scope-rule.js";
 import { MissingTestChangeRule } from "../../application/rules/missing-test-change-rule.js";
 import { PackageDependencyRule } from "../../application/rules/package-dependency-rule.js";
+import { PublicApiRemovalRule } from "../../application/rules/public-api-removal-rule.js";
 import { AnalyzeImportImpact } from "../../application/services/analyze-import-impact.js";
 import { AnalyzeTestChanges } from "../../application/services/analyze-test-changes.js";
 import { CompareSourceSymbols } from "../../application/services/compare-source-symbols.js";
@@ -46,6 +47,7 @@ async function main(): Promise<void> {
       new ExpectedScopeRule(),
       new ChangeBudgetRule(),
       new MissingTestChangeRule(),
+      new PublicApiRemovalRule(),
     ]);
     const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
       new TypeScriptSymbolExtractor(),
