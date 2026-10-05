@@ -47,6 +47,7 @@ export function formatTextReport(report: ChangeReport): string {
     issues: impactIssues,
     summary: impactSummary,
   } = report.impact;
+  const { summary: testSummary } = report.testChanges;
   const newDependencies = findings.filter((finding) =>
     finding.ruleId.startsWith("dependency/new-"),
   ).length;
@@ -69,6 +70,9 @@ export function formatTextReport(report: ChangeReport): string {
     `Direct dependents    ${impactSummary.directDependents}`,
     `Transitive impact    ${impactSummary.transitiveDependents}`,
     `Unresolved imports   ${impactSummary.unresolvedReferences}`,
+    `Tests changed        ${testSummary.testsChanged}`,
+    `Tests added          ${testSummary.testsAdded}`,
+    `Missing test changes ${testSummary.sourceFilesWithoutTestChanges}`,
     `New dependencies     ${newDependencies}`,
     `Findings             ${findingSummary.total}`,
   ];
@@ -126,12 +130,22 @@ function formatChangeContract(contract: ChangeContract): string[] {
     contract.scope.maxLines === undefined ? undefined : `${contract.scope.maxLines} measured lines`,
   ].filter((value): value is string => value !== undefined);
 
-  return [
+  const lines = [
     `Intent          ${contract.intent ?? "(not specified)"}`,
     `Expected paths  ${contract.scope.include.join(", ") || "(not configured)"}`,
     `Allowed paths   ${contract.scope.allow.join(", ") || "(none)"}`,
     `Budget          ${budgets.join(", ") || "(not configured)"}`,
   ];
+
+  if (contract.tests !== undefined) {
+    lines.push(
+      `Test sources    ${contract.tests.requireFor.join(", ")}`,
+      `Test files      ${contract.tests.include.join(", ")}`,
+      `Test excludes   ${contract.tests.exclude.join(", ") || "(none)"}`,
+    );
+  }
+
+  return lines;
 }
 
 function formatImpactedFile(file: ImpactedFile): string[] {

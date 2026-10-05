@@ -3,8 +3,10 @@
 import process from "node:process";
 import { ChangeBudgetRule } from "../../application/rules/change-budget-rule.js";
 import { ExpectedScopeRule } from "../../application/rules/expected-scope-rule.js";
+import { MissingTestChangeRule } from "../../application/rules/missing-test-change-rule.js";
 import { PackageDependencyRule } from "../../application/rules/package-dependency-rule.js";
 import { AnalyzeImportImpact } from "../../application/services/analyze-import-impact.js";
+import { AnalyzeTestChanges } from "../../application/services/analyze-test-changes.js";
 import { CompareSourceSymbols } from "../../application/services/compare-source-symbols.js";
 import { RuleEngine } from "../../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../application/use-cases/analyze-changes.js";
@@ -41,6 +43,7 @@ async function main(): Promise<void> {
       new PackageDependencyRule(snapshotSource),
       new ExpectedScopeRule(),
       new ChangeBudgetRule(),
+      new MissingTestChangeRule(),
     ]);
     const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
       new TypeScriptSymbolExtractor(),
@@ -54,6 +57,7 @@ async function main(): Promise<void> {
       ruleEngine,
       symbolChangeAnalyzer,
       impactAnalyzer,
+      new AnalyzeTestChanges(),
     );
     const report = await useCase.execute({
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),

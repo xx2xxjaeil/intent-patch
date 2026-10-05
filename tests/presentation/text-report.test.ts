@@ -20,6 +20,11 @@ describe("formatTextReport", () => {
           maxFiles: 8,
           maxLines: 300,
         },
+        tests: {
+          requireFor: ["src/**/*.ts"],
+          include: ["tests/**/*.test.ts"],
+          exclude: ["src/**/*.d.ts"],
+        },
       }),
       changes: createChangeSet([
         {
@@ -75,9 +80,15 @@ describe("formatTextReport", () => {
     assert.match(output, /New dependencies {5}1/);
     assert.match(output, /Findings {13}1/);
     assert.match(output, /Changed symbols {6}1/);
+    assert.match(output, /Tests changed {8}1/);
+    assert.match(output, /Tests added {10}0/);
+    assert.match(output, /Missing test changes 0/);
     assert.match(output, /Intent {10}회원 탈퇴 구현/);
     assert.match(output, /Expected paths {2}src\/user\/\*\*, tests\/user\/\*\*/);
     assert.match(output, /Budget {10}8 files, 300 measured lines/);
+    assert.match(output, /Test sources {4}src\/\*\*\/\*\.ts/);
+    assert.match(output, /Test files {6}tests\/\*\*\/\*\.test\.ts/);
+    assert.match(output, /Test excludes {3}src\/\*\*\/\*\.d\.ts/);
     assert.match(output, /Direct dependents {4}1/);
     assert.match(output, /Transitive impact {4}1/);
     assert.match(output, /A {2}Function {6}deleteUser/);
