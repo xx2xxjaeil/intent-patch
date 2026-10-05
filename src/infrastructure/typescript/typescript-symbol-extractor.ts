@@ -5,6 +5,7 @@ import type {
   SymbolExtractionResult,
 } from "../../application/ports/source-symbol-extractor.js";
 import type { SourceSymbol, SourceSymbolKind } from "../../domain/symbol-change.js";
+import { parseTypeScriptSource } from "./parse-typescript-source.js";
 
 interface SymbolGroup {
   readonly name: string;
@@ -20,18 +21,11 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
   }
 
   public extract(path: string, source: string): SymbolExtractionResult {
-    const sourceFile = ts.createSourceFile(
-      path,
-      source,
-      ts.ScriptTarget.Latest,
-      true,
-      path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
-    );
-    const parseError = firstParseError(path, source);
-
-    if (parseError !== undefined) {
-      return { kind: "unavailable", reason: parseError };
+    const parseResult = parseTypeScriptSource(path, source);
+    if (parseResult.kind === "unavailable") {
+      return parseResult;
     }
+    const { sourceFile } = parseResult;
 
     const groups = new Map<string, SymbolGroup>();
     for (const statement of sourceFile.statements) {
@@ -92,27 +86,4 @@ function toSourceSymbol(group: SymbolGroup): SourceSymbol {
     line: group.line,
     fingerprint: createHash("sha256").update(group.declarations.join("\0")).digest("hex"),
   };
-}
-
-function firstParseError(path: string, source: string): string | undefined {
-  const diagnostic = ts
-    .transpileModule(source, {
-      fileName: path,
-      reportDiagnostics: true,
-      compilerOptions: {
-        jsx: ts.JsxEmit.ReactJSX,
-        target: ts.ScriptTarget.Latest,
-      },
-    })
-    .diagnostics?.find((candidate) => candidate.category === ts.DiagnosticCategory.Error);
-  if (diagnostic === undefined) {
-    return undefined;
-  }
-
-  const message = ts.flattenDiagnosticMessageText(diagnostic.messageText, " ");
-  if (diagnostic.file === undefined || diagnostic.start === undefined) {
-    return message;
-  }
-  const position = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
-  return `line ${position.line + 1}, column ${position.character + 1}: ${message}`;
 }
