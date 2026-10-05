@@ -42,6 +42,14 @@ describe("formatTextReport", () => {
           file: "package.json",
           evidence: { package: "dayjs", version: "1.0.0" },
         },
+        {
+          ruleId: "api/exported-symbol-removed",
+          severity: "high",
+          title: "Exported symbol removed",
+          description: "The exported function deleteUser was removed.",
+          file: "src/user.ts",
+          evidence: { symbolName: "deleteUser", symbolKind: "function" },
+        },
       ]),
       symbolChanges: createSymbolChangeSet([
         {
@@ -78,7 +86,8 @@ describe("formatTextReport", () => {
     });
 
     assert.match(output, /New dependencies {5}1/);
-    assert.match(output, /Findings {13}1/);
+    assert.match(output, /Risky API changes {4}1/);
+    assert.match(output, /Findings {13}2/);
     assert.match(output, /Changed symbols {6}1/);
     assert.match(output, /Tests changed {8}1/);
     assert.match(output, /Tests added {10}0/);
@@ -98,5 +107,7 @@ describe("formatTextReport", () => {
     assert.match(output, /src\/app\.ts → \.\/missing\.js/);
     assert.match(output, /MEDIUM {2}New production dependency/);
     assert.match(output, /package\.json · dependency\/new-production/);
+    assert.match(output, /HIGH {4}Exported symbol removed/);
+    assert.match(output, /src\/user\.ts · api\/exported-symbol-removed/);
   });
 });

@@ -15,6 +15,9 @@ export function formatHtmlReport(report: ChangeReport): string {
   const newDependencies = report.findings.items.filter((finding) =>
     finding.ruleId.startsWith("dependency/new-"),
   ).length;
+  const riskyApiChanges = report.findings.items.filter((finding) =>
+    finding.ruleId.startsWith("api/"),
+  ).length;
 
   return `<!doctype html>
 <html lang="en">
@@ -40,7 +43,7 @@ export function formatHtmlReport(report: ChangeReport): string {
     </header>
 
     ${renderIntent(report.contract)}
-    ${renderSummary(report, newDependencies)}
+    ${renderSummary(report, newDependencies, riskyApiChanges)}
     ${renderSeverityBar(report)}
     ${renderContract(report.contract)}
     ${renderImpact(report.impact.changedModules, report.impact.impactedFiles)}
@@ -70,7 +73,11 @@ function renderIntent(contract: ChangeContract | undefined): string {
     </section>`;
 }
 
-function renderSummary(report: ChangeReport, newDependencies: number): string {
+function renderSummary(
+  report: ChangeReport,
+  newDependencies: number,
+  riskyApiChanges: number,
+): string {
   const { summary } = report.changes;
   const metrics = [
     ["Files changed", summary.filesChanged, "files"],
@@ -81,6 +88,7 @@ function renderSummary(report: ChangeReport, newDependencies: number): string {
     ["Tests changed", report.testChanges.summary.testsChanged, "tests"],
     ["Missing tests", report.testChanges.summary.sourceFilesWithoutTestChanges, "signals"],
     ["New dependencies", newDependencies, "packages"],
+    ["Risky API changes", riskyApiChanges, "public APIs"],
   ] as const;
 
   return `<section class="metrics" aria-label="Change summary">
@@ -388,7 +396,7 @@ h1 { margin:8px 0 10px; font-size:clamp(36px,7vw,72px); line-height:.98; letter-
 .intent { display:grid; grid-template-columns:90px 1fr; gap:18px; align-items:start; padding:20px 22px; border:1px solid #29404b; border-radius:16px; background:linear-gradient(105deg,rgba(88,230,217,.1),rgba(168,144,255,.06)); }
 .intent span { color:var(--cyan); font-size:11px; font-weight:800; letter-spacing:.14em; }
 .intent p { margin:0; font-size:18px; font-weight:650; }
-.metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:18px 0 12px; }
+.metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0 12px; }
 .metric { min-height:124px; padding:18px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,var(--panel-2),var(--panel)); }
 .metric span { display:block; color:var(--muted); font-size:12px; }
 .metric strong { display:block; margin-top:14px; font-size:27px; letter-spacing:-.035em; }

@@ -17,7 +17,9 @@ describe("formatHtmlReport", () => {
     assert.match(output, /Agent Change Report/);
     assert.match(output, /HEAD → working tree/);
     assert.match(output, /Files changed/);
+    assert.match(output, /Risky API changes/);
     assert.match(output, /Potential issues/);
+    assert.match(output, /Exported symbol removed/);
     assert.match(output, /Source change without matching test change/);
     assert.match(output, /src\/user\.ts/);
     assert.match(output, /tests\/user\.test\.ts/);
@@ -66,6 +68,14 @@ function createReport(): ChangeReport {
         description: "Review <unsafe>",
         file: "src/user.ts",
         evidence: { matchingStrategy: "basename" },
+      },
+      {
+        ruleId: "api/exported-symbol-removed",
+        severity: "high",
+        title: "Exported symbol removed",
+        description: "The exported function deleteUser was removed.",
+        file: "src/user.ts",
+        evidence: { symbolName: "deleteUser", symbolKind: "function" },
       },
     ]),
     symbolChanges: createSymbolChangeSet([

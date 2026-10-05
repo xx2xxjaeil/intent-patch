@@ -51,6 +51,7 @@ export function formatTextReport(report: ChangeReport): string {
   const newDependencies = findings.filter((finding) =>
     finding.ruleId.startsWith("dependency/new-"),
   ).length;
+  const riskyApiChanges = findings.filter((finding) => finding.ruleId.startsWith("api/")).length;
   const target =
     report.target.headRef === undefined
       ? `${report.target.baseRef} → working tree`
@@ -74,6 +75,7 @@ export function formatTextReport(report: ChangeReport): string {
     `Tests added          ${testSummary.testsAdded}`,
     `Missing test changes ${testSummary.sourceFilesWithoutTestChanges}`,
     `New dependencies     ${newDependencies}`,
+    `Risky API changes    ${riskyApiChanges}`,
     `Findings             ${findingSummary.total}`,
   ];
 
