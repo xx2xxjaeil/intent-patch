@@ -10,6 +10,8 @@ export interface SourceSymbol {
   readonly kind: SourceSymbolKind;
   readonly fingerprint: string;
   readonly line: number;
+  /** 언어 어댑터가 공개 여부를 판단할 수 없으면 undefined로 남긴다. */
+  readonly exported?: boolean;
 }
 
 export interface SymbolChange {
@@ -19,6 +21,8 @@ export interface SymbolChange {
   readonly changeKind: SymbolChangeKind;
   readonly beforeLine?: number;
   readonly afterLine?: number;
+  readonly beforeExported?: boolean;
+  readonly afterExported?: boolean;
 }
 
 export interface SymbolAnalysisIssue {

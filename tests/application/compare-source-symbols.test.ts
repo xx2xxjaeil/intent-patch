@@ -17,14 +17,34 @@ describe("CompareSourceSymbols", () => {
       changes: createChangeSet([changedFile("README.md"), changedFile("src/user.ts")]),
     });
 
-    assert.deepEqual(
-      result.changes.map(({ name, changeKind }) => ({ name, changeKind })),
-      [
-        { name: "created", changeKind: "added" },
-        { name: "changed", changeKind: "modified" },
-        { name: "removed", changeKind: "deleted" },
-      ],
-    );
+    assert.deepEqual(result.changes, [
+      {
+        path: "src/user.ts",
+        name: "created",
+        symbolKind: "function",
+        changeKind: "added",
+        afterLine: 8,
+        afterExported: true,
+      },
+      {
+        path: "src/user.ts",
+        name: "changed",
+        symbolKind: "class",
+        changeKind: "modified",
+        beforeLine: 1,
+        afterLine: 2,
+        beforeExported: true,
+        afterExported: false,
+      },
+      {
+        path: "src/user.ts",
+        name: "removed",
+        symbolKind: "interface",
+        changeKind: "deleted",
+        beforeLine: 5,
+        beforeExported: true,
+      },
+    ]);
     assert.equal(result.summary.filesAnalyzed, 1);
   });
 
@@ -94,12 +114,12 @@ function snapshotSource(
 
 function fixtureExtractor(): SourceSymbolExtractor {
   const before: SourceSymbol[] = [
-    { name: "changed", kind: "class", fingerprint: "old", line: 1 },
-    { name: "removed", kind: "interface", fingerprint: "same", line: 5 },
+    { name: "changed", kind: "class", fingerprint: "old", line: 1, exported: true },
+    { name: "removed", kind: "interface", fingerprint: "same", line: 5, exported: true },
   ];
   const after: SourceSymbol[] = [
-    { name: "changed", kind: "class", fingerprint: "new", line: 2 },
-    { name: "created", kind: "function", fingerprint: "new", line: 8 },
+    { name: "changed", kind: "class", fingerprint: "new", line: 2, exported: false },
+    { name: "created", kind: "function", fingerprint: "new", line: 8, exported: true },
   ];
 
   return {

@@ -84,6 +84,7 @@ function compareFileSymbols(
         symbolKind: current.kind,
         changeKind: "added",
         afterLine: current.line,
+        ...(current.exported === undefined ? {} : { afterExported: current.exported }),
       });
       continue;
     }
@@ -94,13 +95,14 @@ function compareFileSymbols(
         symbolKind: previous.kind,
         changeKind: "deleted",
         beforeLine: previous.line,
+        ...(previous.exported === undefined ? {} : { beforeExported: previous.exported }),
       });
       continue;
     }
     if (
       previous !== undefined &&
       current !== undefined &&
-      previous.fingerprint !== current.fingerprint
+      (previous.fingerprint !== current.fingerprint || previous.exported !== current.exported)
     ) {
       changes.push({
         path,
@@ -109,6 +111,8 @@ function compareFileSymbols(
         changeKind: "modified",
         beforeLine: previous.line,
         afterLine: current.line,
+        ...(previous.exported === undefined ? {} : { beforeExported: previous.exported }),
+        ...(current.exported === undefined ? {} : { afterExported: current.exported }),
       });
     }
   }
