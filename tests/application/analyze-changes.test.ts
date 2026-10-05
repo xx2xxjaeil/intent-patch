@@ -35,6 +35,22 @@ describe("AnalyzeChanges", () => {
           byChangeKind: { added: 0, modified: 0, deleted: 0 },
         },
       },
+      impact: {
+        changedModules: [],
+        dependencies: [],
+        impactedFiles: [],
+        unresolvedReferences: [],
+        issues: [],
+        summary: {
+          sourceFiles: 0,
+          changedModules: 0,
+          dependencies: 0,
+          directDependents: 0,
+          transitiveDependents: 0,
+          unresolvedReferences: 0,
+          filesUnavailable: 0,
+        },
+      },
     });
   });
 

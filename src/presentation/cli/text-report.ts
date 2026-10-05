@@ -1,5 +1,6 @@
 import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.js";
 import type { Finding } from "../../domain/finding.js";
+import type { ImpactedFile } from "../../domain/impact.js";
 import type { ChangeReport } from "../../domain/report.js";
 import type {
   SourceSymbolKind,
@@ -39,6 +40,12 @@ export function formatTextReport(report: ChangeReport): string {
     issues: symbolIssues,
     summary: symbolSummary,
   } = report.symbolChanges;
+  const {
+    impactedFiles,
+    unresolvedReferences,
+    issues: impactIssues,
+    summary: impactSummary,
+  } = report.impact;
   const newDependencies = findings.filter((finding) =>
     finding.ruleId.startsWith("dependency/new-"),
   ).length;
@@ -57,6 +64,10 @@ export function formatTextReport(report: ChangeReport): string {
     `Unmeasured files     ${summary.unmeasuredFiles}`,
     `Changed symbols      ${symbolSummary.total}`,
     `Unparsed source      ${symbolSummary.filesUnavailable}`,
+    `Import edges         ${impactSummary.dependencies}`,
+    `Direct dependents    ${impactSummary.directDependents}`,
+    `Transitive impact    ${impactSummary.transitiveDependents}`,
+    `Unresolved imports   ${impactSummary.unresolvedReferences}`,
     `New dependencies     ${newDependencies}`,
     `Findings             ${findingSummary.total}`,
   ];
@@ -76,12 +87,39 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push(...symbolIssues.flatMap((issue) => [`!  ${issue.path}`, `   ${issue.reason}`]));
   }
 
+  if (impactedFiles.length > 0) {
+    lines.push("", "Impacted files", "");
+    lines.push(...impactedFiles.flatMap(formatImpactedFile));
+  }
+
+  if (unresolvedReferences.length > 0) {
+    lines.push("", "Unresolved relative imports", "");
+    lines.push(
+      ...unresolvedReferences.map(
+        (reference) => `?  ${reference.importer} → ${reference.specifier}`,
+      ),
+    );
+  }
+
+  if (impactIssues.length > 0) {
+    lines.push("", "Unavailable impact analysis", "");
+    lines.push(...impactIssues.flatMap((issue) => [`!  ${issue.path}`, `   ${issue.reason}`]));
+  }
+
   if (findings.length > 0) {
     lines.push("", "Potential issues", "");
     lines.push(...findings.flatMap((finding, index) => formatFinding(finding, index > 0)));
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function formatImpactedFile(file: ImpactedFile): string[] {
+  const relationship = file.distance === 1 ? "direct" : `transitive · ${file.distance} hops`;
+  return [
+    `→  ${relationship.padEnd(20)}${file.path}`,
+    `   changed: ${file.changedModules.join(", ")}`,
+  ];
 }
 
 function formatSymbolChange(change: SymbolChange): string {

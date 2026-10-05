@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createChangeSet } from "../../src/domain/change.js";
 import { createFindingSet } from "../../src/domain/finding.js";
+import { createImpactAnalysis } from "../../src/domain/impact.js";
 import { createSymbolChangeSet } from "../../src/domain/symbol-change.js";
 import { formatTextReport } from "../../src/presentation/cli/text-report.js";
 
@@ -35,13 +36,31 @@ describe("formatTextReport", () => {
           afterLine: 12,
         },
       ]),
+      impact: createImpactAnalysis({
+        sourceFiles: 4,
+        changedModules: ["src/core.ts"],
+        dependencies: [
+          { importer: "src/api.ts", imported: "src/core.ts" },
+          { importer: "src/app.ts", imported: "src/api.ts" },
+        ],
+        impactedFiles: [
+          { path: "src/api.ts", distance: 1, changedModules: ["src/core.ts"] },
+          { path: "src/app.ts", distance: 2, changedModules: ["src/core.ts"] },
+        ],
+        unresolvedReferences: [{ importer: "src/app.ts", specifier: "./missing.js" }],
+      }),
     });
 
     assert.match(output, /New dependencies {5}1/);
     assert.match(output, /Findings {13}1/);
     assert.match(output, /Changed symbols {6}1/);
+    assert.match(output, /Direct dependents {4}1/);
+    assert.match(output, /Transitive impact {4}1/);
     assert.match(output, /A {2}Function {6}deleteUser/);
     assert.match(output, /src\/user\.ts:12/);
+    assert.match(output, /direct {14}src\/api\.ts/);
+    assert.match(output, /transitive · 2 hops {1}src\/app\.ts/);
+    assert.match(output, /src\/app\.ts → \.\/missing\.js/);
     assert.match(output, /MEDIUM {2}New production dependency/);
     assert.match(output, /package\.json · dependency\/new-production/);
   });

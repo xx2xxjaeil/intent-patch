@@ -2,15 +2,18 @@
 
 import process from "node:process";
 import { PackageDependencyRule } from "../../application/rules/package-dependency-rule.js";
+import { AnalyzeImportImpact } from "../../application/services/analyze-import-impact.js";
 import { CompareSourceSymbols } from "../../application/services/compare-source-symbols.js";
 import { RuleEngine } from "../../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../application/use-cases/analyze-changes.js";
 import { GitChangeSource } from "../../infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../../infrastructure/git/git-file-snapshot-source.js";
+import { GitProjectFileSource } from "../../infrastructure/git/git-project-file-source.js";
 import {
   CommandExecutionError,
   NodeCommandRunner,
 } from "../../infrastructure/process/command-runner.js";
+import { TypeScriptModuleReferenceExtractor } from "../../infrastructure/typescript/typescript-module-reference-extractor.js";
 import { TypeScriptSymbolExtractor } from "../../infrastructure/typescript/typescript-symbol-extractor.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
@@ -31,10 +34,15 @@ async function main(): Promise<void> {
     const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
       new TypeScriptSymbolExtractor(),
     ]);
+    const impactAnalyzer = new AnalyzeImportImpact(
+      new GitProjectFileSource(options.workingDirectory, commandRunner),
+      [new TypeScriptModuleReferenceExtractor()],
+    );
     const useCase = new AnalyzeChanges(
       new GitChangeSource(options.workingDirectory, commandRunner),
       ruleEngine,
       symbolChangeAnalyzer,
+      impactAnalyzer,
     );
     const report = await useCase.execute({
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
