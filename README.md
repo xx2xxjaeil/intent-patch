@@ -73,6 +73,10 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 변경 모듈을 import하는 직접 의존자와 여러 단계를 거친 간접 영향 파일 계산
 - 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
 - working tree의 tracked·untracked 파일 또는 지정한 head ref를 동일한 결과점에서 분석
+- `.intentpatch.json`에 요청 의도, 예상 경로, 허용 경로와 변경량 예산 선언
+- 예상·허용 패턴을 벗어난 변경 파일을 파일별 `medium` finding으로 탐지
+- 변경 파일 수와 측정 라인 예산 초과를 수치 근거가 있는 `low` finding으로 탐지
+- `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
 
 아직 lockfile의 전이 dependency 분석, path alias 해석, AI 리뷰 기능은 구현되지 않았습니다.
 
@@ -112,6 +116,39 @@ JSON으로 출력합니다.
 node dist/presentation/cli/main.js analyze --json
 ```
 
+### Change Contract로 요청 범위 검사
+
+분석할 저장소의 `.intentpatch.json`에 이번 요청의 기대 범위를 선언할 수 있습니다.
+
+```json
+{
+  "intent": "회원 탈퇴 기능 구현",
+  "scope": {
+    "include": ["src/user/**", "tests/user/**"],
+    "allow": ["package.json", "package-lock.json"],
+    "maxFiles": 8,
+    "maxLines": 300
+  }
+}
+```
+
+- `include`: 요청 수행 중 변경될 것으로 예상한 경로
+- `allow`: 설정이나 lockfile처럼 함께 변경되어도 허용하는 예외 경로
+- `maxFiles`: 변경 파일 수의 상한
+- `maxLines`: 측정 가능한 추가·삭제 라인 합의 상한
+
+기본 파일 대신 별도 계약을 사용하려면 `--config`를 지정합니다. 상대 경로는 `--cwd`를 기준으로
+해석합니다.
+
+```bash
+node dist/presentation/cli/main.js analyze \
+  --cwd /path/to/repository \
+  --config contracts/delete-user.json
+```
+
+복사해서 시작할 수 있는 설정은 [`.intentpatch.example.json`](./.intentpatch.example.json)에
+있습니다. Contract가 없으면 기존 분석은 그대로 실행되고 scope 규칙만 비활성화됩니다.
+
 지정한 심각도 이상의 finding이 있으면 보고서를 출력한 뒤 종료 코드 `1`을 반환합니다.
 
 ```bash
@@ -132,7 +169,7 @@ Import edges         18
 Direct dependents    1
 Transitive impact    2
 New dependencies     1
-Findings             1
+Findings             2
 
 Changed symbols
 
@@ -151,6 +188,10 @@ Potential issues
 MEDIUM  New production dependency
         package.json · dependency/new-production
         dayjs@^1.11.0 was added to dependencies.
+
+MEDIUM  Change outside expected scope
+        src/payment/billing.ts · scope/outside-expected-path
+        src/payment/billing.ts does not match any expected or allowed path pattern.
 ```
 
 개발 중에는 빌드 없이 실행할 수 있습니다.
@@ -172,7 +213,7 @@ presentation ───────▶ application ───────▶ domai
 
 | 계층 | 책임 |
 | --- | --- |
-| `domain` | 변경 파일, finding, 심볼 변경, dependency 영향 등 핵심 모델 |
+| `domain` | 변경 파일, Change Contract, finding, 심볼 변경, dependency 영향 등 핵심 모델 |
 | `application` | 분석 유스케이스, 규칙 엔진, 심볼·영향 계산과 외부 데이터 포트 |
 | `infrastructure` | Git 명령·diff 파싱·프로젝트 파일 공급·TypeScript AST 파싱 |
 | `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON 출력 |
@@ -213,11 +254,12 @@ npm run build
 1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
 2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
 3. ✅ 상대 경로 정적 import graph 기반 변경 영향 범위 계산
-4. lockfile과 workspace를 고려한 package manager adapter
-5. 과잉 구현과 중복 가능성을 탐지하는 추가 규칙
-6. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
-7. GitHub Action 및 Codex·Claude Code·Cursor adapter
-8. 근거 기반 결과에 대한 선택적 LLM 설명
+4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
+5. lockfile과 workspace를 고려한 package manager adapter
+6. 테스트 누락, 위험 변경과 중복 가능성을 탐지하는 추가 규칙
+7. 분석 결과와 영향 범위를 보여주는 HTML·웹 UI
+8. GitHub Action 및 Codex·Claude Code·Cursor adapter
+9. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 
@@ -238,6 +280,12 @@ npm run build
 - 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
   삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
 - 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
+- IntentPatch는 자연어 intent만으로 예상 경로를 추측하지 않습니다. 범위 판단은 Contract에 명시한
+  `include`와 `allow`를 기준으로 수행합니다.
+- 경로 패턴은 저장소 상대 경로와 `*`, `**`, `?`만 지원합니다. 부정 패턴과 brace 확장은 아직
+  지원하지 않습니다.
+- `maxLines`는 측정 가능한 텍스트 파일의 추가·삭제 라인만 합산합니다. Binary와 측정 불가 파일을
+  0줄이라고 간주하지 않지만, 해당 파일의 크기를 라인 예산에 포함하지도 않습니다.
 
 ## 라이선스
 

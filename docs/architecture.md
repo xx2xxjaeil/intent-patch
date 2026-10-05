@@ -6,7 +6,9 @@
 ## 전체 흐름
 
 ```text
-CLI 인자
+CLI 인자 + .intentpatch.json
+  │
+  ├─ JsonChangeContractLoader ───────▶ ChangeContract
   │
   ▼
 AnalyzeChanges 유스케이스
@@ -16,10 +18,12 @@ AnalyzeChanges 유스케이스
   │                           └─ git ls-files --others -z
   │
   ├─ RuleEngine
-  │   └─ PackageDependencyRule
-  │       └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
-  │                                     ├─ 기준 revision의 package.json
-  │                                     └─ working tree 또는 head의 package.json
+  │   ├─ PackageDependencyRule
+  │   │   └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
+  │   │                                 ├─ 기준 revision의 package.json
+  │   │                                 └─ working tree 또는 head의 package.json
+  │   ├─ ExpectedScopeRule
+  │   └─ ChangeBudgetRule
   │
   ├─ CompareSourceSymbols
   │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
@@ -33,6 +37,7 @@ AnalyzeChanges 유스케이스
   │
   ▼
 ChangeReport
+  ├─ ChangeContract (optional)
   ├─ ChangeSet
   ├─ FindingSet
   ├─ SymbolChangeSet
@@ -51,8 +56,9 @@ presentation ───────▶ application ───────▶ domai
 
 ### Domain
 
-`FileChange`, `ChangeSet`, `Finding`, `Severity`, `SymbolChange`, `ImpactAnalysis`처럼 분석 결과의
-의미를 표현합니다. Git, TypeScript Compiler API, 파일 시스템, CLI를 알지 못합니다.
+`ChangeContract`, `FileChange`, `ChangeSet`, `Finding`, `Severity`, `SymbolChange`,
+`ImpactAnalysis`처럼 분석 입력과 결과의 의미를 표현합니다. Git, TypeScript Compiler API,
+파일 시스템, CLI를 알지 못합니다.
 `LineDelta`는 측정된 값, binary, 측정 불가를 구별된 유니온으로 표현해 `0줄 변경`과
 `알 수 없음`이 섞이지 않게 합니다.
 
@@ -64,6 +70,8 @@ presentation ───────▶ application ───────▶ domai
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
 문법은 각각 `ProjectFileSource`, `ModuleReferenceExtractor` 포트에 위임합니다.
+`ExpectedScopeRule`과 `ChangeBudgetRule`은 선택적으로 전달된 `ChangeContract`만 읽으며 설정 파일의
+형식이나 위치를 알지 못합니다.
 
 ### Infrastructure
 
@@ -71,6 +79,7 @@ Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·�
 TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
 목록을 제공하고, TypeScript 어댑터는 최상위 선언 또는 정적 module specifier로 변환합니다.
 Compiler API의 노드 타입은 application과 domain 계층으로 전파되지 않습니다.
+`JsonChangeContractLoader`는 외부 JSON 형식을 검증한 뒤 정규화된 도메인 모델로 변환합니다.
 
 ### Presentation
 
@@ -146,6 +155,18 @@ TypeScript 어댑터는 선언 원문을 SHA-256 fingerprint로 바꾸고 applic
 `ImpactAnalysis`라는 관찰 결과로 제공하고, 위험 여부는 이후 scope 규칙이 근거와 함께
 `Finding`으로 판단하도록 경계를 나눴습니다.
 
+### 13. 자연어 추측 대신 명시적 Change Contract 사용
+
+요청 문장만 보고 변경되어야 할 파일을 추측하면 실행마다 판단이 달라지고 오탐 근거를 설명하기
+어렵습니다. 기본 분석은 사용자가 선언한 예상 경로·허용 예외·변경량 예산만 사용합니다. 향후
+LLM은 Contract 초안을 제안할 수 있지만, 실제 규칙 입력은 항상 명시적인 데이터로 유지합니다.
+
+### 14. 설정 오류를 조용히 무시하지 않음
+
+기본 `.intentpatch.json`이 없는 경우에는 기존 분석을 그대로 수행합니다. 반면 명시한 파일이
+없거나 JSON 필드 이름·타입이 잘못되면 분석을 중단하고 원인을 표시합니다. 잘못된 계약을 적용한
+것처럼 보이는 결과보다 빠른 실패가 CI와 코드 리뷰에서 안전합니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
@@ -155,6 +176,7 @@ TypeScript 어댑터는 선언 원문을 SHA-256 fingerprint로 바꾸고 applic
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
 - 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
 - 새로운 프로젝트 tree 공급자: `ProjectFileSource` 구현 추가
+- 새로운 계약 형식: 로더에서 `ChangeContract`로 변환하는 infrastructure 어댑터 추가
 
 현재는 DI 컨테이너, 플러그인 프레임워크, 데이터베이스를 도입하지 않았습니다. 실제 두 번째
 구현이나 영속성 요구가 생기기 전까지는 단순한 생성자 주입과 명시적인 composition root가 더

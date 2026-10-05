@@ -1,0 +1,9 @@
+{
+  "intent": "회원 탈퇴 기능 구현",
+  "scope": {
+    "include": ["src/user/**", "tests/user/**"],
+    "allow": ["package.json", "package-lock.json"],
+    "maxFiles": 8,
+    "maxLines": 300
+  }
+}
