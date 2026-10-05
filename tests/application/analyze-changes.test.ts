@@ -25,6 +25,16 @@ describe("AnalyzeChanges", () => {
         items: [],
         summary: { total: 0, bySeverity: { high: 0, medium: 0, low: 0 } },
       },
+      symbolChanges: {
+        changes: [],
+        issues: [],
+        summary: {
+          total: 0,
+          filesAnalyzed: 0,
+          filesUnavailable: 0,
+          byChangeKind: { added: 0, modified: 0, deleted: 0 },
+        },
+      },
     });
   });
 

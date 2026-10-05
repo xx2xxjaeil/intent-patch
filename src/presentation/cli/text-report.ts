@@ -1,6 +1,11 @@
 import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ChangeReport } from "../../domain/report.js";
+import type {
+  SourceSymbolKind,
+  SymbolChange,
+  SymbolChangeKind,
+} from "../../domain/symbol-change.js";
 
 const statusLabels: Readonly<Record<FileChangeKind, string>> = {
   added: "A",
@@ -13,9 +18,27 @@ const statusLabels: Readonly<Record<FileChangeKind, string>> = {
   unknown: "?",
 };
 
+const symbolStatusLabels: Readonly<Record<SymbolChangeKind, string>> = {
+  added: "A",
+  modified: "M",
+  deleted: "D",
+};
+
+const symbolKindLabels: Readonly<Record<SourceSymbolKind, string>> = {
+  function: "Function",
+  class: "Class",
+  interface: "Interface",
+  "type-alias": "Type",
+};
+
 export function formatTextReport(report: ChangeReport): string {
   const { summary, files } = report.changes;
   const { items: findings, summary: findingSummary } = report.findings;
+  const {
+    changes: symbolChanges,
+    issues: symbolIssues,
+    summary: symbolSummary,
+  } = report.symbolChanges;
   const newDependencies = findings.filter((finding) =>
     finding.ruleId.startsWith("dependency/new-"),
   ).length;
@@ -32,6 +55,8 @@ export function formatTextReport(report: ChangeReport): string {
     `Lines                +${summary.additions} / -${summary.deletions}`,
     `Binary files         ${summary.binaryFiles}`,
     `Unmeasured files     ${summary.unmeasuredFiles}`,
+    `Changed symbols      ${symbolSummary.total}`,
+    `Unparsed source      ${symbolSummary.filesUnavailable}`,
     `New dependencies     ${newDependencies}`,
     `Findings             ${findingSummary.total}`,
   ];
@@ -41,12 +66,33 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push(...files.map(formatFile));
   }
 
+  if (symbolChanges.length > 0) {
+    lines.push("", "Changed symbols", "");
+    lines.push(...symbolChanges.map(formatSymbolChange));
+  }
+
+  if (symbolIssues.length > 0) {
+    lines.push("", "Unavailable symbol analysis", "");
+    lines.push(...symbolIssues.flatMap((issue) => [`!  ${issue.path}`, `   ${issue.reason}`]));
+  }
+
   if (findings.length > 0) {
     lines.push("", "Potential issues", "");
     lines.push(...findings.flatMap((finding, index) => formatFinding(finding, index > 0)));
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function formatSymbolChange(change: SymbolChange): string {
+  const line = change.afterLine ?? change.beforeLine;
+  const location = line === undefined ? change.path : `${change.path}:${line}`;
+  return [
+    symbolStatusLabels[change.changeKind],
+    symbolKindLabels[change.symbolKind].padEnd(12),
+    change.name.padEnd(28),
+    location,
+  ].join("  ");
 }
 
 function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[] {

@@ -2,6 +2,7 @@
 
 import process from "node:process";
 import { PackageDependencyRule } from "../../application/rules/package-dependency-rule.js";
+import { CompareSourceSymbols } from "../../application/services/compare-source-symbols.js";
 import { RuleEngine } from "../../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../application/use-cases/analyze-changes.js";
 import { GitChangeSource } from "../../infrastructure/git/git-change-source.js";
@@ -10,6 +11,7 @@ import {
   CommandExecutionError,
   NodeCommandRunner,
 } from "../../infrastructure/process/command-runner.js";
+import { TypeScriptSymbolExtractor } from "../../infrastructure/typescript/typescript-symbol-extractor.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
 import { formatTextReport } from "./text-report.js";
@@ -26,9 +28,13 @@ async function main(): Promise<void> {
     const commandRunner = new NodeCommandRunner();
     const snapshotSource = new GitFileSnapshotSource(options.workingDirectory, commandRunner);
     const ruleEngine = new RuleEngine([new PackageDependencyRule(snapshotSource)]);
+    const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
+      new TypeScriptSymbolExtractor(),
+    ]);
     const useCase = new AnalyzeChanges(
       new GitChangeSource(options.workingDirectory, commandRunner),
       ruleEngine,
+      symbolChangeAnalyzer,
     );
     const report = await useCase.execute({
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),

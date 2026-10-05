@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createChangeSet } from "../../src/domain/change.js";
 import { createFindingSet } from "../../src/domain/finding.js";
+import { createSymbolChangeSet } from "../../src/domain/symbol-change.js";
 import { formatTextReport } from "../../src/presentation/cli/text-report.js";
 
 describe("formatTextReport", () => {
@@ -25,10 +26,22 @@ describe("formatTextReport", () => {
           evidence: { package: "dayjs", version: "1.0.0" },
         },
       ]),
+      symbolChanges: createSymbolChangeSet([
+        {
+          path: "src/user.ts",
+          name: "deleteUser",
+          symbolKind: "function",
+          changeKind: "added",
+          afterLine: 12,
+        },
+      ]),
     });
 
     assert.match(output, /New dependencies {5}1/);
     assert.match(output, /Findings {13}1/);
+    assert.match(output, /Changed symbols {6}1/);
+    assert.match(output, /A {2}Function {6}deleteUser/);
+    assert.match(output, /src\/user\.ts:12/);
     assert.match(output, /MEDIUM {2}New production dependency/);
     assert.match(output, /package\.json · dependency\/new-production/);
   });
