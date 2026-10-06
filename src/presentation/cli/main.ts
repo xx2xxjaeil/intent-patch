@@ -3,11 +3,14 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { ChangeBudgetRule } from "../../application/rules/change-budget-rule.js";
+import { DuplicateImplementationRule } from "../../application/rules/duplicate-implementation-rule.js";
 import { ExpectedScopeRule } from "../../application/rules/expected-scope-rule.js";
 import { MissingTestChangeRule } from "../../application/rules/missing-test-change-rule.js";
 import { PackageDependencyRule } from "../../application/rules/package-dependency-rule.js";
 import { PublicApiCompatibilityRule } from "../../application/rules/public-api-compatibility-rule.js";
 import { PublicApiRemovalRule } from "../../application/rules/public-api-removal-rule.js";
+import { SingleImplementationAbstractionRule } from "../../application/rules/single-implementation-abstraction-rule.js";
+import { AnalyzeCodeStructure } from "../../application/services/analyze-code-structure.js";
 import { AnalyzeImportImpact } from "../../application/services/analyze-import-impact.js";
 import { AnalyzeTestChanges } from "../../application/services/analyze-test-changes.js";
 import { CompareSourceSymbols } from "../../application/services/compare-source-symbols.js";
@@ -21,6 +24,7 @@ import {
   CommandExecutionError,
   NodeCommandRunner,
 } from "../../infrastructure/process/command-runner.js";
+import { TypeScriptCodeStructureExtractor } from "../../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptModuleReferenceExtractor } from "../../infrastructure/typescript/typescript-module-reference-extractor.js";
 import { TypeScriptSymbolExtractor } from "../../infrastructure/typescript/typescript-symbol-extractor.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
@@ -55,20 +59,26 @@ async function main(): Promise<void> {
       new MissingTestChangeRule(),
       new PublicApiRemovalRule(),
       new PublicApiCompatibilityRule(),
+      new DuplicateImplementationRule(),
+      new SingleImplementationAbstractionRule(),
     ]);
     const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
       new TypeScriptSymbolExtractor(),
     ]);
-    const impactAnalyzer = new AnalyzeImportImpact(
-      new GitProjectFileSource(options.workingDirectory, commandRunner),
-      [new TypeScriptModuleReferenceExtractor()],
-    );
+    const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
+    const impactAnalyzer = new AnalyzeImportImpact(projectFiles, [
+      new TypeScriptModuleReferenceExtractor(),
+    ]);
+    const codeStructureAnalyzer = new AnalyzeCodeStructure(projectFiles, [
+      new TypeScriptCodeStructureExtractor(),
+    ]);
     const useCase = new AnalyzeChanges(
       new GitChangeSource(options.workingDirectory, commandRunner),
       ruleEngine,
       symbolChangeAnalyzer,
       impactAnalyzer,
       new AnalyzeTestChanges(),
+      codeStructureAnalyzer,
     );
     const report = await useCase.execute({
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),

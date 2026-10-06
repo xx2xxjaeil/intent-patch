@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createChangeSet } from "../../src/domain/change.js";
 import { createChangeContract } from "../../src/domain/change-contract.js";
+import { createCodeStructureAnalysis } from "../../src/domain/code-structure.js";
 import { createFindingSet } from "../../src/domain/finding.js";
 import { createImpactAnalysis } from "../../src/domain/impact.js";
 import type { ChangeReport } from "../../src/domain/report.js";
@@ -18,6 +19,7 @@ describe("formatHtmlReport", () => {
     assert.match(output, /HEAD → working tree/);
     assert.match(output, /Files changed/);
     assert.match(output, /Risky API changes/);
+    assert.match(output, /Structure signals/);
     assert.match(output, /Potential issues/);
     assert.match(output, /Exported symbol removed/);
     assert.match(output, /Source change without matching test change/);
@@ -87,6 +89,11 @@ function createReport(): ChangeReport {
         afterLine: 12,
       },
     ]),
+    codeStructure: createCodeStructureAnalysis({
+      sourceFiles: 2,
+      duplicateCandidates: [],
+      singleImplementationAbstractions: [],
+    }),
     impact: createImpactAnalysis({
       sourceFiles: 2,
       changedModules: ["src/user.ts"],

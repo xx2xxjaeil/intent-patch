@@ -1,5 +1,6 @@
 import type { ChangeSet } from "./change.js";
 import type { ChangeContract } from "./change-contract.js";
+import type { CodeStructureAnalysis } from "./code-structure.js";
 import type { FindingSet } from "./finding.js";
 import type { ImpactAnalysis } from "./impact.js";
 import type { SymbolChangeSet } from "./symbol-change.js";
@@ -16,6 +17,7 @@ export interface ChangeReport {
   readonly changes: ChangeSet;
   readonly findings: FindingSet;
   readonly symbolChanges: SymbolChangeSet;
+  readonly codeStructure: CodeStructureAnalysis;
   readonly impact: ImpactAnalysis;
   readonly testChanges: TestChangeAnalysis;
 }

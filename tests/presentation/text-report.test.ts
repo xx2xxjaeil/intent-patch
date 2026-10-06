@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createChangeSet } from "../../src/domain/change.js";
 import { createChangeContract } from "../../src/domain/change-contract.js";
+import { createCodeStructureAnalysis } from "../../src/domain/code-structure.js";
 import { createFindingSet } from "../../src/domain/finding.js";
 import { createImpactAnalysis } from "../../src/domain/impact.js";
 import { createSymbolChangeSet } from "../../src/domain/symbol-change.js";
@@ -60,6 +61,21 @@ describe("formatTextReport", () => {
           afterLine: 12,
         },
       ]),
+      codeStructure: createCodeStructureAnalysis({
+        sourceFiles: 4,
+        duplicateCandidates: [
+          {
+            added: { path: "src/user.ts", name: "verifySession", line: 14 },
+            existing: { path: "src/auth.ts", name: "authorize", line: 5 },
+          },
+        ],
+        singleImplementationAbstractions: [
+          {
+            abstraction: { path: "src/user.ts", name: "DeletionStrategy", line: 20 },
+            implementation: { path: "src/user.ts", name: "DefaultStrategy", line: 24 },
+          },
+        ],
+      }),
       impact: createImpactAnalysis({
         sourceFiles: 4,
         changedModules: ["src/core.ts"],
@@ -87,6 +103,8 @@ describe("formatTextReport", () => {
 
     assert.match(output, /New dependencies {5}1/);
     assert.match(output, /Risky API changes {4}1/);
+    assert.match(output, /Duplicate candidates 1/);
+    assert.match(output, /Single implementations 1/);
     assert.match(output, /Findings {13}2/);
     assert.match(output, /Changed symbols {6}1/);
     assert.match(output, /Tests changed {8}1/);

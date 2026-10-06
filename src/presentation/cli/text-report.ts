@@ -49,6 +49,7 @@ export function formatTextReport(report: ChangeReport): string {
     summary: impactSummary,
   } = report.impact;
   const { summary: testSummary } = report.testChanges;
+  const { issues: structureIssues, summary: structureSummary } = report.codeStructure;
   const newDependencies = findings.filter((finding) =>
     finding.ruleId.startsWith("dependency/new-"),
   ).length;
@@ -77,6 +78,8 @@ export function formatTextReport(report: ChangeReport): string {
     `Missing test changes ${testSummary.sourceFilesWithoutTestChanges}`,
     `New dependencies     ${newDependencies}`,
     `Risky API changes    ${riskyApiChanges}`,
+    `Duplicate candidates ${structureSummary.duplicateCandidates}`,
+    `Single implementations ${structureSummary.singleImplementationAbstractions}`,
     `Findings             ${findingSummary.total}`,
   ];
 
@@ -117,6 +120,11 @@ export function formatTextReport(report: ChangeReport): string {
   if (impactIssues.length > 0) {
     lines.push("", "Unavailable impact analysis", "");
     lines.push(...impactIssues.flatMap((issue) => [`!  ${issue.path}`, `   ${issue.reason}`]));
+  }
+
+  if (structureIssues.length > 0) {
+    lines.push("", "Unavailable structure analysis", "");
+    lines.push(...structureIssues.flatMap((issue) => [`!  ${issue.path}`, `   ${issue.reason}`]));
   }
 
   if (findings.length > 0) {

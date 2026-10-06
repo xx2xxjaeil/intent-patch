@@ -37,6 +37,17 @@ describe("AnalyzeChanges", () => {
           byChangeKind: { added: 0, modified: 0, deleted: 0 },
         },
       },
+      codeStructure: {
+        duplicateCandidates: [],
+        singleImplementationAbstractions: [],
+        issues: [],
+        summary: {
+          sourceFiles: 0,
+          filesUnavailable: 0,
+          duplicateCandidates: 0,
+          singleImplementationAbstractions: 0,
+        },
+      },
       impact: {
         changedModules: [],
         dependencies: [],
@@ -94,6 +105,7 @@ describe("AnalyzeChanges", () => {
     let receivedContract: unknown;
     let receivedTestChanges: unknown;
     let receivedSymbolChanges: unknown;
+    let receivedCodeStructure: unknown;
     const useCase = new AnalyzeChanges(
       { collect: async () => changes },
       new RuleEngine([
@@ -102,6 +114,7 @@ describe("AnalyzeChanges", () => {
             receivedContract = context.contract;
             receivedTestChanges = context.testChanges;
             receivedSymbolChanges = context.symbolChanges;
+            receivedCodeStructure = context.codeStructure;
             return [];
           },
         },
@@ -113,6 +126,7 @@ describe("AnalyzeChanges", () => {
     assert.equal(receivedContract, contract);
     assert.equal(receivedTestChanges, report.testChanges);
     assert.equal(receivedSymbolChanges, report.symbolChanges);
+    assert.equal(receivedCodeStructure, report.codeStructure);
     assert.equal(report.contract, contract);
   });
 

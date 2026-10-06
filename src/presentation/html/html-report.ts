@@ -89,6 +89,12 @@ function renderSummary(
     ["Missing tests", report.testChanges.summary.sourceFilesWithoutTestChanges, "signals"],
     ["New dependencies", newDependencies, "packages"],
     ["Risky API changes", riskyApiChanges, "public APIs"],
+    [
+      "Structure signals",
+      report.codeStructure.summary.duplicateCandidates +
+        report.codeStructure.summary.singleImplementationAbstractions,
+      "review candidates",
+    ],
   ] as const;
 
   return `<section class="metrics" aria-label="Change summary">
@@ -327,6 +333,7 @@ function renderAnalysisNotes(report: ChangeReport): string {
   const notes = [
     ...report.symbolChanges.issues.map((issue) => `Symbol · ${issue.path} · ${issue.reason}`),
     ...report.impact.issues.map((issue) => `Impact · ${issue.path} · ${issue.reason}`),
+    ...report.codeStructure.issues.map((issue) => `Structure · ${issue.path} · ${issue.reason}`),
     ...report.impact.unresolvedReferences.map(
       (reference) => `Import · ${reference.importer} → ${reference.specifier}`,
     ),
@@ -396,7 +403,7 @@ h1 { margin:8px 0 10px; font-size:clamp(36px,7vw,72px); line-height:.98; letter-
 .intent { display:grid; grid-template-columns:90px 1fr; gap:18px; align-items:start; padding:20px 22px; border:1px solid #29404b; border-radius:16px; background:linear-gradient(105deg,rgba(88,230,217,.1),rgba(168,144,255,.06)); }
 .intent span { color:var(--cyan); font-size:11px; font-weight:800; letter-spacing:.14em; }
 .intent p { margin:0; font-size:18px; font-weight:650; }
-.metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0 12px; }
+.metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin:18px 0 12px; }
 .metric { min-height:124px; padding:18px; border:1px solid var(--line); border-radius:16px; background:linear-gradient(145deg,var(--panel-2),var(--panel)); }
 .metric span { display:block; color:var(--muted); font-size:12px; }
 .metric strong { display:block; margin-top:14px; font-size:27px; letter-spacing:-.035em; }
