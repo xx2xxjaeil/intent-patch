@@ -19,7 +19,11 @@ export interface HelpCommandOptions {
   readonly command: "help";
 }
 
-export type CliOptions = AnalyzeCommandOptions | HelpCommandOptions;
+export interface VersionCommandOptions {
+  readonly command: "version";
+}
+
+export type CliOptions = AnalyzeCommandOptions | HelpCommandOptions | VersionCommandOptions;
 
 export class CliUsageError extends Error {
   public constructor(message: string) {
@@ -34,6 +38,9 @@ export function parseArguments(
 ): CliOptions {
   if (arguments_.length === 0 || arguments_.includes("--help") || arguments_.includes("-h")) {
     return { command: "help" };
+  }
+  if (arguments_.length === 1 && (arguments_[0] === "--version" || arguments_[0] === "-v")) {
+    return { command: "version" };
   }
 
   const [command, ...options] = arguments_;
@@ -116,6 +123,7 @@ Options:
                  Write the report to a file instead of standard output
   --fail-on <severity>
                  Exit with code 1 for findings at or above high, medium, or low
+  -v, --version  Show the installed IntentPatch version
   -h, --help     Show this help
 `;
 }

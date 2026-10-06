@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { ChangeBudgetRule } from "../../application/rules/change-budget-rule.js";
 import { ExpectedScopeRule } from "../../application/rules/expected-scope-rule.js";
@@ -32,6 +33,10 @@ async function main(): Promise<void> {
     const options = parseArguments(process.argv.slice(2), invocationDirectory);
     if (options.command === "help") {
       process.stdout.write(helpText());
+      return;
+    }
+    if (options.command === "version") {
+      process.stdout.write(`IntentPatch ${await readPackageVersion()}\n`);
       return;
     }
 
@@ -84,6 +89,22 @@ async function main(): Promise<void> {
     process.stderr.write(`${formatError(error)}\n`);
     process.exitCode = error instanceof CliUsageError ? 2 : 1;
   }
+}
+
+async function readPackageVersion(): Promise<string> {
+  const packageUrl = new URL("../../../package.json", import.meta.url);
+  const packageMetadata: unknown = JSON.parse(await readFile(packageUrl, "utf8"));
+  if (!isPackageMetadata(packageMetadata)) {
+    throw new Error("IntentPatch package metadata does not contain a valid version");
+  }
+  return packageMetadata.version;
+}
+
+function isPackageMetadata(value: unknown): value is { readonly version: string } {
+  if (typeof value !== "object" || value === null || !("version" in value)) {
+    return false;
+  }
+  return typeof value.version === "string" && value.version.trim().length > 0;
 }
 
 function formatError(error: unknown): string {
