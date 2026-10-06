@@ -17,6 +17,30 @@ IntentPatch는 이러한 질문에 답하기 위해 **Git diff, 정적 분석, �
 LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선택적으로 결합하는 것을 목표로
 합니다.
 
+## 빠른 시작
+
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. 현재 npm 공개 전에는 저장소를 빌드해 바로
+실행할 수 있습니다.
+
+```bash
+git clone https://github.com/xx2xxjaeil/intent-patch.git
+cd intent-patch
+npm ci
+npm run build
+node dist/presentation/cli/main.js --version
+node dist/presentation/cli/main.js analyze --cwd /path/to/repository
+```
+
+npm 릴리스가 공개된 뒤에는 설치 없이 같은 CLI를 실행할 수 있습니다.
+
+```bash
+npx intentpatch analyze --cwd /path/to/repository
+npx intentpatch analyze --format html --output intentpatch-report.html
+```
+
+핵심 분석에는 API key, 유료 AI 모델, 서버 또는 데이터베이스가 필요하지 않습니다. 분석할 Git
+저장소의 파일은 로컬에서 처리하며 LLM 연결은 현재 기본 실행 경로에 포함되지 않습니다.
+
 ## 프로젝트가 지향하는 결과
 
 ```text
@@ -69,6 +93,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
 - finding 심각도(`high`, `medium`, `low`) 집계
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
+- 설치된 패키지 버전을 확인하는 `--version` 명령
 - `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
 - 직접 `export`된 선언과 내부 선언을 구분해 심볼 변경 근거에 보존
@@ -91,14 +116,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 아직 re-export와 함수 시그니처 호환성, lockfile의 전이 dependency 분석, path alias 해석,
 AI 리뷰 기능은 구현되지 않았습니다.
 
-## 실행 방법
-
-Node.js 20 이상과 Git이 필요합니다.
-
-```bash
-npm install
-npm run build
-```
+## 상세 사용법
 
 현재 저장소의 working tree를 분석합니다.
 
@@ -288,12 +306,19 @@ npm run check
 - Biome 린트 및 포맷 검사
 - 도메인과 유스케이스 단위 테스트
 - 실제 임시 Git 저장소를 사용하는 통합 테스트
+- 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
 - 계층 간 의존 방향을 검증하는 아키텍처 테스트
 
 프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
 
 ```bash
 npm run build
+```
+
+npm에 포함될 파일과 패키지 생성을 확인하려면 실제 공개 없이 dry-run을 실행합니다.
+
+```bash
+npm pack --dry-run
 ```
 
 ## 로드맵
