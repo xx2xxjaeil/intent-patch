@@ -31,6 +31,7 @@ const symbolKindLabels: Readonly<Record<SourceSymbolKind, string>> = {
   class: "Class",
   interface: "Interface",
   "type-alias": "Type",
+  "re-export": "Re-export",
 };
 
 export function formatTextReport(report: ChangeReport): string {

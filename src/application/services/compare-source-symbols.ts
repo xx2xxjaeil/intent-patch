@@ -85,6 +85,7 @@ function compareFileSymbols(
         changeKind: "added",
         afterLine: current.line,
         ...(current.exported === undefined ? {} : { afterExported: current.exported }),
+        ...(current.publicApi === undefined ? {} : { afterPublicApi: current.publicApi }),
       });
       continue;
     }
@@ -96,6 +97,7 @@ function compareFileSymbols(
         changeKind: "deleted",
         beforeLine: previous.line,
         ...(previous.exported === undefined ? {} : { beforeExported: previous.exported }),
+        ...(previous.publicApi === undefined ? {} : { beforePublicApi: previous.publicApi }),
       });
       continue;
     }
@@ -113,6 +115,8 @@ function compareFileSymbols(
         afterLine: current.line,
         ...(previous.exported === undefined ? {} : { beforeExported: previous.exported }),
         ...(current.exported === undefined ? {} : { afterExported: current.exported }),
+        ...(previous.publicApi === undefined ? {} : { beforePublicApi: previous.publicApi }),
+        ...(current.publicApi === undefined ? {} : { afterPublicApi: current.publicApi }),
       });
     }
   }

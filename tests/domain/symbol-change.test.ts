@@ -20,6 +20,7 @@ describe("createSymbolChangeSet", () => {
           symbolKind: "function",
           changeKind: "added",
           afterLine: 10,
+          afterPublicApi: { kind: "function", signatures: ["():void"] },
         },
       ],
       [{ path: "src/broken.ts", reason: "Syntax error" }],
@@ -39,6 +40,11 @@ describe("createSymbolChangeSet", () => {
       filesUnavailable: 1,
       byChangeKind: { added: 1, modified: 1, deleted: 0 },
     });
+    assert.deepEqual(result.changes[0]?.afterPublicApi, {
+      kind: "function",
+      signatures: ["():void"],
+    });
+    assert.equal(Object.isFrozen(result.changes[0]?.afterPublicApi), true);
   });
 
   it("rejects duplicate symbol identities", () => {

@@ -1,8 +1,34 @@
-export const sourceSymbolKinds = ["function", "class", "interface", "type-alias"] as const;
+export const sourceSymbolKinds = [
+  "function",
+  "class",
+  "interface",
+  "type-alias",
+  "re-export",
+] as const;
 export const symbolChangeKinds = ["added", "modified", "deleted"] as const;
 
 export type SourceSymbolKind = (typeof sourceSymbolKinds)[number];
 export type SymbolChangeKind = (typeof symbolChangeKinds)[number];
+
+export interface FunctionPublicApi {
+  readonly kind: "function";
+  readonly signatures: readonly string[];
+}
+
+export interface InterfacePublicApiMember {
+  readonly name: string;
+  readonly memberKind: "property" | "method";
+  readonly optional: boolean;
+  readonly signature: string;
+}
+
+export interface InterfacePublicApi {
+  readonly kind: "interface";
+  readonly extendsTypes: readonly string[];
+  readonly members: readonly InterfacePublicApiMember[];
+}
+
+export type PublicApi = FunctionPublicApi | InterfacePublicApi;
 
 /** 파서가 추출한 심볼의 비교용 표현이다. fingerprint는 보고서에 노출하지 않는다. */
 export interface SourceSymbol {
@@ -12,6 +38,8 @@ export interface SourceSymbol {
   readonly line: number;
   /** 언어 어댑터가 공개 여부를 판단할 수 없으면 undefined로 남긴다. */
   readonly exported?: boolean;
+  /** 구현 본문을 제외한 공개 계약이다. 지원하지 않는 심볼 종류에는 존재하지 않는다. */
+  readonly publicApi?: PublicApi;
 }
 
 export interface SymbolChange {
@@ -23,6 +51,8 @@ export interface SymbolChange {
   readonly afterLine?: number;
   readonly beforeExported?: boolean;
   readonly afterExported?: boolean;
+  readonly beforePublicApi?: PublicApi;
+  readonly afterPublicApi?: PublicApi;
 }
 
 export interface SymbolAnalysisIssue {
@@ -83,7 +113,29 @@ export function createSymbolChangeSet(
 }
 
 function freezeChange(change: SymbolChange): Readonly<SymbolChange> {
-  return Object.freeze({ ...change });
+  return Object.freeze({
+    ...change,
+    ...(change.beforePublicApi === undefined
+      ? {}
+      : { beforePublicApi: freezePublicApi(change.beforePublicApi) }),
+    ...(change.afterPublicApi === undefined
+      ? {}
+      : { afterPublicApi: freezePublicApi(change.afterPublicApi) }),
+  });
+}
+
+function freezePublicApi(publicApi: PublicApi): PublicApi {
+  if (publicApi.kind === "function") {
+    return Object.freeze({
+      kind: publicApi.kind,
+      signatures: Object.freeze([...publicApi.signatures]),
+    });
+  }
+  return Object.freeze({
+    kind: publicApi.kind,
+    extendsTypes: Object.freeze([...publicApi.extendsTypes]),
+    members: Object.freeze(publicApi.members.map((member) => Object.freeze({ ...member }))),
+  });
 }
 
 function compareChanges(left: SymbolChange, right: SymbolChange): number {
