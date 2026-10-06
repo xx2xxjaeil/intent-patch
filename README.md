@@ -55,6 +55,8 @@ Tests changed        3
 Missing test changes 1
 New dependencies     2
 Risky API changes    1
+Duplicate candidates 1
+Single implementations 1
 
 Impacted files
 
@@ -65,7 +67,8 @@ Impacted files
 
 Potential issues
 
-HIGH    기존 인증 로직과 유사한 구현 발견
+HIGH    공개 함수 시그니처 호환성 파괴
+MEDIUM  기존 인증 로직과 동일한 구현 발견
 MEDIUM  요청과 관련성이 낮아 보이는 파일 4개 변경
 LOW     구현체가 하나뿐인 추상화 추가
 ```
@@ -76,7 +79,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 ## 현재 구현된 기능
 
 현재 버전은 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
-최상위 심볼 변경 분석, import graph 기반 영향 범위와 테스트 동반 변경 분석을 제공합니다.
+최상위 심볼과 공개 API 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
+영향 범위와 테스트 동반 변경 분석을 제공합니다.
 
 - `HEAD`와 현재 working tree 비교
 - 두 Git reference 또는 브랜치 비교
@@ -96,8 +100,12 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 설치된 패키지 버전을 확인하는 `--version` 명령
 - `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
-- 직접 `export`된 선언과 내부 선언을 구분해 심볼 변경 근거에 보존
+- 직접 `export`된 선언, 로컬 export 목록과 외부 re-export를 공개 심볼 근거에 보존
 - 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
+- 공개 함수의 기존 호출 시그니처 제거와 공개 인터페이스의 호환성 파괴를 `high` finding으로 탐지
+- 구현이 추가된 기존 overload는 제외하고 기존 overload가 사라진 경우만 함수 계약 변경으로 판정
+- 공백과 주석을 제외한 구현 토큰이 같은 신규 함수와 기존 함수를 재사용 후보 `medium` finding으로 탐지
+- 신규 인터페이스를 명시적으로 구현하는 클래스가 하나뿐이면 추상화 검토 `low` finding으로 탐지
 - rename 전후 파일 경로를 사용한 심볼 비교
 - 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
 - `.ts`·`.tsx` 파일의 상대 경로 정적 import와 re-export 관계 수집
@@ -113,8 +121,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
 
-아직 re-export와 함수 시그니처 호환성, lockfile의 전이 dependency 분석, path alias 해석,
-AI 리뷰 기능은 구현되지 않았습니다.
+아직 lockfile의 전이 dependency 분석, path alias 해석, JavaScript·메서드 구조 분석과 AI 리뷰
+기능은 구현되지 않았습니다.
 
 ## 상세 사용법
 
@@ -226,7 +234,9 @@ Tests added          0
 Missing test changes 1
 New dependencies     1
 Risky API changes    1
-Findings             4
+Duplicate candidates 1
+Single implementations 1
+Findings             6
 
 Changed symbols
 
@@ -257,6 +267,14 @@ MEDIUM  Change outside expected scope
 MEDIUM  Source change without matching test change
         src/payment/billing.ts · tests/missing-related-change
         src/payment/billing.ts changed without a changed test sharing the same basename.
+
+MEDIUM  New function duplicates existing implementation
+        src/user/service.ts · structure/duplicate-implementation
+        The new function verifySession has the same normalized implementation as authorize.
+
+LOW     New interface has one implementation
+        src/user/service.ts · structure/single-implementation-abstraction
+        The new interface DeletionStrategy is implemented only by DefaultDeletionStrategy.
 ```
 
 개발 중에는 빌드 없이 실행할 수 있습니다.
@@ -331,9 +349,10 @@ npm pack --dry-run
 6. lockfile과 workspace를 고려한 package manager adapter
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
-9. re-export·함수 시그니처 호환성과 기존 코드 중복 가능성 탐지
-10. GitHub Action 및 Codex·Claude Code·Cursor adapter
-11. 근거 기반 결과에 대한 선택적 LLM 설명
+9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
+10. ✅ 구현체가 하나뿐인 신규 인터페이스 탐지
+11. GitHub Action 및 Codex·Claude Code·Cursor adapter
+12. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 
@@ -345,8 +364,16 @@ npm pack --dry-run
 - lockfile의 전이 dependency, workspace package, 코드에서의 실제 사용 여부는 아직 분석하지 않습니다.
 - 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
-- 공개 API 규칙은 선언에 직접 붙은 `export` modifier만 확인합니다. `export { name }`,
-  `export *`, package `exports`, 익명 default export와 함수 시그니처 호환성은 아직 해석하지 않습니다.
+- 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
+  `export { name } from`, `export * from`을 지원합니다. package `exports`, 익명 default export,
+  클래스·타입 별칭의 세부 계약은 아직 해석하지 않습니다.
+- 함수 호환성은 명시된 파라미터·반환 타입 텍스트를 비교합니다. 추론된 반환 타입 변화나
+  TypeScript의 구조적 타입 할당 가능성까지 판정하지 않습니다.
+- 중복 구현 후보는 새로 추가된 최상위 함수와 기존 최상위 함수의 토큰이 공백·주석을 제외하고
+  완전히 같으며 본문이 12토큰 이상일 때만 보고합니다. 식별자 이름이 바뀐 유사 코드, 메서드,
+  의미적으로만 같은 구현은 탐지하지 않습니다.
+- 단일 구현 추상화는 새 인터페이스를 `implements`로 명시한 이름 있는 클래스가 정확히 하나일 때만
+  보고합니다. TypeScript의 구조적 구현, factory 반환 타입과 런타임 등록은 계산하지 않습니다.
 - 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
 - 영향 분석은 `.ts`·`.tsx` 파일의 상대 경로 정적 `import`, side-effect import,

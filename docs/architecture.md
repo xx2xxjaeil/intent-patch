@@ -24,6 +24,10 @@ AnalyzeChanges 유스케이스
   │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
   │   └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
   │
+  ├─ AnalyzeCodeStructure
+  │   ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
+  │   └─ CodeStructureExtractor 포트 ─▶ TypeScriptCodeStructureExtractor
+  │
   ├─ RuleEngine
   │   ├─ PackageDependencyRule
   │   │   └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
@@ -32,7 +36,10 @@ AnalyzeChanges 유스케이스
   │   ├─ ExpectedScopeRule
   │   ├─ ChangeBudgetRule
   │   ├─ MissingTestChangeRule
-  │   └─ PublicApiRemovalRule
+  │   ├─ PublicApiRemovalRule
+  │   ├─ PublicApiCompatibilityRule
+  │   ├─ DuplicateImplementationRule
+  │   └─ SingleImplementationAbstractionRule
   │
   └─ AnalyzeImportImpact
       ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
@@ -46,6 +53,7 @@ ChangeReport
   ├─ ChangeSet
   ├─ FindingSet
   ├─ SymbolChangeSet
+  ├─ CodeStructureAnalysis
   ├─ ImpactAnalysis
   ├─ TestChangeAnalysis
   ├─ 텍스트 보고서
@@ -77,17 +85,20 @@ presentation ───────▶ application ───────▶ domai
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
 문법은 각각 `ProjectFileSource`, `ModuleReferenceExtractor` 포트에 위임합니다.
+`AnalyzeCodeStructure`는 새 함수·인터페이스만 시작점으로 삼아 현재 프로젝트의 구현 fingerprint와
+명시적 `implements` 관계를 비교하고, 언어 문법은 `CodeStructureExtractor`에 위임합니다.
 `AnalyzeTestChanges`는 Contract 경로에 따라 변경 파일을 분류하고 소스와 테스트를 연결합니다.
-`ExpectedScopeRule`, `ChangeBudgetRule`, `MissingTestChangeRule`, `PublicApiRemovalRule`은 정규화된
-분석 사실과 Contract만 읽으며 설정 파일의 형식이나 위치를 알지 못합니다. `AnalyzeChanges`는
-테스트와 심볼 분석을 먼저 완료한 뒤 그 사실을 규칙 엔진에 전달합니다.
+규칙들은 정규화된 분석 사실과 Contract만 읽으며 설정 파일의 형식이나 위치를 알지 못합니다.
+`AnalyzeChanges`는 테스트·심볼 분석, 구조·영향 분석 순으로 사실을 만든 뒤 규칙 엔진에 전달합니다.
 
 ### Infrastructure
 
 Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기와
 TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
 목록을 제공하고, TypeScript 어댑터는 최상위 선언 또는 정적 module specifier로 변환합니다.
-심볼 어댑터는 선언에 직접 지정된 `export` modifier도 분석 사실로 보존합니다.
+심볼 어댑터는 직접 export, 로컬 export 목록, 외부 re-export와 함수·인터페이스 공개 계약을 분석
+사실로 보존합니다. 구조 어댑터는 함수 본문을 공백·주석에 영향받지 않는 토큰 fingerprint로 바꾸고
+인터페이스 선언과 클래스의 명시적 `implements` 이름을 추출합니다.
 Compiler API의 노드 타입은 application과 domain 계층으로 전파되지 않습니다.
 `JsonChangeContractLoader`는 외부 JSON 형식을 검증한 뒤 정규화된 도메인 모델로 변환합니다.
 
@@ -193,19 +204,29 @@ SVG를 HTML 안에 포함합니다. 외부 CDN과 클라이언트 dependency를 
 실행되지 않게 합니다. 영향 그래프는 `ImpactAnalysis`의 변경 모듈과 직접·간접 영향 관계만
 시각화하므로 텍스트 보고서와 판단 근거가 달라지지 않습니다.
 
-### 17. 공개 API 위험은 확인 가능한 직접 export부터 판정
+### 17. 공개 API 위험은 구조화한 계약으로 판정
 
-현재 규칙은 TypeScript 최상위 선언의 직접 `export` 여부가 확인될 때만 공개 API 삭제 또는 export
-해제를 `high` finding으로 보고합니다. 선언 본문 수정은 변경 사실로만 남기며 호환성 파괴라고
-단정하지 않습니다. `export { name }`, `export *`, package entrypoint와 함수 시그니처 호환성은
-별도의 symbol resolution이 필요하므로 현재 결과에 포함하지 않습니다. 지원 범위를 좁히는 대신
-같은 diff에서 항상 같은 근거와 결과를 제공하고 오탐 가능성을 낮춥니다.
+TypeScript 어댑터는 함수 본문을 제외한 호출 시그니처와 인터페이스의 상속·멤버 계약을 별도로
+추출합니다. 기존 함수 시그니처가 사라지거나 인터페이스 멤버·상속 관계가 호환되지 않게 바뀐
+경우만 `high` finding으로 보고하며, 함수 본문만 바뀐 경우는 심볼 변경 사실로만 남깁니다.
+로컬 export 목록과 외부 re-export 삭제도 공개 심볼 제거 근거로 처리합니다. package entrypoint와
+타입 checker 수준의 할당 가능성은 아직 계산하지 않아 지원 범위를 명확히 유지합니다.
+
+### 18. 구조 신호와 위험 판단을 분리
+
+구조 어댑터가 반환하는 fingerprint나 AST 사실을 규칙이 직접 해석하지 않습니다.
+`AnalyzeCodeStructure`가 신규 함수와 기존 함수의 동일 구현 후보, 신규 인터페이스와 단일 구현체
+관계를 `CodeStructureAnalysis`로 만든 뒤 각 규칙이 `medium` 또는 `low` finding으로 변환합니다.
+짧은 함수는 우연히 같을 가능성이 높아 12토큰 미만을 제외하고, 다른 신규 함수는 기존 코드
+재사용 후보로 취급하지 않습니다. 이름 변경까지 추측하는 유사도 분석 대신 완전히 같은 토큰만
+비교해 결과를 재현 가능하게 유지합니다.
 
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가
 - 새로운 언어 분석기: `SourceSymbolExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 import 문법 분석기: `ModuleReferenceExtractor` 포트의 infrastructure 어댑터 추가
+- 새로운 구조 분석 언어: `CodeStructureExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 출력 형식: `ChangeReport`를 입력받는 formatter를 만들고 `report-formatter.ts`에 등록
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
 - 새로운 파일 공급자: `FileSnapshotSource` 구현 추가
