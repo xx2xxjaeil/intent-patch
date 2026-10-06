@@ -19,7 +19,7 @@ describe("TypeScriptSymbolExtractor", () => {
         "  function nested() {}",
         "}",
         "export class UserService {}",
-        "export interface User { id: string }",
+        "export interface User extends Entity { id: string; delete(force?: boolean): Promise<void> }",
         "export type UserId = string;",
         "export const ignored = true;",
         "function internalOnly() {}",
@@ -44,6 +44,32 @@ describe("TypeScriptSymbolExtractor", () => {
       result.symbols.every((symbol) => symbol.fingerprint.length === 64),
       true,
     );
+    assert.deepEqual(result.symbols.find((symbol) => symbol.name === "createUser")?.publicApi, {
+      kind: "function",
+      signatures: ["():inferred"],
+    });
+    assert.deepEqual(result.symbols.find((symbol) => symbol.name === "User")?.publicApi, {
+      kind: "interface",
+      extendsTypes: ["Entity"],
+      members: [
+        {
+          name: "delete",
+          memberKind: "method",
+          optional: false,
+          signature: "(boolean?):Promise<void>",
+        },
+        {
+          name: "id",
+          memberKind: "property",
+          optional: false,
+          signature: "string",
+        },
+      ],
+    });
+    assert.equal(
+      result.symbols.find((symbol) => symbol.name === "internalOnly")?.publicApi,
+      undefined,
+    );
   });
 
   it("groups overload declarations into one function symbol", () => {
@@ -60,6 +86,34 @@ describe("TypeScriptSymbolExtractor", () => {
     if (result.kind === "success") {
       assert.equal(result.symbols.length, 1);
       assert.equal(result.symbols[0]?.name, "parse");
+      assert.deepEqual(result.symbols[0]?.publicApi, {
+        kind: "function",
+        signatures: ["(number):number", "(string):string"],
+      });
+    }
+  });
+
+  it("recognizes local export lists and external re-exports", () => {
+    const result = extractor.extract(
+      "src/index.ts",
+      [
+        "function local(value: string): string { return value; }",
+        "export { local };",
+        'export { remote as publicRemote } from "./remote.js";',
+        'export * from "./shared.js";',
+      ].join("\n"),
+    );
+
+    assert.equal(result.kind, "success");
+    if (result.kind === "success") {
+      assert.deepEqual(
+        result.symbols.map(({ name, kind, exported }) => ({ name, kind, exported })),
+        [
+          { name: "local", kind: "function", exported: true },
+          { name: "publicRemote", kind: "re-export", exported: true },
+          { name: '* from "./shared.js"', kind: "re-export", exported: true },
+        ],
+      );
     }
   });
 
