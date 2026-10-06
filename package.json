@@ -18,7 +18,11 @@
     "static-analysis"
   ],
   "type": "module",
-  "private": true,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "intentpatch": "./dist/presentation/cli/main.js"
   },
@@ -28,6 +32,7 @@
     "dev": "node --import tsx src/presentation/cli/main.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "prepack": "npm run build",
     "test": "node --import tsx --test tests/**/*.test.ts",
     "test:watch": "node --import tsx --test --watch tests/**/*.test.ts",
     "typecheck": "tsc --noEmit"
