@@ -128,10 +128,13 @@ function findDuplicateCandidates(
     if (added === undefined || added.tokenCount < minimumImplementationTokens) {
       continue;
     }
-    for (const existing of existingFunctions) {
-      if (existing.implementationFingerprint === added.implementationFingerprint) {
-        candidates.push({ added: toLocation(added), existing: toLocation(existing) });
-      }
+    const existing = existingFunctions
+      .filter(
+        (candidate) => candidate.implementationFingerprint === added.implementationFingerprint,
+      )
+      .sort(compareLocatedSymbols)[0];
+    if (existing !== undefined) {
+      candidates.push({ added: toLocation(added), existing: toLocation(existing) });
     }
   }
   return candidates;
@@ -170,4 +173,15 @@ function toLocation(
 
 function symbolIdentity(path: string, name: string): string {
   return `${path}\0${name}`;
+}
+
+function compareLocatedSymbols(
+  left: Readonly<{ path: string; name: string; line: number }>,
+  right: Readonly<{ path: string; name: string; line: number }>,
+): number {
+  return (
+    left.path.localeCompare(right.path) ||
+    left.line - right.line ||
+    left.name.localeCompare(right.name)
+  );
 }

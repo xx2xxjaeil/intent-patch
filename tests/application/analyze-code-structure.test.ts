@@ -28,7 +28,11 @@ describe("AnalyzeCodeStructure", () => {
         functions: [functionFact("anotherNewAuth", "shared", 20, 2)],
       }),
       "src/existing.ts": success({
-        functions: [functionFact("authorize", "shared", 20, 4), functionFact("tiny", "tiny", 4, 9)],
+        functions: [
+          functionFact("authorize", "shared", 20, 4),
+          functionFact("authorizeLegacy", "shared", 20, 6),
+          functionFact("tiny", "tiny", 4, 9),
+        ],
       }),
       "src/strategy.ts": success({
         classes: [classFact("DefaultStrategy", ["Strategy"], 5)],
