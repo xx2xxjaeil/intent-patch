@@ -39,7 +39,7 @@ describe("packaged CLI integration", () => {
         "--no-fund",
         "--no-save",
         "--no-package-lock",
-        "--offline",
+        "--prefer-offline",
         tarball,
       ],
       { cwd: repository },
