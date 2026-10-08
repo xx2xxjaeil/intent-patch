@@ -41,6 +41,55 @@ npx intentpatch analyze --format html --output intentpatch-report.html
 핵심 분석에는 API key, 유료 AI 모델, 서버 또는 데이터베이스가 필요하지 않습니다. 분석할 Git
 저장소의 파일은 로컬에서 처리하며 LLM 연결은 현재 기본 실행 경로에 포함되지 않습니다.
 
+## GitHub Action
+
+Pull Request에서 요청 범위와 위험 변경을 자동 검사할 수 있습니다. 정확한 base·head commit을
+사용하도록 checkout의 전체 히스토리를 가져와야 합니다.
+
+```yaml
+name: IntentPatch
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Analyze pull request
+        id: intentpatch
+        uses: xx2xxjaeil/intent-patch@main
+        with:
+          fail-on: high
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intentpatch-report
+          path: intentpatch-report
+```
+
+현재 개발 버전은 `@main`으로 실행합니다. 첫 번째 정식 릴리스 후에는 불변 SHA 또는 `@v1`
+태그로 고정하는 방식을 권장합니다. Action은 PR·push 이벤트의 commit 범위를 자동으로
+선택하고 다음 결과를 남깁니다.
+
+- GitHub Actions Job Summary의 Markdown 보고서
+- 심각도별 workflow annotation
+- artifact 업로드에 사용할 JSON·HTML 보고서
+- `high`, `medium`, `low` 기준의 품질 게이트
+- finding 수와 보고서 경로 Action output
+
+입력·출력과 이벤트별 비교 기준은 [GitHub Action 사용 문서](./docs/github-action.md)에서
+확인할 수 있습니다.
+
 ## 프로젝트가 지향하는 결과
 
 ```text
@@ -120,6 +169,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 테스트 변경 수와 추가·삭제 수를 별도의 분석 사실로 집계
 - 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
+- Pull Request·push commit 범위를 자동 판별하는 GitHub Action
+- GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
 
 아직 lockfile의 전이 dependency 분석, path alias 해석, JavaScript·메서드 구조 분석과 AI 리뷰
 기능은 구현되지 않았습니다.
@@ -351,8 +402,9 @@ npm pack --dry-run
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
 9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
 10. ✅ 구현체가 하나뿐인 신규 인터페이스 탐지
-11. GitHub Action 및 Codex·Claude Code·Cursor adapter
-12. 근거 기반 결과에 대한 선택적 LLM 설명
+11. ✅ PR·push 비교, Job Summary와 artifact 출력을 제공하는 GitHub Action
+12. Codex·Claude Code·Cursor adapter
+13. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 

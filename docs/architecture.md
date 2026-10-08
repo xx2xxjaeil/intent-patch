@@ -58,7 +58,8 @@ ChangeReport
   ├─ TestChangeAnalysis
   ├─ 텍스트 보고서
   ├─ JSON 보고서
-  └─ 단일 HTML 보고서 + SVG 영향 그래프
+  ├─ 단일 HTML 보고서 + SVG 영향 그래프
+  └─ GitHub Action Job Summary + annotation + artifact용 보고서
 ```
 
 ## 계층과 의존 방향
@@ -105,8 +106,10 @@ Compiler API의 노드 타입은 application과 domain 계층으로 전파되지
 ### Presentation
 
 CLI 인자와 출력 형식을 담당합니다. `main.ts`는 유스케이스와 Git 어댑터를 연결하는 composition
-root 역할도 수행합니다. 텍스트, JSON, HTML formatter는 모두 동일한 `ChangeReport`를 입력으로
-받으며 HTML renderer는 분석 로직을 다시 수행하지 않습니다.
+root 역할은 `analyze-repository.ts`에 공유해 CLI와 GitHub Action이 동일한 규칙 조합을 사용합니다.
+텍스트, JSON, HTML formatter는 모두 동일한 `ChangeReport`를 입력으로 받으며 HTML renderer는 분석
+로직을 다시 수행하지 않습니다. `presentation/github` 어댑터는 webhook payload에서 비교 commit을
+결정하고 Job Summary, workflow annotation, Action output과 보고서 파일을 생성합니다.
 
 ## 주요 설계 판단
 
@@ -220,6 +223,15 @@ TypeScript 어댑터는 함수 본문을 제외한 호출 시그니처와 인터
 짧은 함수는 우연히 같을 가능성이 높아 12토큰 미만을 제외하고, 다른 신규 함수는 기존 코드
 재사용 후보로 취급하지 않습니다. 이름 변경까지 추측하는 유사도 분석 대신 완전히 같은 토큰만
 비교해 결과를 재현 가능하게 유지합니다.
+
+### 19. GitHub Action을 외부 어댑터로 유지
+
+Action은 GitHub API를 호출하지 않고 runner가 제공하는 event payload와 environment file만
+사용합니다. PR은 base·head SHA, push는 before·after SHA를 분석 입력으로 변환하며 모든
+판단은 기존 `ChangeReport`에서 수행합니다. 따라서 GitHub 출력 방식이 바뀌어도 분석 엔진과
+규칙은 영향을 받지 않습니다. GitHub가 dependency 설치 없이 실행할 수 있도록 action 진입점과
+TypeScript Compiler를 `action-dist/index.cjs`에 번들하고, 원본 소스와 번들의 일치를 CI에서
+검사합니다.
 
 ## 확장 지점
 
