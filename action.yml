@@ -1,0 +1,48 @@
+name: IntentPatch
+description: Analyze AI-authored Git changes with deterministic evidence-based rules
+author: IntentPatch contributors
+
+inputs:
+  working-directory:
+    description: Repository directory relative to GITHUB_WORKSPACE
+    required: false
+    default: .
+  config:
+    description: Change Contract path relative to the analyzed repository
+    required: false
+  base:
+    description: Base Git reference; detected automatically for pull_request and push events
+    required: false
+  head:
+    description: Head Git reference; detected automatically for pull_request and push events
+    required: false
+  fail-on:
+    description: Lowest finding severity that fails the action (high, medium, or low)
+    required: false
+    default: high
+  report-directory:
+    description: Report directory relative to GITHUB_WORKSPACE
+    required: false
+    default: intentpatch-report
+
+outputs:
+  json-report:
+    description: Absolute path to the generated JSON report
+  html-report:
+    description: Absolute path to the generated HTML report
+  findings:
+    description: Total number of findings
+  high-findings:
+    description: Number of high-severity findings
+  medium-findings:
+    description: Number of medium-severity findings
+  low-findings:
+    description: Number of low-severity findings
+
+runs:
+  using: node24
+  main: action-dist/index.cjs
+
+branding:
+  icon: git-pull-request
+  color: purple

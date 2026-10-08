@@ -28,7 +28,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "check": "npm run typecheck && npm run lint && npm run test",
+    "build:action": "esbuild src/presentation/github/action-main.ts --bundle --platform=node --target=node24 --format=cjs --outfile=action-dist/index.cjs --minify",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run check:action",
+    "check:action": "npm run build:action && git diff --exit-code -- action-dist/index.cjs",
     "dev": "node --import tsx src/presentation/cli/main.ts",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -46,6 +48,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
     "@types/node": "^20.19.17",
+    "esbuild": "^0.28.2",
     "tsx": "^4.20.5"
   }
 }

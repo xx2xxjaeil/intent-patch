@@ -4,12 +4,14 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type { Finding } from "../../src/domain/finding.js";
 import type { GitHubActionRuntime } from "../../src/presentation/github/action-runtime.js";
 import { runGitHubAction } from "../../src/presentation/github/run-action.js";
 
 const executeFile = promisify(execFile);
+const bundledAction = fileURLToPath(new URL("../../action-dist/index.cjs", import.meta.url));
 
 describe("GitHub Action integration", () => {
   const temporaryDirectories: string[] = [];
@@ -21,28 +23,8 @@ describe("GitHub Action integration", () => {
   });
 
   it("analyzes a pull request and writes summaries, reports, and outputs", async () => {
-    const repository = await mkdtemp(join(tmpdir(), "intentpatch-action-test-"));
+    const { repository, eventPath } = await createBreakingRepository();
     temporaryDirectories.push(repository);
-    await runGit(repository, ["init", "--quiet"]);
-    await writeFile(join(repository, "package.json"), '{"private":true,"type":"module"}\n');
-    await writeFile(
-      join(repository, "api.ts"),
-      "export function deleteUser(id: string): void { console.log(id); }\n",
-    );
-    await commitAll(repository, "Base");
-    const baseRef = await readHead(repository);
-
-    await writeFile(
-      join(repository, "api.ts"),
-      "function deleteUser(id: string): void { console.log(id); }\n",
-    );
-    await commitAll(repository, "Remove export");
-    const headRef = await readHead(repository);
-    const eventPath = join(repository, "event.json");
-    await writeFile(
-      eventPath,
-      JSON.stringify({ pull_request: { base: { sha: baseRef }, head: { sha: headRef } } }),
-    );
     const runtime = new FakeRuntime(
       {},
       {
@@ -64,6 +46,37 @@ describe("GitHub Action integration", () => {
     assert.ok(htmlReport);
     assert.match(await readFile(jsonReport, "utf8"), /"api\/export-removed"/);
     assert.match(await readFile(htmlReport, "utf8"), /Agent Change Report/);
+  });
+
+  it("runs the bundled action without installing repository dependencies", async () => {
+    const { repository, eventPath } = await createBreakingRepository();
+    temporaryDirectories.push(repository);
+    const outputFile = join(repository, "github-output");
+    const summaryFile = join(repository, "github-summary");
+    await Promise.all([writeFile(outputFile, ""), writeFile(summaryFile, "")]);
+
+    await assert.rejects(
+      () =>
+        executeFile("node", [bundledAction], {
+          cwd: repository,
+          env: {
+            ...process.env,
+            GITHUB_WORKSPACE: repository,
+            GITHUB_EVENT_NAME: "pull_request",
+            GITHUB_EVENT_PATH: eventPath,
+            GITHUB_OUTPUT: outputFile,
+            GITHUB_STEP_SUMMARY: summaryFile,
+          },
+        }),
+      /Command failed/,
+    );
+
+    assert.match(await readFile(outputFile, "utf8"), /high-findings<<[^\n]+\n1\n/);
+    assert.match(await readFile(summaryFile, "utf8"), /Public export removed/);
+    assert.match(
+      await readFile(join(repository, "intentpatch-report", "intentpatch-report.html"), "utf8"),
+      /Agent Change Report/,
+    );
   });
 });
 
@@ -116,6 +129,36 @@ async function commitAll(repository: string, message: string): Promise<void> {
     "-m",
     message,
   ]);
+}
+
+async function createBreakingRepository(): Promise<{
+  readonly repository: string;
+  readonly baseRef: string;
+  readonly headRef: string;
+  readonly eventPath: string;
+}> {
+  const repository = await mkdtemp(join(tmpdir(), "intentpatch-action-test-"));
+  await runGit(repository, ["init", "--quiet"]);
+  await writeFile(join(repository, "package.json"), '{"private":true,"type":"module"}\n');
+  await writeFile(
+    join(repository, "api.ts"),
+    "export function deleteUser(id: string): void { console.log(id); }\n",
+  );
+  await commitAll(repository, "Base");
+  const baseRef = await readHead(repository);
+
+  await writeFile(
+    join(repository, "api.ts"),
+    "function deleteUser(id: string): void { console.log(id); }\n",
+  );
+  await commitAll(repository, "Remove export");
+  const headRef = await readHead(repository);
+  const eventPath = join(repository, "event.json");
+  await writeFile(
+    eventPath,
+    JSON.stringify({ pull_request: { base: { sha: baseRef }, head: { sha: headRef } } }),
+  );
+  return { repository, baseRef, headRef, eventPath };
 }
 
 async function readHead(repository: string): Promise<string> {
