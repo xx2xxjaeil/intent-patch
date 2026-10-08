@@ -1,0 +1,32 @@
+name: IntentPatch
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze change scope
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Analyze pull request
+        id: intentpatch
+        uses: ./
+        with:
+          fail-on: high
+
+      - name: Upload IntentPatch reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: intentpatch-report
+          path: intentpatch-report
+          if-no-files-found: warn
+          retention-days: 14
