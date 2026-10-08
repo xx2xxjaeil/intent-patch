@@ -2,31 +2,8 @@
 
 import { readFile } from "node:fs/promises";
 import process from "node:process";
-import { ChangeBudgetRule } from "../../application/rules/change-budget-rule.js";
-import { DuplicateImplementationRule } from "../../application/rules/duplicate-implementation-rule.js";
-import { ExpectedScopeRule } from "../../application/rules/expected-scope-rule.js";
-import { MissingTestChangeRule } from "../../application/rules/missing-test-change-rule.js";
-import { PackageDependencyRule } from "../../application/rules/package-dependency-rule.js";
-import { PublicApiCompatibilityRule } from "../../application/rules/public-api-compatibility-rule.js";
-import { PublicApiRemovalRule } from "../../application/rules/public-api-removal-rule.js";
-import { SingleImplementationAbstractionRule } from "../../application/rules/single-implementation-abstraction-rule.js";
-import { AnalyzeCodeStructure } from "../../application/services/analyze-code-structure.js";
-import { AnalyzeImportImpact } from "../../application/services/analyze-import-impact.js";
-import { AnalyzeTestChanges } from "../../application/services/analyze-test-changes.js";
-import { CompareSourceSymbols } from "../../application/services/compare-source-symbols.js";
-import { RuleEngine } from "../../application/services/rule-engine.js";
-import { AnalyzeChanges } from "../../application/use-cases/analyze-changes.js";
-import { JsonChangeContractLoader } from "../../infrastructure/config/json-change-contract-loader.js";
-import { GitChangeSource } from "../../infrastructure/git/git-change-source.js";
-import { GitFileSnapshotSource } from "../../infrastructure/git/git-file-snapshot-source.js";
-import { GitProjectFileSource } from "../../infrastructure/git/git-project-file-source.js";
-import {
-  CommandExecutionError,
-  NodeCommandRunner,
-} from "../../infrastructure/process/command-runner.js";
-import { TypeScriptCodeStructureExtractor } from "../../infrastructure/typescript/typescript-code-structure-extractor.js";
-import { TypeScriptModuleReferenceExtractor } from "../../infrastructure/typescript/typescript-module-reference-extractor.js";
-import { TypeScriptSymbolExtractor } from "../../infrastructure/typescript/typescript-symbol-extractor.js";
+import { CommandExecutionError } from "../../infrastructure/process/command-runner.js";
+import { analyzeRepository } from "../analyze-repository.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
 import { writeReportFile } from "./report-file-writer.js";
@@ -45,45 +22,13 @@ async function main(): Promise<void> {
       return;
     }
 
-    // 구체 어댑터 조립은 가장 바깥 계층인 CLI 진입점에서만 수행한다.
-    const commandRunner = new NodeCommandRunner();
-    const snapshotSource = new GitFileSnapshotSource(options.workingDirectory, commandRunner);
-    const contract = await new JsonChangeContractLoader().load(
-      options.workingDirectory,
-      options.configurationPath,
-    );
-    const ruleEngine = new RuleEngine([
-      new PackageDependencyRule(snapshotSource),
-      new ExpectedScopeRule(),
-      new ChangeBudgetRule(),
-      new MissingTestChangeRule(),
-      new PublicApiRemovalRule(),
-      new PublicApiCompatibilityRule(),
-      new DuplicateImplementationRule(),
-      new SingleImplementationAbstractionRule(),
-    ]);
-    const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
-      new TypeScriptSymbolExtractor(),
-    ]);
-    const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
-    const impactAnalyzer = new AnalyzeImportImpact(projectFiles, [
-      new TypeScriptModuleReferenceExtractor(),
-    ]);
-    const codeStructureAnalyzer = new AnalyzeCodeStructure(projectFiles, [
-      new TypeScriptCodeStructureExtractor(),
-    ]);
-    const useCase = new AnalyzeChanges(
-      new GitChangeSource(options.workingDirectory, commandRunner),
-      ruleEngine,
-      symbolChangeAnalyzer,
-      impactAnalyzer,
-      new AnalyzeTestChanges(),
-      codeStructureAnalyzer,
-    );
-    const report = await useCase.execute({
+    const report = await analyzeRepository({
+      workingDirectory: options.workingDirectory,
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
       ...(options.headRef === undefined ? {} : { headRef: options.headRef }),
-      ...(contract === undefined ? {} : { contract }),
+      ...(options.configurationPath === undefined
+        ? {}
+        : { configurationPath: options.configurationPath }),
     });
 
     const output = formatReport(report, options.outputFormat);
