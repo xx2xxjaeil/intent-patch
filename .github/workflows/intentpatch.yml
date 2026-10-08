@@ -20,7 +20,7 @@ jobs:
         id: intentpatch
         uses: ./
         with:
-          fail-on: high
+          fail-on: medium
 
       - name: Upload IntentPatch reports
         if: always()

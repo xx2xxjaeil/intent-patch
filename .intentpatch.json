@@ -1,0 +1,7 @@
+{
+  "intent": "GitHub Action annotation and artifact smoke test",
+  "scope": {
+    "include": ["src/**"],
+    "allow": [".intentpatch.json", ".github/workflows/intentpatch.yml"]
+  }
+}
