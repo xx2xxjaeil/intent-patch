@@ -390,6 +390,21 @@ npm에 포함될 파일과 패키지 생성을 확인하려면 실제 공개 없
 npm pack --dry-run
 ```
 
+## 릴리스
+
+`v0.1.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+워크플로가 다음 작업을 순서대로 수행합니다.
+
+1. 태그·버전·기본 브랜치 포함 여부 검증
+2. 전체 품질 검사와 npm 패키지 내용 dry-run
+3. npm Trusted Publishing(OIDC)을 이용한 공개 배포
+4. 자동 생성한 변경 내역을 포함하는 GitHub Release 생성
+
+장기 npm token을 GitHub secret으로 저장하지 않으며, 공개 저장소에서 OIDC로 배포한 패키지에는
+npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신규 패키지는 Trusted Publisher를
+연결하기 전에 최초 1회 등록이 필요합니다. 초기 등록과 이후 버전 배포 절차는
+[릴리스 운영 가이드](./docs/releasing.md)에 정리했습니다.
+
 ## 로드맵
 
 1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
