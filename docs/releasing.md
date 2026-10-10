@@ -25,36 +25,46 @@ GitHub Release + 자동 생성 변경 내역
 - npm 배포가 성공한 뒤에만 GitHub Release를 만듭니다.
 - npm 인증에는 장기 token 대신 GitHub Actions OIDC를 사용합니다.
 
-## 최초 패키지 등록
+## 최초 릴리스 준비
 
-npm은 이미 registry에 존재하는 패키지에만 Trusted Publisher를 설정할 수 있습니다. 따라서
-`intentpatch`가 아직 존재하지 않는 최초 한 번은 npm 계정 로그인과 2FA를 사용해 직접
-등록해야 합니다.
+npm은 registry에 존재하는 패키지에만 Trusted Publisher를 설정할 수 있습니다. 신규 패키지를
+`npm stage publish`로 등록하면 공개 페이지에는 `0.0.0-stage` placeholder가 만들어지고 실제
+버전은 승인 전까지 staging 영역에 보관됩니다.
 
-IntentPatch의 첫 `v0.1.0` 등록은 릴리스 자동화 PR을 `main`에 merge하기 전에 진행합니다.
-그래야 같은 태그를 처리한 자동 워크플로가 이미 공개된 버전을 다시 배포하지 않습니다.
+staging은 패키지 이름을 먼저 등록하는 bootstrap 용도로 사용할 수 있지만, 최종 소스가 아닌
+tarball을 승인해서는 안 됩니다. 문서나 빌드 결과가 달라졌다면 npm 계정에 2FA를 활성화한 뒤
+Staged Packages 화면 또는 CLI에서 기존 stage를 거절합니다.
+
+```bash
+npm stage list intentpatch
+npm stage view <stage-id>
+npm stage reject <stage-id>
+```
+
+`stage reject`는 staging된 버전을 제거해 같은 버전을 다시 배포할 수 있게 하며 2FA 확인이
+필수입니다. `0.0.0-stage` placeholder는 패키지 namespace가 생성됐다는 의미일 뿐 실제
+`v0.1.0` 릴리스가 아닙니다.
+
+IntentPatch의 최초 정식 릴리스는 다음 순서를 따릅니다.
+
+1. 잘못되거나 오래된 `0.1.0` stage가 있다면 2FA로 거절합니다.
+2. 릴리스 자동화 PR을 `main`에 merge합니다.
+3. 아래 설정으로 npm Trusted Publisher를 연결합니다.
+4. 최신 `main`에서 `npm run check`와 `npm pack --dry-run`을 실행합니다.
+5. `v0.1.0` annotated tag를 만들고 push해 자동 워크플로를 시작합니다.
 
 ```bash
 git switch main
 git pull --ff-only
-npm ci
 npm run check
 npm pack --dry-run
-npm login
-npm publish --access public
-```
-
-배포 후 npm의 `intentpatch` 패키지 페이지에서 버전과 파일을 확인합니다. 같은 `main` commit에
-`v0.1.0` annotated tag를 만들고 push한 뒤, GitHub 웹에서 해당 tag의 Release를 한 번만 직접
-만듭니다.
-
-```bash
+npm run release:verify -- v0.1.0
 git tag -a v0.1.0 -m "IntentPatch v0.1.0"
 git push origin v0.1.0
 ```
 
-그다음 릴리스 자동화 PR을 merge합니다. npm에 공개된 버전은 삭제하거나 같은 번호로 덮어쓸 수
-없으므로, 최초 등록 전에 tarball 내용을 반드시 확인합니다.
+npm에 공개된 버전은 같은 번호로 덮어쓸 수 없으므로 tag를 push하기 전에 tarball 내용을 반드시
+확인합니다. 자동 배포가 성공하면 별도로 같은 버전을 수동 publish하지 않습니다.
 
 ## npm Trusted Publisher 연결
 
