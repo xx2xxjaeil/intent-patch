@@ -21,10 +21,11 @@
   "files": [
     "dist",
     "README.md",
+    "README.ko.md",
     "LICENSE"
   ],
   "bin": {
-    "intentpatch": "./dist/presentation/cli/main.js"
+    "intentpatch": "dist/presentation/cli/main.js"
   },
   "publishConfig": {
     "access": "public"
