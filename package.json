@@ -26,6 +26,9 @@
   "bin": {
     "intentpatch": "./dist/presentation/cli/main.js"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:action": "esbuild src/presentation/github/action-main.ts --bundle --platform=node --target=node24 --format=cjs --outfile=action-dist/index.cjs --minify",
@@ -35,7 +38,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "prepack": "npm run build",
-    "test": "node --import tsx --test tests/**/*.test.ts",
+    "release:verify": "node scripts/verify-release.mjs",
+    "test": "node --import tsx --test tests/**/*.test.ts tests/**/*.test.mjs",
     "test:watch": "node --import tsx --test --watch tests/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
