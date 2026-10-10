@@ -1,26 +1,24 @@
 # IntentPatch
 
+**English** | [한국어](./README.ko.md)
+
 [![CI](https://github.com/xx2xxjaeil/intent-patch/actions/workflows/ci.yml/badge.svg)](https://github.com/xx2xxjaeil/intent-patch/actions/workflows/ci.yml)
 
-> AI 코딩 에이전트가 만든 변경을 근거 중심으로 분석하는 오픈소스 도구
+> Evidence-based change-scope analysis for code written by AI coding agents
 
-Codex, Claude Code, Cursor 같은 AI 코딩 에이전트는 짧은 요청만으로 여러 파일을 빠르게
-수정합니다. 하지만 변경된 파일이 많아질수록 다음 질문에 답하기 어려워집니다.
+AI coding agents such as Codex, Claude Code, and Cursor can change many files from a short request. As the patch grows, it becomes harder to answer a few important questions:
 
-- 요청한 범위보다 많은 파일을 수정하지 않았는가?
-- 기존 코드를 재사용하지 않고 비슷한 로직을 새로 만들지 않았는가?
-- 불필요한 라이브러리나 추상화를 추가하지 않았는가?
-- 이번 변경이 다른 모듈에 어디까지 영향을 주는가?
-- 중요한 동작에 대한 테스트가 함께 추가되었는가?
+- Did the agent change files outside the requested scope?
+- Did it recreate logic that already existed?
+- Did it add an unnecessary dependency or abstraction?
+- How far can the change affect other modules?
+- Were relevant tests changed with the production code?
 
-IntentPatch는 이러한 질문에 답하기 위해 **Git diff, 정적 분석, 의존 관계 분석**을 결합합니다.
-LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선택적으로 결합하는 것을 목표로
-합니다.
+IntentPatch combines **Git diff analysis, static analysis, and dependency analysis** to answer those questions. Its core analysis is deterministic and works without an LLM. Optional AI explanations can be added later without making the core tool dependent on a model provider.
 
-## 빠른 시작
+## Quick start
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. 현재 npm 공개 전에는 저장소를 빌드해 바로
-실행할 수 있습니다.
+IntentPatch requires Node.js 20 or later and Git. Until the first public npm release is approved, build and run it directly from the repository:
 
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
@@ -31,20 +29,18 @@ node dist/presentation/cli/main.js --version
 node dist/presentation/cli/main.js analyze --cwd /path/to/repository
 ```
 
-npm 릴리스가 공개된 뒤에는 설치 없이 같은 CLI를 실행할 수 있습니다.
+After the npm release becomes public, run the same CLI without installing it globally:
 
 ```bash
 npx intentpatch analyze --cwd /path/to/repository
 npx intentpatch analyze --format html --output intentpatch-report.html
 ```
 
-핵심 분석에는 API key, 유료 AI 모델, 서버 또는 데이터베이스가 필요하지 않습니다. 분석할 Git
-저장소의 파일은 로컬에서 처리하며 LLM 연결은 현재 기본 실행 경로에 포함되지 않습니다.
+The core analyzer needs no API key, paid AI model, server, or database. Repository files are processed locally, and no LLM is used in the default execution path.
 
 ## GitHub Action
 
-Pull Request에서 요청 범위와 위험 변경을 자동 검사할 수 있습니다. 정확한 base·head commit을
-사용하도록 checkout의 전체 히스토리를 가져와야 합니다.
+Use IntentPatch in pull requests to check scope and risky changes automatically. The checkout must include the full Git history so the action can compare the exact base and head commits.
 
 ```yaml
 name: IntentPatch
@@ -77,20 +73,19 @@ jobs:
           path: intentpatch-report
 ```
 
-현재 개발 버전은 `@main`으로 실행합니다. 첫 번째 정식 릴리스 후에는 불변 SHA 또는 `@v1`
-태그로 고정하는 방식을 권장합니다. Action은 PR·push 이벤트의 commit 범위를 자동으로
-선택하고 다음 결과를 남깁니다.
+The development version currently runs from `@main`. After the first stable release, pin the action to an immutable commit SHA or a major tag such as `@v1`.
 
-- GitHub Actions Job Summary의 Markdown 보고서
-- 심각도별 workflow annotation
-- artifact 업로드에 사용할 JSON·HTML 보고서
-- `high`, `medium`, `low` 기준의 품질 게이트
-- finding 수와 보고서 경로 Action output
+The action detects the comparison range for pull request and push events and produces:
 
-입력·출력과 이벤트별 비교 기준은 [GitHub Action 사용 문서](./docs/github-action.md)에서
-확인할 수 있습니다.
+- a Markdown report in the GitHub Actions Job Summary;
+- workflow annotations grouped by severity;
+- JSON and HTML reports that can be uploaded as artifacts;
+- a quality gate at the `high`, `medium`, or `low` threshold;
+- action outputs containing finding counts and report paths.
 
-## 프로젝트가 지향하는 결과
+See the [GitHub Action guide](./docs/github-action.md) for inputs, outputs, and event-specific comparison behavior.
+
+## What the report looks like
 
 ```text
 IntentPatch Change Report
@@ -116,80 +111,81 @@ Impacted files
 
 Potential issues
 
-HIGH    공개 함수 시그니처 호환성 파괴
-MEDIUM  기존 인증 로직과 동일한 구현 발견
-MEDIUM  요청과 관련성이 낮아 보이는 파일 4개 변경
-LOW     구현체가 하나뿐인 추상화 추가
+HIGH    Breaking change to a public function signature
+MEDIUM  Implementation duplicates existing authentication logic
+MEDIUM  Four files changed outside the expected scope
+LOW     New abstraction has only one implementation
 ```
 
-분석 결과는 단순한 경고 문구가 아니라 관련 파일, 규칙 ID, 판단 근거와 함께 제공하는 것을
-원칙으로 합니다.
+Every finding includes the relevant file, a stable rule ID, and evidence for the decision instead of only presenting an unexplained warning.
 
-## 현재 구현된 기능
+## Implemented capabilities
 
-현재 버전은 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
-최상위 심볼과 공개 API 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
-영향 범위와 테스트 동반 변경 분석을 제공합니다.
+The current version analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript symbols and public API changes, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
 
-- `HEAD`와 현재 working tree 비교
-- 두 Git reference 또는 브랜치 비교
-- 추가, 수정, 삭제, 이름 변경 등 파일 상태 분류
-- 파일별 추가·삭제 라인 수 계산
-- binary 파일 구분
-- working tree 분석 시 untracked 파일 포함
-- 터미널용 텍스트 보고서
-- 후속 도구 연동을 위한 JSON 보고서
-- 요약 카드, finding, 테스트 신호와 영향 그래프를 담은 단일 HTML 보고서
-- 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
-- production·development dependency 추가 탐지
-- dependency 삭제, 버전 변경, 섹션 이동 탐지
-- 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
-- finding 심각도(`high`, `medium`, `low`) 집계
-- CI 품질 게이트를 위한 `--fail-on` 종료 코드
-- 설치된 패키지 버전을 확인하는 `--version` 명령
-- `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
-- 심볼 추가·수정·삭제 탐지와 소스 위치 표시
-- 직접 `export`된 선언, 로컬 export 목록과 외부 re-export를 공개 심볼 근거에 보존
-- 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
-- 공개 함수의 기존 호출 시그니처 제거와 공개 인터페이스의 호환성 파괴를 `high` finding으로 탐지
-- 구현이 추가된 기존 overload는 제외하고 기존 overload가 사라진 경우만 함수 계약 변경으로 판정
-- 공백과 주석을 제외한 구현 토큰이 같은 신규 함수와 기존 함수를 재사용 후보 `medium` finding으로 탐지
-- 신규 인터페이스를 명시적으로 구현하는 클래스가 하나뿐이면 추상화 검토 `low` finding으로 탐지
-- rename 전후 파일 경로를 사용한 심볼 비교
-- 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
-- `.ts`·`.tsx` 파일의 상대 경로 정적 import와 re-export 관계 수집
-- `.js`·`.jsx`·`.mjs`·`.cjs` specifier를 대응하는 TypeScript 소스로 해석
-- 변경 모듈을 import하는 직접 의존자와 여러 단계를 거친 간접 영향 파일 계산
-- 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
-- working tree의 tracked·untracked 파일 또는 지정한 head ref를 동일한 결과점에서 분석
-- `.intentpatch.json`에 요청 의도, 예상 경로, 허용 경로와 변경량 예산 선언
-- 예상·허용 패턴을 벗어난 변경 파일을 파일별 `medium` finding으로 탐지
-- 변경 파일 수와 측정 라인 예산 초과를 수치 근거가 있는 `low` finding으로 탐지
-- Contract가 지정한 소스·테스트 경로를 분류하고 파일명 기준으로 관련 변경 연결
-- 테스트 변경 수와 추가·삭제 수를 별도의 분석 사실로 집계
-- 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
-- `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
-- Pull Request·push commit 범위를 자동 판별하는 GitHub Action
-- GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
+### Git and reporting
 
-아직 lockfile의 전이 dependency 분석, path alias 해석, JavaScript·메서드 구조 분석과 AI 리뷰
-기능은 구현되지 않았습니다.
+- Compare `HEAD` with the current working tree.
+- Compare two Git references or branches from their merge base.
+- Classify added, modified, deleted, and renamed files.
+- Count added and deleted lines per file.
+- Distinguish binary files.
+- Include untracked files in working-tree analysis.
+- Render terminal-friendly text and machine-readable JSON reports.
+- Generate a standalone HTML report containing summary cards, findings, test signals, and an impact graph.
+- Render the visualization with inline CSS and SVG, without a CDN or runtime JavaScript dependency.
+- Aggregate findings by `high`, `medium`, and `low` severity.
+- Return a CI-friendly exit code through `--fail-on`.
+- Print the installed package version through `--version`.
 
-## 상세 사용법
+### Dependencies and TypeScript structure
 
-현재 저장소의 working tree를 분석합니다.
+- Detect additions to production and development dependencies.
+- Detect dependency removal, version changes, and section moves.
+- Report malformed `package.json` files as evidence-backed findings instead of crashing.
+- Extract top-level named functions, classes, interfaces, and type aliases from `.ts` and `.tsx` files.
+- Detect symbol additions, modifications, and removals with source locations.
+- Preserve direct exports, local export lists, and external re-exports as public-symbol evidence.
+- Report removed public symbols and removed exports as high-severity compatibility risks.
+- Detect removed public function call signatures and incompatible public interface changes.
+- Exclude overloads that only gain an implementation while reporting previously available overloads that disappear.
+- Find newly added functions whose normalized implementation matches an existing function.
+- Report a newly added interface when exactly one class explicitly implements it.
+- Compare symbols correctly across renamed files.
+- Preserve syntax errors as analysis evidence instead of silently dropping a file.
+
+### Impact, scope, and tests
+
+- Build relative static import and re-export relationships for `.ts` and `.tsx` files.
+- Resolve `.js`, `.jsx`, `.mjs`, and `.cjs` import specifiers to matching TypeScript sources.
+- Calculate direct importers and transitively impacted files for changed modules.
+- Preserve unresolved relative imports and file read or parse failures as evidence.
+- Build the graph at the same result point as the diff: the working tree or the selected head ref.
+- Read intent, expected paths, allowed paths, and change budgets from `.intentpatch.json`.
+- Report each file outside expected and allowed patterns as a medium-severity finding.
+- Report file-count and measurable-line budget overruns with numeric evidence.
+- Classify source and test paths declared by the contract and connect related changes by basename.
+- Report test file counts and added or deleted tests as separate facts.
+- Report source files without a related test change as medium-severity findings.
+- Support repository-relative `*`, `**`, and `?` path patterns.
+
+Lockfile transitive dependency analysis, path aliases, JavaScript and method-level structure analysis, and optional AI review are not implemented yet.
+
+## CLI usage
+
+Analyze the current repository's working tree:
 
 ```bash
 node dist/presentation/cli/main.js analyze
 ```
 
-다른 Git 저장소를 분석할 수도 있습니다.
+Analyze another Git repository:
 
 ```bash
 node dist/presentation/cli/main.js analyze --cwd /path/to/repository
 ```
 
-두 브랜치를 비교합니다. 내부적으로 merge base 기준의 변경사항을 분석합니다.
+Compare two branches. IntentPatch analyzes their changes from the merge base:
 
 ```bash
 node dist/presentation/cli/main.js analyze \
@@ -198,13 +194,13 @@ node dist/presentation/cli/main.js analyze \
   --head feature/account-deletion
 ```
 
-JSON으로 출력합니다.
+Write JSON output:
 
 ```bash
 node dist/presentation/cli/main.js analyze --json
 ```
 
-브라우저에서 볼 수 있는 HTML 보고서를 파일로 생성합니다.
+Create a standalone HTML report:
 
 ```bash
 node dist/presentation/cli/main.js analyze \
@@ -212,18 +208,15 @@ node dist/presentation/cli/main.js analyze \
   --output intentpatch-report.html
 ```
 
-HTML 파일에는 스타일과 dependency 영향 SVG 그래프가 모두 포함되므로 별도 서버나 API key 없이
-바로 열 수 있습니다. `--output`은 텍스트와 JSON 형식에도 사용할 수 있으며 상대 경로는
-IntentPatch를 실행한 현재 디렉터리를 기준으로 해석합니다. 기존 `--json`은
-`--format json`의 단축 옵션입니다.
+The HTML file contains all styles and the dependency-impact SVG, so it opens directly without a server or API key. `--output` also works with text and JSON formats. Relative output paths are resolved from the directory where IntentPatch is executed. `--json` is an alias for `--format json`.
 
-### Change Contract로 요청 범위 검사
+### Check request scope with a Change Contract
 
-분석할 저장소의 `.intentpatch.json`에 이번 요청의 기대 범위를 선언할 수 있습니다.
+Create `.intentpatch.json` in the repository being analyzed and declare the expected scope of the request:
 
 ```json
 {
-  "intent": "회원 탈퇴 기능 구현",
+  "intent": "Implement account deletion",
   "scope": {
     "include": ["src/user/**", "tests/user/**"],
     "allow": ["package.json", "package-lock.json"],
@@ -238,19 +231,17 @@ IntentPatch를 실행한 현재 디렉터리를 기준으로 해석합니다. �
 }
 ```
 
-- `include`: 요청 수행 중 변경될 것으로 예상한 경로
-- `allow`: 설정이나 lockfile처럼 함께 변경되어도 허용하는 예외 경로
-- `maxFiles`: 변경 파일 수의 상한
-- `maxLines`: 측정 가능한 추가·삭제 라인 합의 상한
-- `tests.requireFor`: 테스트 동반 변경을 확인할 소스 경로
-- `tests.include`: 테스트 파일로 분류할 경로
-- `tests.exclude`: 생성 파일이나 선언 파일처럼 검사에서 제외할 소스 경로
+- `include`: paths expected to change for the request;
+- `allow`: exceptional paths such as configuration or lockfiles;
+- `maxFiles`: maximum number of changed files;
+- `maxLines`: maximum total of measurable added and deleted lines;
+- `tests.requireFor`: source paths that require a related test change;
+- `tests.include`: paths classified as tests;
+- `tests.exclude`: generated or declaration files excluded from the source check.
 
-테스트 연결은 결정적인 결과를 위해 파일명을 사용합니다. 예를 들어 `src/user.ts`는
-`tests/user.test.ts`, `user.spec.ts`, `user.integration.test.ts` 같은 변경과 연결됩니다.
+Test matching uses basenames for deterministic results. For example, `src/user.ts` can match changed files such as `tests/user.test.ts`, `user.spec.ts`, or `user.integration.test.ts`.
 
-기본 파일 대신 별도 계약을 사용하려면 `--config`를 지정합니다. 상대 경로는 `--cwd`를 기준으로
-해석합니다.
+Use `--config` to select another contract. Relative paths are resolved from `--cwd`:
 
 ```bash
 node dist/presentation/cli/main.js analyze \
@@ -258,19 +249,19 @@ node dist/presentation/cli/main.js analyze \
   --config contracts/delete-user.json
 ```
 
-복사해서 시작할 수 있는 설정은 [`.intentpatch.example.json`](./.intentpatch.example.json)에
-있습니다. Contract가 없으면 기존 분석은 그대로 실행되고 scope 규칙만 비활성화됩니다.
+Start with [`.intentpatch.example.json`](./.intentpatch.example.json). Without a contract, all existing analysis still runs and only the scope rules are disabled.
 
-지정한 심각도 이상의 finding이 있으면 보고서를 출력한 뒤 종료 코드 `1`을 반환합니다.
+### Quality gates
+
+Return exit code `1` after rendering the report when a finding meets or exceeds the selected severity:
 
 ```bash
 node dist/presentation/cli/main.js analyze --fail-on medium
 ```
 
-`medium`은 `medium`과 `high` finding에 반응하며, `low`를 지정하면 모든 finding을 품질
-게이트 대상으로 취급합니다. 잘못된 CLI 사용은 종료 코드 `2`를 반환합니다.
+`medium` reacts to both medium- and high-severity findings. `low` treats every finding as a quality-gate failure. Invalid CLI usage returns exit code `2`.
 
-dependency 변경과 코드 영향 범위를 다음과 같이 근거와 함께 출력합니다.
+An evidence-rich result looks like this:
 
 ```text
 IntentPatch Change Report
@@ -328,16 +319,15 @@ LOW     New interface has one implementation
         The new interface DeletionStrategy is implemented only by DefaultDeletionStrategy.
 ```
 
-개발 중에는 빌드 없이 실행할 수 있습니다.
+Run the TypeScript entry point directly during development:
 
 ```bash
 npm run dev -- analyze --cwd /path/to/repository
 ```
 
-## 아키텍처
+## Architecture
 
-기능이 늘어나도 Git, UI, 분석 규칙이 서로 강하게 결합되지 않도록 클린 아키텍처의 의존성
-방향을 적용했습니다.
+IntentPatch applies Clean Architecture dependency direction so Git, presentation, and analysis rules do not become tightly coupled as the project grows.
 
 ```text
 presentation ───────▶ application ───────▶ domain
@@ -345,109 +335,103 @@ presentation ───────▶ application ───────▶ domai
       └──▶ infrastructure ──┘
 ```
 
-| 계층 | 책임 |
+| Layer | Responsibility |
 | --- | --- |
-| `domain` | 변경 파일, Change Contract, finding, 심볼 변경, dependency 영향 등 핵심 모델 |
-| `application` | 분석 유스케이스, 규칙 엔진, 심볼·영향 계산과 외부 데이터 포트 |
-| `infrastructure` | Git 명령·diff 파싱·프로젝트 파일 공급·TypeScript AST 파싱 |
-| `presentation` | CLI 인자 처리, 의존성 조립, 텍스트·JSON·HTML 출력 |
+| `domain` | Core models for changed files, Change Contracts, findings, symbol changes, and dependency impact |
+| `application` | Analysis use cases, rule engine, symbol and impact calculations, and ports for external data |
+| `infrastructure` | Git commands, diff parsing, project-file access, and TypeScript AST parsing |
+| `presentation` | CLI argument handling, dependency composition, and text, JSON, and HTML output |
 
-하위 계층이 외부 구현을 참조하지 않도록 아키텍처 테스트가 import 방향을 검사합니다.
-구현상의 주요 판단과 확장 지점은 [상세 아키텍처 문서](./docs/architecture.md)에서 설명합니다.
+Architecture tests enforce the import direction so inner layers never depend on external implementations. See the [architecture document](./docs/architecture.md) for design decisions and extension points.
 
-## 설계 원칙
+## Design principles
 
-- **Deterministic first:** 핵심 분석은 동일한 입력에 동일한 결과를 반환합니다.
-- **Evidence over claims:** 확실하지 않은 판단을 사실처럼 단정하지 않습니다.
-- **LLM optional:** AI 연결 없이도 기본 분석 기능을 사용할 수 있어야 합니다.
-- **Dependency minimalism:** 편의를 위한 라이브러리를 무분별하게 추가하지 않습니다.
-- **Explicit boundaries:** 도메인 로직과 Git·CLI 같은 외부 기술을 분리합니다.
+- **Deterministic first:** the same input produces the same core analysis result.
+- **Evidence over claims:** uncertain signals are not presented as facts.
+- **LLM optional:** useful analysis remains available without an AI provider.
+- **Dependency minimalism:** convenience alone does not justify another library.
+- **Explicit boundaries:** domain logic stays separate from external details such as Git and CLI frameworks.
 
-## 테스트와 품질 검사
+## Testing and quality checks
 
 ```bash
 npm run check
 ```
 
-위 명령은 다음 검사를 순서대로 실행합니다.
+This command runs:
 
-- 엄격한 TypeScript 타입 검사
-- Biome 린트 및 포맷 검사
-- 도메인과 유스케이스 단위 테스트
-- 실제 임시 Git 저장소를 사용하는 통합 테스트
-- 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
-- 계층 간 의존 방향을 검증하는 아키텍처 테스트
+- strict TypeScript type checking;
+- Biome lint and format checks;
+- domain and use-case unit tests;
+- integration tests against real temporary Git repositories;
+- a package integration test that installs the generated npm tarball in a temporary project and executes it;
+- architecture tests that enforce dependency direction;
+- a reproducibility check for the bundled GitHub Action.
 
-프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
+Run only the production build with:
 
 ```bash
 npm run build
 ```
 
-npm에 포함될 파일과 패키지 생성을 확인하려면 실제 공개 없이 dry-run을 실행합니다.
+Inspect the files that would be published without creating a public release:
 
 ```bash
 npm pack --dry-run
 ```
 
-## 로드맵
+## Release process
 
-1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
-2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
-3. ✅ 상대 경로 정적 import graph 기반 변경 영향 범위 계산
-4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
-5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
-6. lockfile과 workspace를 고려한 package manager adapter
-7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
-8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
-9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
-10. ✅ 구현체가 하나뿐인 신규 인터페이스 탐지
-11. ✅ PR·push 비교, Job Summary와 artifact 출력을 제공하는 GitHub Action
-12. Codex·Claude Code·Cursor adapter
-13. 근거 기반 결과에 대한 선택적 LLM 설명
+Pushing a tag such as `v0.1.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
-## 현재 제한사항
+1. Validate the tag, package version, and default-branch ancestry.
+2. Run the full quality suite and inspect the npm package with a dry run.
+3. Publish through npm Trusted Publishing with OpenID Connect.
+4. Create a GitHub Release with automatically generated notes.
 
-- 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
-- untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
-- 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
-- dependency 분석은 저장소 루트의 npm `package.json`에 선언된 `dependencies`와
-  `devDependencies`를 대상으로 합니다.
-- lockfile의 전이 dependency, workspace package, 코드에서의 실제 사용 여부는 아직 분석하지 않습니다.
-- 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
-  별칭만 지원합니다.
-- 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
-  `export { name } from`, `export * from`을 지원합니다. package `exports`, 익명 default export,
-  클래스·타입 별칭의 세부 계약은 아직 해석하지 않습니다.
-- 함수 호환성은 명시된 파라미터·반환 타입 텍스트를 비교합니다. 추론된 반환 타입 변화나
-  TypeScript의 구조적 타입 할당 가능성까지 판정하지 않습니다.
-- 중복 구현 후보는 새로 추가된 최상위 함수와 기존 최상위 함수의 토큰이 공백·주석을 제외하고
-  완전히 같으며 본문이 12토큰 이상일 때만 보고합니다. 식별자 이름이 바뀐 유사 코드, 메서드,
-  의미적으로만 같은 구현은 탐지하지 않습니다.
-- 단일 구현 추상화는 새 인터페이스를 `implements`로 명시한 이름 있는 클래스가 정확히 하나일 때만
-  보고합니다. TypeScript의 구조적 구현, factory 반환 타입과 런타임 등록은 계산하지 않습니다.
-- 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
-- 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
-- 영향 분석은 `.ts`·`.tsx` 파일의 상대 경로 정적 `import`, side-effect import,
-  `export ... from`, `import = require()`를 대상으로 합니다.
-- 외부 package import는 그래프에서 제외하며 path alias, dynamic `import()`, 일반 `require()`는
-  아직 해석하지 않습니다.
-- 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
-  삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
-- 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
-- IntentPatch는 자연어 intent만으로 예상 경로를 추측하지 않습니다. 범위 판단은 Contract에 명시한
-  `include`와 `allow`를 기준으로 수행합니다.
-- 경로 패턴은 저장소 상대 경로와 `*`, `**`, `?`만 지원합니다. 부정 패턴과 brace 확장은 아직
-  지원하지 않습니다.
-- `maxLines`는 측정 가능한 텍스트 파일의 추가·삭제 라인만 합산합니다. Binary와 측정 불가 파일을
-  0줄이라고 간주하지 않지만, 해당 파일의 크기를 라인 예산에 포함하지도 않습니다.
-- 테스트 분석은 실행 결과나 코드 커버리지를 측정하지 않고 Contract에 지정된 변경 파일만
-  비교합니다.
-- 관련 테스트는 현재 소스와 테스트의 파일명이 같은지로 판단하므로 이름이 다른 통합 테스트나
-  하나의 테스트가 여러 소스를 검증하는 관계는 자동으로 연결하지 못합니다.
-- HTML 영향 그래프는 변경 모듈과 영향 파일을 결정적인 두 열 레이아웃으로 표시합니다. 노드 이동,
-  확대·축소와 필터링을 제공하는 대화형 웹 UI는 아직 구현하지 않았습니다.
+No long-lived npm token is stored as a GitHub secret. Public packages published through OIDC receive npm provenance automatically. A package that does not yet exist on npm needs a one-time bootstrap before a Trusted Publisher can be configured. See the [release operations guide](./docs/releasing.md) for bootstrap and subsequent release procedures.
 
-## 라이선스
+## Roadmap
+
+1. ✅ Direct `package.json` dependency detection and rule engine
+2. ✅ TypeScript AST analysis for functions, classes, interfaces, and types
+3. ✅ Relative static import graph and change-impact calculation
+4. ✅ Change Contract scope and change-budget analysis
+5. ✅ Contract-based detection of missing related test changes
+6. Package-manager adapters for lockfiles and workspaces
+7. ✅ Detection of removed public exports
+8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
+9. ✅ Re-export and function/interface compatibility checks plus possible code duplication
+10. ✅ Detection of newly introduced single-implementation interfaces
+11. ✅ GitHub Action with PR/push comparison, Job Summary, annotations, and artifacts
+12. Codex, Claude Code, and Cursor adapters
+13. Optional LLM explanations grounded in deterministic evidence
+
+## Current limitations
+
+- The target must be a Git repository with at least one commit.
+- Untracked symbolic links are not read for safety.
+- Line counts are skipped for untracked files larger than 10 MiB.
+- Dependency analysis covers only `dependencies` and `devDependencies` in the root npm `package.json`.
+- Transitive lockfile dependencies, workspace packages, and real dependency usage in source code are not analyzed yet.
+- Symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files.
+- Public API analysis supports named top-level functions and interfaces, local `export { name }`, external `export { name } from`, and `export * from`. Package `exports`, anonymous default exports, and detailed class or type-alias contracts are not interpreted yet.
+- Function compatibility compares explicitly written parameter and return-type text. It does not evaluate inferred return types or full TypeScript structural assignability.
+- Duplicate candidates require a newly added top-level function and an existing top-level function to have exactly the same normalized tokens after comments and whitespace are removed, with at least 12 body tokens. Renamed identifiers, methods, and semantically equivalent implementations are not detected.
+- A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
+- Methods, variable declarations, enums, nested declarations, and JavaScript files are not included in symbol analysis.
+- Formatting or comment changes inside a declaration can be counted as symbol modifications.
+- Impact analysis covers relative static `import`, side-effect imports, `export ... from`, and `import = require()` in `.ts` and `.tsx` files.
+- External package imports, path aliases, dynamic `import()`, and ordinary `require()` are not included in the graph.
+- The graph is built from files at the comparison result point: the working tree or head ref. Impact from historical imports that referenced a deleted module cannot be calculated yet.
+- Source files used for impact analysis are limited to 1 MiB per file, and symbolic links are not read.
+- IntentPatch does not infer expected paths from natural-language intent. Scope decisions use the contract's explicit `include` and `allow` patterns.
+- Path patterns support only repository-relative `*`, `**`, and `?`; negation and brace expansion are not supported.
+- `maxLines` sums only measurable added and deleted lines in text files. Binary or unmeasurable files are not treated as zero lines, but their size is not included in the budget.
+- Test analysis compares only the changed paths declared in the contract; it does not execute tests or measure coverage.
+- Related tests are matched by basename. Integration tests with different names or one test covering several source files cannot be linked automatically yet.
+- The HTML impact graph uses a deterministic two-column layout. Interactive node movement, zooming, and filtering are not implemented yet.
+
+## License
 
 [MIT](./LICENSE)

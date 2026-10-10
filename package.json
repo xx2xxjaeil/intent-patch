@@ -21,10 +21,14 @@
   "files": [
     "dist",
     "README.md",
+    "README.ko.md",
     "LICENSE"
   ],
   "bin": {
-    "intentpatch": "./dist/presentation/cli/main.js"
+    "intentpatch": "dist/presentation/cli/main.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -35,7 +39,8 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "prepack": "npm run build",
-    "test": "node --import tsx --test tests/**/*.test.ts",
+    "release:verify": "node scripts/verify-release.mjs",
+    "test": "node --import tsx --test tests/**/*.test.ts tests/**/*.test.mjs",
     "test:watch": "node --import tsx --test --watch tests/**/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
