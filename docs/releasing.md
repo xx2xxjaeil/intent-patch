@@ -24,6 +24,8 @@ GitHub Release + 자동 생성 변경 내역
 - `npm pack --dry-run`으로 공개될 파일을 확인한 뒤에만 배포합니다.
 - npm 배포가 성공한 뒤에만 GitHub Release를 만듭니다.
 - npm 인증에는 장기 token 대신 GitHub Actions OIDC를 사용합니다.
+- 같은 버전이 이미 npm에 공개됐다면 tarball 무결성을 비교합니다. 동일한 경우 npm 재배포를
+  건너뛰고 GitHub Release를 만들며, 내용이 다르면 릴리스를 중단합니다.
 
 ## 최초 릴리스 준비
 

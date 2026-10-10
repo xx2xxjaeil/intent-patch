@@ -79,7 +79,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build package
+        run: npm run build
+
+      - name: Check existing npm version
+        id: published
+        run: node scripts/check-published-version.mjs >> "$GITHUB_OUTPUT"
+
       - name: Publish package
+        if: steps.published.outputs.already_published != 'true'
         run: npm publish
 
   github-release:
