@@ -2,6 +2,7 @@ import { ChangeBudgetRule } from "../application/rules/change-budget-rule.js";
 import { DuplicateImplementationRule } from "../application/rules/duplicate-implementation-rule.js";
 import { ExpectedScopeRule } from "../application/rules/expected-scope-rule.js";
 import { MissingTestChangeRule } from "../application/rules/missing-test-change-rule.js";
+import { NpmLockfileRule } from "../application/rules/npm-lockfile-rule.js";
 import { PackageDependencyRule } from "../application/rules/package-dependency-rule.js";
 import { PublicApiCompatibilityRule } from "../application/rules/public-api-compatibility-rule.js";
 import { PublicApiRemovalRule } from "../application/rules/public-api-removal-rule.js";
@@ -17,6 +18,7 @@ import { JsonChangeContractLoader } from "../infrastructure/config/json-change-c
 import { GitChangeSource } from "../infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-source.js";
 import { GitProjectFileSource } from "../infrastructure/git/git-project-file-source.js";
+import { NpmPackageLockParser } from "../infrastructure/npm/npm-package-lock-parser.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
@@ -40,6 +42,7 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
   );
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
+    new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
     new ExpectedScopeRule(),
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),

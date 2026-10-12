@@ -65,6 +65,25 @@ describe("GitFileSnapshotSource integration", () => {
     assert.equal(result.before, "export const before = true;\n");
     assert.equal(result.after, "export const after = true;\n");
   });
+
+  it("reads npm lockfiles larger than the general 1 MiB text limit", async () => {
+    const repository = await mkdtemp(join(tmpdir(), "intentpatch-large-lockfile-test-"));
+    temporaryRepositories.push(repository);
+    await runGit(repository, ["init", "--quiet"]);
+    await writeFile(join(repository, "package.json"), '{"private":true}\n');
+    await runGit(repository, ["add", "package.json"]);
+    await commit(repository, "Initial fixture");
+
+    const content = JSON.stringify({ lockfileVersion: 3, padding: "x".repeat(1024 * 1024) });
+    await writeFile(join(repository, "package-lock.json"), content);
+
+    const snapshot = await new GitFileSnapshotSource(repository).read(
+      { baseRef: "HEAD" },
+      "package-lock.json",
+    );
+    assert.equal(snapshot.before, undefined);
+    assert.equal(snapshot.after, content);
+  });
 });
 
 async function commit(repository: string, message: string): Promise<void> {

@@ -129,7 +129,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 ## 현재 구현된 기능
 
-현재 소스는 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
+현재 소스는 Git 변경사항 수집, 루트 `package.json`의 직접 dependency와 npm lockfile 분석, TypeScript
 최상위 심볼과 공개 API 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
 영향 범위와 테스트 동반 변경 분석을 제공합니다.
 
@@ -146,6 +146,9 @@ LOW     구현체가 하나뿐인 추상화 추가
 - production·development dependency 추가 탐지
 - dependency 삭제, 버전 변경, 섹션 이동 탐지
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
+- npm `package-lock.json` v2/v3의 실제 설치 패키지 추가·삭제·버전 변경 비교
+- scoped·중첩 설치 경로를 구분하고 로컬 workspace 링크는 제외
+- 잘못되었거나 미지원인 lockfile을 누락하지 않고 finding으로 보고
 - finding 심각도(`high`, `medium`, `low`) 집계
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
 - 설치된 패키지 버전을 확인하는 `--version` 명령
@@ -176,7 +179,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - Pull Request·push commit 범위를 자동 판별하는 GitHub Action
 - GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
 
-아직 lockfile의 전이 dependency 분석, JavaScript·메서드 구조 분석과 AI 리뷰
+아직 workspace별 dependency 귀속 분석, JavaScript·메서드 구조 분석과 AI 리뷰
 기능은 구현되지 않았습니다.
 
 ## 상세 사용법
@@ -418,6 +421,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
 5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
 6. lockfile과 workspace를 고려한 package manager adapter
+   - ✅ npm `package-lock.json` v2/v3의 설치 패키지 변경
+   - npm workspace, 이후 pnpm·Yarn adapter
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
 9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
@@ -431,9 +436,12 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
 - untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
 - 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
-- dependency 분석은 저장소 루트의 npm `package.json`에 선언된 `dependencies`와
-  `devDependencies`를 대상으로 합니다.
-- lockfile의 전이 dependency, workspace package, 코드에서의 실제 사용 여부는 아직 분석하지 않습니다.
+- 직접 dependency 선언 분석은 저장소 루트의 npm `package.json`에 있는 `dependencies`와
+  `devDependencies`만 대상으로 합니다.
+- npm `package-lock.json` v2/v3은 설치 경로와 버전을 비교합니다. 부모 dependency 귀속,
+  integrity hash나 취약점 정보까지 분석하지는 않습니다.
+- workspace manifest, pnpm·Yarn lockfile, 코드에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
+- working tree의 `package-lock.json`은 10 MiB, 그 외 텍스트 snapshot은 1 MiB로 제한합니다.
 - 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
 - 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
