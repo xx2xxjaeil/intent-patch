@@ -100,6 +100,63 @@ describe("PackageDependencyRule", () => {
     assert.deepEqual(result, []);
     assert.equal(readCount, 0);
   });
+
+  it("uses a workspace manifest path and reads the previous path for renames", async () => {
+    const reads: { path: string; basePath?: string }[] = [];
+    const rule = new PackageDependencyRule(
+      {
+        read: async (_target, path, basePath) => {
+          reads.push({ path, ...(basePath === undefined ? {} : { basePath }) });
+          return {
+            before: JSON.stringify({ dependencies: { existing: "^1.0.0" } }),
+            after: JSON.stringify({ dependencies: { existing: "^1.0.0", added: "^2.0.0" } }),
+          };
+        },
+      },
+      "packages/new/package.json",
+    );
+    const changes = createChangeSet([
+      {
+        path: "packages/new/package.json",
+        previousPath: "packages/old/package.json",
+        kind: "renamed",
+        lines: { kind: "measured", additions: 1, deletions: 0 },
+      },
+    ]);
+
+    const result = await rule.analyze({ target: { baseRef: "HEAD" }, changes });
+    assert.deepEqual(reads, [
+      { path: "packages/new/package.json", basePath: "packages/old/package.json" },
+    ]);
+    assert.equal(result.length, 1);
+    assert.equal(result[0]?.file, "packages/new/package.json");
+    assert.equal(result[0]?.evidence.package, "added");
+  });
+
+  it("does not treat a copied manifest as the same original package", async () => {
+    let basePath: string | undefined;
+    const rule = new PackageDependencyRule(
+      {
+        read: async (_target, _path, previousPath) => {
+          basePath = previousPath;
+          return { after: JSON.stringify({ dependencies: { copied: "^1.0.0" } }) };
+        },
+      },
+      "packages/copy/package.json",
+    );
+    const changes = createChangeSet([
+      {
+        path: "packages/copy/package.json",
+        previousPath: "packages/original/package.json",
+        kind: "copied",
+        lines: { kind: "measured", additions: 1, deletions: 0 },
+      },
+    ]);
+
+    const result = await rule.analyze({ target: { baseRef: "HEAD" }, changes });
+    assert.equal(basePath, undefined);
+    assert.equal(result[0]?.ruleId, "dependency/new-production");
+  });
 });
 
 function snapshotSource(
