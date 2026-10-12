@@ -21,8 +21,15 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. 현재 npm 공개 전에는 저장소를 빌드해 바로
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.1.1은 전역 설치 없이
 실행할 수 있습니다.
+
+```bash
+npx intentpatch analyze --cwd /path/to/repository
+npx intentpatch analyze --format html --output intentpatch-report.html
+```
+
+현재 소스 버전을 실행하려면 저장소를 빌드합니다.
 
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
@@ -31,13 +38,6 @@ npm ci
 npm run build
 node dist/presentation/cli/main.js --version
 node dist/presentation/cli/main.js analyze --cwd /path/to/repository
-```
-
-npm 릴리스가 공개된 뒤에는 설치 없이 같은 CLI를 실행할 수 있습니다.
-
-```bash
-npx intentpatch analyze --cwd /path/to/repository
-npx intentpatch analyze --format html --output intentpatch-report.html
 ```
 
 핵심 분석에는 API key, 유료 AI 모델, 서버 또는 데이터베이스가 필요하지 않습니다. 분석할 Git
@@ -67,7 +67,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@main
+        uses: xx2xxjaeil/intent-patch@v0.1.1
         with:
           fail-on: high
 
@@ -79,9 +79,9 @@ jobs:
           path: intentpatch-report
 ```
 
-현재 개발 버전은 `@main`으로 실행합니다. 첫 번째 정식 릴리스 후에는 불변 SHA 또는 `@v1`
-태그로 고정하는 방식을 권장합니다. Action은 PR·push 이벤트의 commit 범위를 자동으로
-선택하고 다음 결과를 남깁니다.
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.1.1에는 별칭
+해석처럼 이후 소스에 추가된 기능이 없으며, `@main`은 아직 릴리스되지 않은 변경을 따라갑니다.
+Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다음 결과를 남깁니다.
 
 - GitHub Actions Job Summary의 Markdown 보고서
 - 심각도별 workflow annotation
@@ -129,7 +129,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 ## 현재 구현된 기능
 
-현재 버전은 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
+현재 소스는 Git 변경사항 수집, 루트 `package.json`의 직접 dependency 분석, TypeScript
 최상위 심볼과 공개 API 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
 영향 범위와 테스트 동반 변경 분석을 제공합니다.
 
@@ -160,6 +160,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 - rename 전후 파일 경로를 사용한 심볼 비교
 - 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
 - `.ts`·`.tsx` 파일의 상대 경로 정적 import와 re-export 관계 수집
+- 가장 가까운 `tsconfig.json`·`jsconfig.json`의 `paths`·`baseUrl`과 상대 경로 `extends`를
+  사용해 로컬 별칭 import 해석
 - `.js`·`.jsx`·`.mjs`·`.cjs` specifier를 대응하는 TypeScript 소스로 해석
 - 변경 모듈을 import하는 직접 의존자와 여러 단계를 거친 간접 영향 파일 계산
 - 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
@@ -174,7 +176,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - Pull Request·push commit 범위를 자동 판별하는 GitHub Action
 - GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
 
-아직 lockfile의 전이 dependency 분석, path alias 해석, JavaScript·메서드 구조 분석과 AI 리뷰
+아직 lockfile의 전이 dependency 분석, JavaScript·메서드 구조 분석과 AI 리뷰
 기능은 구현되지 않았습니다.
 
 ## 상세 사용법
@@ -412,6 +414,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
 2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
 3. ✅ 상대 경로 정적 import graph 기반 변경 영향 범위 계산
+   - ✅ 가장 가까운 TypeScript 프로젝트 설정의 `paths`·`baseUrl` 별칭 해석
 4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
 5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
 6. lockfile과 workspace를 고려한 package manager adapter
@@ -445,10 +448,12 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   보고합니다. TypeScript의 구조적 구현, factory 반환 타입과 런타임 등록은 계산하지 않습니다.
 - 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
-- 영향 분석은 `.ts`·`.tsx` 파일의 상대 경로 정적 `import`, side-effect import,
-  `export ... from`, `import = require()`를 대상으로 합니다.
-- 외부 package import는 그래프에서 제외하며 path alias, dynamic `import()`, 일반 `require()`는
-  아직 해석하지 않습니다.
+- 영향 분석은 `.ts`·`.tsx` 파일의 정적 `import`, side-effect import, `export ... from`,
+  `import = require()`를 대상으로 합니다. 로컬 별칭은 가장 가까운 `tsconfig.json` 또는
+  `jsconfig.json`과 상대 경로 `extends`를 해석합니다.
+- 외부 패키지 설정을 참조하는 `extends`, project references, 임의 이름의 설정 파일,
+  package `imports`·`exports`, 외부 package import, dynamic `import()`, 일반 `require()`는
+  아직 그래프에 포함하지 않습니다.
 - 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
   삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
 - 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
