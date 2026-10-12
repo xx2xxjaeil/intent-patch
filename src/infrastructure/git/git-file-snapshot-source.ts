@@ -8,6 +8,7 @@ import { resolveRepositoryPath } from "../filesystem/repository-path.js";
 import { type CommandRunner, NodeCommandRunner } from "../process/command-runner.js";
 
 const maximumTextFileSize = 1024 * 1024;
+const maximumLockfileSize = 10 * maximumTextFileSize;
 
 /** Git 기준점과 working tree 또는 head ref에서 분석용 텍스트를 읽는다. */
 export class GitFileSnapshotSource implements FileSnapshotSource {
@@ -102,8 +103,11 @@ export class GitFileSnapshotSource implements FileSnapshotSource {
     if (!metadata.isFile()) {
       throw new Error(`Expected a regular file: ${path}`);
     }
-    if (metadata.size > maximumTextFileSize) {
-      throw new Error(`Text file exceeds the 1 MiB analysis limit: ${path}`);
+    const sizeLimit = path === "package-lock.json" ? maximumLockfileSize : maximumTextFileSize;
+    if (metadata.size > sizeLimit) {
+      throw new Error(
+        `Text file exceeds the ${sizeLimit / maximumTextFileSize} MiB analysis limit: ${path}`,
+      );
     }
 
     return readFile(absolutePath, "utf8");
