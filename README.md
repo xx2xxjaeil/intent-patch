@@ -18,7 +18,15 @@ IntentPatch combines **Git diff analysis, static analysis, and dependency analys
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Until the first public npm release is approved, build and run it directly from the repository:
+IntentPatch requires Node.js 20 or later and Git. Run the published v0.1.1 CLI without
+installing it globally:
+
+```bash
+npx intentpatch analyze --cwd /path/to/repository
+npx intentpatch analyze --format html --output intentpatch-report.html
+```
+
+To run the current source version instead, build it from the repository:
 
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
@@ -27,13 +35,6 @@ npm ci
 npm run build
 node dist/presentation/cli/main.js --version
 node dist/presentation/cli/main.js analyze --cwd /path/to/repository
-```
-
-After the npm release becomes public, run the same CLI without installing it globally:
-
-```bash
-npx intentpatch analyze --cwd /path/to/repository
-npx intentpatch analyze --format html --output intentpatch-report.html
 ```
 
 The core analyzer needs no API key, paid AI model, server, or database. Repository files are processed locally, and no LLM is used in the default execution path.
@@ -61,7 +62,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@main
+        uses: xx2xxjaeil/intent-patch@v0.1.1
         with:
           fail-on: high
 
@@ -73,7 +74,8 @@ jobs:
           path: intentpatch-report
 ```
 
-The development version currently runs from `@main`. After the first stable release, pin the action to an immutable commit SHA or a major tag such as `@v1`.
+Pin the action to a released version or an immutable commit SHA. The v0.1.1 release does not
+include newer source-tree features such as path aliases; `@main` follows unreleased changes.
 
 The action detects the comparison range for pull request and push events and produces:
 
@@ -121,7 +123,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 
 ## Implemented capabilities
 
-The current version analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript symbols and public API changes, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
+The current source tree analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript symbols and public API changes, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
 
 ### Git and reporting
 
@@ -157,6 +159,8 @@ The current version analyzes Git changes, direct dependencies in the root `packa
 ### Impact, scope, and tests
 
 - Build relative static import and re-export relationships for `.ts` and `.tsx` files.
+- Resolve local imports through the nearest `tsconfig.json` or `jsconfig.json` `paths` and
+  `baseUrl`, including relative `extends` files.
 - Resolve `.js`, `.jsx`, `.mjs`, and `.cjs` import specifiers to matching TypeScript sources.
 - Calculate direct importers and transitively impacted files for changed modules.
 - Preserve unresolved relative imports and file read or parse failures as evidence.
@@ -169,7 +173,7 @@ The current version analyzes Git changes, direct dependencies in the root `packa
 - Report source files without a related test change as medium-severity findings.
 - Support repository-relative `*`, `**`, and `?` path patterns.
 
-Lockfile transitive dependency analysis, path aliases, JavaScript and method-level structure analysis, and optional AI review are not implemented yet.
+Lockfile transitive dependency analysis, JavaScript and method-level structure analysis, and optional AI review are not implemented yet.
 
 ## CLI usage
 
@@ -396,6 +400,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 1. ✅ Direct `package.json` dependency detection and rule engine
 2. ✅ TypeScript AST analysis for functions, classes, interfaces, and types
 3. ✅ Relative static import graph and change-impact calculation
+   - ✅ TypeScript `paths` and `baseUrl` aliases from the nearest project config
 4. ✅ Change Contract scope and change-budget analysis
 5. ✅ Contract-based detection of missing related test changes
 6. Package-manager adapters for lockfiles and workspaces
@@ -421,8 +426,12 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
 - Methods, variable declarations, enums, nested declarations, and JavaScript files are not included in symbol analysis.
 - Formatting or comment changes inside a declaration can be counted as symbol modifications.
-- Impact analysis covers relative static `import`, side-effect imports, `export ... from`, and `import = require()` in `.ts` and `.tsx` files.
-- External package imports, path aliases, dynamic `import()`, and ordinary `require()` are not included in the graph.
+- Impact analysis covers static `import`, side-effect imports, `export ... from`, and
+  `import = require()` in `.ts` and `.tsx` files. Local aliases use the nearest `tsconfig.json` or
+  `jsconfig.json`, with relative `extends` support.
+- Package-based config `extends`, project references, arbitrary config filenames, package
+  `imports`/`exports`, external package imports, dynamic `import()`, and ordinary `require()` are
+  not included in the graph.
 - The graph is built from files at the comparison result point: the working tree or head ref. Impact from historical imports that referenced a deleted module cannot be calculated yet.
 - Source files used for impact analysis are limited to 1 MiB per file, and symbolic links are not read.
 - IntentPatch does not infer expected paths from natural-language intent. Scope decisions use the contract's explicit `include` and `allow` patterns.

@@ -9,6 +9,7 @@ import {
 } from "../../domain/impact.js";
 import type { AnalysisContext } from "../ports/analysis-rule.js";
 import type { ChangeImpactAnalyzer } from "../ports/change-impact-analyzer.js";
+import type { ModuleAliasResolver } from "../ports/module-alias-resolver.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
 
@@ -20,15 +21,17 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
   public constructor(
     private readonly files: ProjectFileSource,
     private readonly extractors: readonly ModuleReferenceExtractor[],
+    private readonly aliases: ModuleAliasResolver,
   ) {}
 
   public async analyze(context: AnalysisContext): Promise<ImpactAnalysis> {
     const allPaths = await this.files.listPaths(context.target);
     const sourcePaths = allPaths.filter((path) => this.extractorFor(path) !== undefined);
     const availablePaths = new Set(sourcePaths);
+    const aliasResolver = await this.aliases.prepare(context.target, allPaths, availablePaths);
     const dependencies: ModuleDependency[] = [];
     const unresolvedReferences: UnresolvedModuleReference[] = [];
-    const issues: ImpactAnalysisIssue[] = [];
+    const issues: ImpactAnalysisIssue[] = [...aliasResolver.issues];
 
     // 저장소 크기에 비례해 파일 핸들과 Git 프로세스가 폭증하지 않도록 순차 처리한다.
     for (const path of sourcePaths) {
@@ -52,12 +55,14 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
       }
 
       for (const specifier of references.specifiers) {
-        if (!isRelativeSpecifier(specifier)) {
-          continue;
-        }
-        const imported = resolveRelativeModule(path, specifier, availablePaths);
+        const relative = isRelativeSpecifier(specifier);
+        const imported = relative
+          ? resolveRelativeModule(path, specifier, availablePaths)
+          : aliasResolver.resolve(path, specifier);
         if (imported === undefined) {
-          unresolvedReferences.push({ importer: path, specifier });
+          if (relative) {
+            unresolvedReferences.push({ importer: path, specifier });
+          }
         } else {
           dependencies.push({ importer: path, imported });
         }

@@ -19,6 +19,7 @@ import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-s
 import { GitProjectFileSource } from "../infrastructure/git/git-project-file-source.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
+import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
 import { TypeScriptModuleReferenceExtractor } from "../infrastructure/typescript/typescript-module-reference-extractor.js";
 import { TypeScriptSymbolExtractor } from "../infrastructure/typescript/typescript-symbol-extractor.js";
 
@@ -51,9 +52,11 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     new TypeScriptSymbolExtractor(),
   ]);
   const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
-  const impactAnalyzer = new AnalyzeImportImpact(projectFiles, [
-    new TypeScriptModuleReferenceExtractor(),
-  ]);
+  const impactAnalyzer = new AnalyzeImportImpact(
+    projectFiles,
+    [new TypeScriptModuleReferenceExtractor()],
+    new TypeScriptModuleAliasResolver(projectFiles),
+  );
   const codeStructureAnalyzer = new AnalyzeCodeStructure(projectFiles, [
     new TypeScriptCodeStructureExtractor(),
   ]);

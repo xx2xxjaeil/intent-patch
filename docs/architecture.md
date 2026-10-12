@@ -45,7 +45,9 @@ AnalyzeChanges 유스케이스
       ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
       │                                ├─ working tree의 tracked·untracked 파일
       │                                └─ head ref의 전체 파일 tree
-      └─ ModuleReferenceExtractor ────▶ TypeScriptModuleReferenceExtractor
+      ├─ ModuleReferenceExtractor ────▶ TypeScriptModuleReferenceExtractor
+      └─ ModuleAliasResolver ─────────▶ TypeScriptModuleAliasResolver
+                                       └─ TypeScriptConfigLoader
   │
   ▼
 ChangeReport
@@ -85,7 +87,8 @@ presentation ───────▶ application ───────▶ domai
 읽는 방법은 `FileSnapshotSource`에 위임합니다. `CompareSourceSymbols`는 이전·현재 심볼
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
-문법은 각각 `ProjectFileSource`, `ModuleReferenceExtractor` 포트에 위임합니다.
+문법·설정 별칭 해석은 각각 `ProjectFileSource`, `ModuleReferenceExtractor`,
+`ModuleAliasResolver` 포트에 위임합니다.
 `AnalyzeCodeStructure`는 새 함수·인터페이스만 시작점으로 삼아 현재 프로젝트의 구현 fingerprint와
 명시적 `implements` 관계를 비교하고, 언어 문법은 `CodeStructureExtractor`에 위임합니다.
 `AnalyzeTestChanges`는 Contract 경로에 따라 변경 파일을 분류하고 소스와 테스트를 연결합니다.
@@ -97,6 +100,8 @@ presentation ───────▶ application ───────▶ domai
 Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기와
 TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
 목록을 제공하고, TypeScript 어댑터는 최상위 선언 또는 정적 module specifier로 변환합니다.
+별칭 어댑터는 선택한 Git 결과점의 가장 가까운 TypeScript 설정과 상대 경로 `extends`를 읽고
+TypeScript 모듈 해석기를 통해 로컬 소스 파일만 그래프에 연결합니다.
 심볼 어댑터는 직접 export, 로컬 export 목록, 외부 re-export와 함수·인터페이스 공개 계약을 분석
 사실로 보존합니다. 구조 어댑터는 함수 본문을 공백·주석에 영향받지 않는 토큰 fingerprint로 바꾸고
 인터페이스 선언과 클래스의 명시적 `implements` 이름을 추출합니다.
@@ -238,6 +243,7 @@ TypeScript Compiler를 `action-dist/index.cjs`에 번들하고, 원본 소스와
 - 다른 변경 소스: `ChangeSource` 구현 추가
 - 새로운 언어 분석기: `SourceSymbolExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 import 문법 분석기: `ModuleReferenceExtractor` 포트의 infrastructure 어댑터 추가
+- 새로운 설정 기반 module 해석기: `ModuleAliasResolver` 포트의 infrastructure 어댑터 추가
 - 새로운 구조 분석 언어: `CodeStructureExtractor` 포트의 infrastructure 어댑터 추가
 - 새로운 출력 형식: `ChangeReport`를 입력받는 formatter를 만들고 `report-formatter.ts`에 등록
 - 새로운 규칙: `AnalysisRule` 구현을 추가하고 composition root에서 `RuleEngine`에 등록
