@@ -3,6 +3,7 @@ import { DuplicateImplementationRule } from "../application/rules/duplicate-impl
 import { ExpectedScopeRule } from "../application/rules/expected-scope-rule.js";
 import { MissingTestChangeRule } from "../application/rules/missing-test-change-rule.js";
 import { NpmLockfileRule } from "../application/rules/npm-lockfile-rule.js";
+import { NpmWorkspaceDependencyRule } from "../application/rules/npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "../application/rules/package-dependency-rule.js";
 import { PublicApiCompatibilityRule } from "../application/rules/public-api-compatibility-rule.js";
 import { PublicApiRemovalRule } from "../application/rules/public-api-removal-rule.js";
@@ -43,6 +44,7 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
+    new NpmWorkspaceDependencyRule(snapshotSource),
     new ExpectedScopeRule(),
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),

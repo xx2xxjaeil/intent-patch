@@ -148,6 +148,8 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Compare resolved package additions, removals, and version changes in npm `package-lock.json` v2/v3.
 - Keep scoped and nested installation paths distinct, and exclude local workspace links.
 - Report malformed or unsupported lockfiles as findings rather than silently skipping them.
+- Attribute direct dependency changes to changed npm workspace manifests selected by the root `workspaces` patterns.
+- Report changes to workspace patterns and manifest moves into or out of a configured workspace.
 - Extract top-level named functions, classes, interfaces, and type aliases from `.ts` and `.tsx` files.
 - Detect symbol additions, modifications, and removals with source locations.
 - Preserve direct exports, local export lists, and external re-exports as public-symbol evidence.
@@ -176,7 +178,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Report source files without a related test change as medium-severity findings.
 - Support repository-relative `*`, `**`, and `?` path patterns.
 
-Workspace-aware dependency attribution, JavaScript and method-level structure analysis, and optional AI review are not implemented yet.
+Transitive lockfile dependency provenance, JavaScript and method-level structure analysis, and optional AI review are not implemented yet.
 
 ## CLI usage
 
@@ -408,7 +410,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 5. ✅ Contract-based detection of missing related test changes
 6. Package-manager adapters for lockfiles and workspaces
    - ✅ npm `package-lock.json` v2/v3 resolved package changes
-   - npm workspaces, then pnpm and Yarn adapters
+   - ✅ npm workspace manifest dependency changes
+   - pnpm and Yarn adapters
 7. ✅ Detection of removed public exports
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
 9. ✅ Re-export and function/interface compatibility checks plus possible code duplication
@@ -422,9 +425,10 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - The target must be a Git repository with at least one commit.
 - Untracked symbolic links are not read for safety.
 - Line counts are skipped for untracked files larger than 10 MiB.
-- Direct dependency declarations are analyzed only from `dependencies` and `devDependencies` in the root npm `package.json`.
+- Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root npm `package.json` and changed npm workspace manifests.
 - npm `package-lock.json` v2/v3 analysis compares installed package paths and versions, not dependency provenance, integrity hashes, or vulnerability data. It does not attribute transitive packages to their parents.
-- Workspace manifests, pnpm and Yarn lockfiles, and real dependency usage in source code are not analyzed yet.
+- Workspace detection supports the root npm `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported.
+- pnpm and Yarn lockfiles and real dependency usage in source code are not analyzed yet.
 - Working-tree `package-lock.json` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
 - Symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files.
 - Public API analysis supports named top-level functions and interfaces, local `export { name }`, external `export { name } from`, and `export * from`. Package `exports`, anonymous default exports, and detailed class or type-alias contracts are not interpreted yet.
