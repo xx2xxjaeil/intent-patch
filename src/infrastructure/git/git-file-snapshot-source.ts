@@ -103,7 +103,10 @@ export class GitFileSnapshotSource implements FileSnapshotSource {
     if (!metadata.isFile()) {
       throw new Error(`Expected a regular file: ${path}`);
     }
-    const sizeLimit = path === "package-lock.json" ? maximumLockfileSize : maximumTextFileSize;
+    const sizeLimit =
+      path === "package-lock.json" || path === "pnpm-lock.yaml"
+        ? maximumLockfileSize
+        : maximumTextFileSize;
     if (metadata.size > sizeLimit) {
       throw new Error(
         `Text file exceeds the ${sizeLimit / maximumTextFileSize} MiB analysis limit: ${path}`,
