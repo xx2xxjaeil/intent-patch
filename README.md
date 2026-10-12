@@ -147,6 +147,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Report malformed `package.json` files as evidence-backed findings instead of crashing.
 - Compare resolved package additions, removals, and version changes in npm `package-lock.json` v2/v3.
 - Keep scoped and nested installation paths distinct, and exclude local workspace links.
+- Compare resolved registry package changes in pnpm `pnpm-lock.yaml` v9, including two-document lockfiles.
 - Report malformed or unsupported lockfiles as findings rather than silently skipping them.
 - Attribute direct dependency changes to changed npm workspace manifests selected by the root `workspaces` patterns.
 - Report changes to workspace patterns and manifest moves into or out of a configured workspace.
@@ -411,7 +412,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 6. Package-manager adapters for lockfiles and workspaces
    - ✅ npm `package-lock.json` v2/v3 resolved package changes
    - ✅ npm workspace manifest dependency changes
-   - pnpm and Yarn adapters
+   - ✅ pnpm `pnpm-lock.yaml` v9 resolved registry package changes
+   - pnpm workspace manifest and Yarn adapters
 7. ✅ Detection of removed public exports
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
 9. ✅ Re-export and function/interface compatibility checks plus possible code duplication
@@ -427,9 +429,10 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Line counts are skipped for untracked files larger than 10 MiB.
 - Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root npm `package.json` and changed npm workspace manifests.
 - npm `package-lock.json` v2/v3 analysis compares installed package paths and versions, not dependency provenance, integrity hashes, or vulnerability data. It does not attribute transitive packages to their parents.
+- pnpm `pnpm-lock.yaml` v9 analysis compares registry package IDs and versions in the project document. It ignores integrity-only edits, local/Git packages, snapshot peer variants, and dependency provenance. Root-direct evidence comes from the root importer only.
 - Workspace detection supports the root npm `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported.
-- pnpm and Yarn lockfiles and real dependency usage in source code are not analyzed yet.
-- Working-tree `package-lock.json` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
+- pnpm workspace manifests, Yarn lockfiles, and real dependency usage in source code are not analyzed yet.
+- Working-tree `package-lock.json` and `pnpm-lock.yaml` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
 - Symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files.
 - Public API analysis supports named top-level functions and interfaces, local `export { name }`, external `export { name } from`, and `export * from`. Package `exports`, anonymous default exports, and detailed class or type-alias contracts are not interpreted yet.
 - Function compatibility compares explicitly written parameter and return-type text. It does not evaluate inferred return types or full TypeScript structural assignability.

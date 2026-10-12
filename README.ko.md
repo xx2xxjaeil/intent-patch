@@ -148,6 +148,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
 - npm `package-lock.json` v2/v3의 실제 설치 패키지 추가·삭제·버전 변경 비교
 - scoped·중첩 설치 경로를 구분하고 로컬 workspace 링크는 제외
+- pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 추가·삭제·버전 변경 비교(2개 문서 형식 포함)
 - 잘못되었거나 미지원인 lockfile을 누락하지 않고 finding으로 보고
 - 루트 `workspaces` 패턴에 속한 변경 manifest의 직접 dependency를 workspace별로 보고
 - workspace 설정 변경과 manifest의 workspace 안팎 이동을 탐지
@@ -425,7 +426,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 6. lockfile과 workspace를 고려한 package manager adapter
    - ✅ npm `package-lock.json` v2/v3의 설치 패키지 변경
    - ✅ npm workspace manifest의 직접 dependency 변경
-   - pnpm·Yarn adapter
+   - ✅ pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 변경
+   - pnpm workspace manifest·Yarn adapter
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
 9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
@@ -443,10 +445,13 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   `dependencies`와 `devDependencies`를 대상으로 합니다.
 - npm `package-lock.json` v2/v3은 설치 경로와 버전을 비교합니다. 부모 dependency 귀속,
   integrity hash나 취약점 정보까지 분석하지는 않습니다.
+- pnpm `pnpm-lock.yaml` v9은 프로젝트 문서의 레지스트리 패키지 ID와 버전을 비교합니다.
+  integrity만 바뀐 경우, 로컬·Git 패키지, snapshot의 peer 변형, 부모 dependency 귀속은 분석하지 않습니다.
+  루트의 직접 dependency 여부는 루트 importer를 기준으로 표시합니다.
 - workspace 판별은 루트의 npm `workspaces` 배열과 명시 경로, `*`·`**`·`?` 패턴을 지원합니다.
   부정·중괄호·문자 클래스 패턴은 미지원 finding으로 보고합니다.
-- pnpm·Yarn lockfile, 코드에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
-- working tree의 `package-lock.json`은 10 MiB, 그 외 텍스트 snapshot은 1 MiB로 제한합니다.
+- pnpm workspace manifest·Yarn lockfile과 코드에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
+- working tree의 `package-lock.json`·`pnpm-lock.yaml`은 10 MiB, 그 외 텍스트 snapshot은 1 MiB로 제한합니다.
 - 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
 - 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
