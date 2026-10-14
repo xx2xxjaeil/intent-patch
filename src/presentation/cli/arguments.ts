@@ -10,6 +10,7 @@ export interface AnalyzeCommandOptions {
   readonly headRef?: string;
   readonly workingDirectory: string;
   readonly configurationPath?: string;
+  readonly intentFilePath?: string;
   readonly outputFormat: OutputFormat;
   readonly outputPath?: string;
   readonly failOn?: Severity;
@@ -52,6 +53,7 @@ export function parseArguments(
   let headRef: string | undefined;
   let workingDirectory = currentDirectory;
   let configurationPath: string | undefined;
+  let intentFilePath: string | undefined;
   let outputFormat: OutputFormat = "text";
   let outputFormatOption: "--format" | "--json" | undefined;
   let outputPath: string | undefined;
@@ -71,6 +73,9 @@ export function parseArguments(
         break;
       case "--config":
         configurationPath = requireOptionValue(options, ++index, option);
+        break;
+      case "--intent-file":
+        intentFilePath = requireOptionValue(options, ++index, option);
         break;
       case "--json":
         assertOutputFormatNotSet(outputFormatOption, option);
@@ -99,6 +104,7 @@ export function parseArguments(
     ...(headRef === undefined ? {} : { headRef }),
     workingDirectory,
     ...(configurationPath === undefined ? {} : { configurationPath }),
+    ...(intentFilePath === undefined ? {} : { intentFilePath }),
     outputFormat,
     ...(outputPath === undefined ? {} : { outputPath }),
     ...(failOn === undefined ? {} : { failOn }),
@@ -117,6 +123,8 @@ Options:
   --cwd <path>   Repository directory (default: current directory)
   --config <path>
                  Change contract JSON (default: <cwd>/.intentpatch.json when present)
+  --intent-file <path>
+                 Plain-text or Markdown request (overrides contract intent)
   --format <type> Output format: text, json, or html (default: text)
   --json         Alias for --format json
   --output <path>

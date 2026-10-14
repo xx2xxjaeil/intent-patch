@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { isSeverityAtLeast } from "../../domain/finding.js";
 import type { ChangeReport } from "../../domain/report.js";
+import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { resolveRepositoryPath } from "../../infrastructure/filesystem/repository-path.js";
 import { analyzeRepository } from "../analyze-repository.js";
 import { formatHtmlReport } from "../html/html-report.js";
@@ -9,6 +10,7 @@ import { readGitHubActionInputs } from "./action-inputs.js";
 import type { GitHubActionRuntime } from "./action-runtime.js";
 import { resolveGitHubComparison } from "./comparison.js";
 import { formatGitHubSummary } from "./markdown-summary.js";
+import { pullRequestBodyIntent } from "./pr-body-intent.js";
 
 export interface GitHubActionResult {
   readonly qualityGateFailed: boolean;
@@ -22,12 +24,24 @@ export async function runGitHubAction(runtime: GitHubActionRuntime): Promise<Git
   const eventName = runtime.getEnvironment("GITHUB_EVENT_NAME");
   const payload = await readEventPayload(runtime.getEnvironment("GITHUB_EVENT_PATH"));
   const comparison = resolveGitHubComparison(inputs, eventName, payload);
+  const intentOverride =
+    inputs.intentFilePath === undefined
+      ? undefined
+      : await new TextIntentLoader().load(
+          workingDirectory,
+          resolveRepositoryPath(workingDirectory, inputs.intentFilePath),
+        );
+  const fallbackIntent = inputs.intentFromPrBody
+    ? pullRequestBodyIntent(eventName, payload)
+    : undefined;
 
   runtime.info(`IntentPatch analyzing ${comparison.baseRef}...${comparison.headRef}`);
   const report = await analyzeRepository({
     workingDirectory,
     baseRef: comparison.baseRef,
     headRef: comparison.headRef,
+    ...(intentOverride === undefined ? {} : { intentOverride }),
+    ...(fallbackIntent === undefined ? {} : { fallbackIntent }),
     ...(inputs.configurationPath === undefined
       ? {}
       : { configurationPath: inputs.configurationPath }),

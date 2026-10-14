@@ -17,6 +17,7 @@ import { AnalyzeTestChanges } from "../application/services/analyze-test-changes
 import { CompareSourceSymbols } from "../application/services/compare-source-symbols.js";
 import { RuleEngine } from "../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../application/use-cases/analyze-changes.js";
+import { createChangeContract } from "../domain/change-contract.js";
 import type { ChangeReport } from "../domain/report.js";
 import { JsonChangeContractLoader } from "../infrastructure/config/json-change-contract-loader.js";
 import { GitChangeSource } from "../infrastructure/git/git-change-source.js";
@@ -36,16 +37,27 @@ export interface RepositoryAnalysisOptions {
   readonly baseRef?: string;
   readonly headRef?: string;
   readonly configurationPath?: string;
+  readonly intentOverride?: string;
+  readonly fallbackIntent?: string;
 }
 
 /** CLI와 자동화 어댑터가 동일한 분석 구성과 규칙 집합을 사용하도록 조립을 공유한다. */
 export async function analyzeRepository(options: RepositoryAnalysisOptions): Promise<ChangeReport> {
   const commandRunner = new NodeCommandRunner();
   const snapshotSource = new GitFileSnapshotSource(options.workingDirectory, commandRunner);
-  const contract = await new JsonChangeContractLoader().load(
+  const loadedContract = await new JsonChangeContractLoader().load(
     options.workingDirectory,
     options.configurationPath,
   );
+  const intent = options.intentOverride ?? loadedContract?.intent ?? options.fallbackIntent;
+  const contract =
+    intent === undefined
+      ? loadedContract
+      : createChangeContract({
+          intent,
+          ...(loadedContract === undefined ? {} : { scope: loadedContract.scope }),
+          ...(loadedContract?.tests === undefined ? {} : { tests: loadedContract.tests }),
+        });
   const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
