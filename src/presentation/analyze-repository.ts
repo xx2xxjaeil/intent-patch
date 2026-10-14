@@ -1,3 +1,4 @@
+import { AddedDependencyUsageRule } from "../application/rules/added-dependency-usage-rule.js";
 import { ChangeBudgetRule } from "../application/rules/change-budget-rule.js";
 import { DuplicateImplementationRule } from "../application/rules/duplicate-implementation-rule.js";
 import { ExpectedScopeRule } from "../application/rules/expected-scope-rule.js";
@@ -23,6 +24,7 @@ import { GitProjectFileSource } from "../infrastructure/git/git-project-file-sou
 import { NpmPackageLockParser } from "../infrastructure/npm/npm-package-lock-parser.js";
 import { PnpmYamlLockParser } from "../infrastructure/pnpm/pnpm-lock-parser.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
+import { PackageModuleReferenceExtractor } from "../infrastructure/typescript/package-module-reference-extractor.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
 import { TypeScriptModuleReferenceExtractor } from "../infrastructure/typescript/typescript-module-reference-extractor.js";
@@ -43,8 +45,14 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     options.workingDirectory,
     options.configurationPath,
   );
+  const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
+    new AddedDependencyUsageRule(
+      snapshotSource,
+      projectFiles,
+      new PackageModuleReferenceExtractor(),
+    ),
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
     new PnpmLockfileRule(snapshotSource, new PnpmYamlLockParser()),
     new NpmWorkspaceDependencyRule(snapshotSource),
@@ -59,7 +67,6 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
   const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
     new TypeScriptSymbolExtractor(),
   ]);
-  const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
   const impactAnalyzer = new AnalyzeImportImpact(
     projectFiles,
     [new TypeScriptModuleReferenceExtractor()],
