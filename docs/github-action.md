@@ -46,6 +46,8 @@ jobs:
 | --- | --- | --- |
 | `working-directory` | `.` | `GITHUB_WORKSPACE` 안의 분석 대상 저장소 |
 | `config` | 없음 | 분석 대상 저장소 기준 Change Contract 경로 |
+| `intent-file` | 없음 | 저장소 안의 텍스트·Markdown 요청 문서 경로 |
+| `intent-from-pr-body` | `false` | PR 본문을 기존 intent가 없을 때 대체 입력으로 사용 |
 | `base` | 자동 | 직접 지정할 base Git ref |
 | `head` | 자동 | 직접 지정할 head Git ref |
 | `fail-on` | `high` | Action을 실패시킬 최저 심각도 |
@@ -61,6 +63,11 @@ jobs:
 | 기타 | `HEAD^` | `HEAD` |
 
 새 브랜치의 첫 push는 GitHub payload에 base commit이 없으므로 `base`와 `head`를 명시해야 합니다.
+
+PR 본문을 보고서에 포함하려면 `with: intent-from-pr-body: 'true'`를 지정합니다. 우선순위는
+`intent-file` → Change Contract의 `intent` → PR 본문입니다. PR 본문은 8,192자를 초과하거나
+비어 있으면 사용하지 않습니다. 요청 문장만으로 예상 경로를 추론하지 않으므로
+`scope.include`를 명시하지 않은 경우 범위 위반 finding은 생성되지 않습니다.
 
 ## 출력
 

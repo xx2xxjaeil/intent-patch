@@ -144,12 +144,14 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 
 - Detect additions to production and development dependencies.
 - Detect dependency removal, version changes, and section moves.
+- Flag a newly added direct dependency with no static JS/TS import as a low-severity review candidate.
 - Report malformed `package.json` files as evidence-backed findings instead of crashing.
 - Compare resolved package additions, removals, and version changes in npm `package-lock.json` v2/v3.
 - Keep scoped and nested installation paths distinct, and exclude local workspace links.
 - Compare resolved registry package changes in pnpm `pnpm-lock.yaml` v9, including two-document lockfiles.
 - Report malformed or unsupported lockfiles as findings rather than silently skipping them.
 - Attribute direct dependency changes to changed npm workspace manifests selected by the root `workspaces` patterns.
+- Analyze changed pnpm workspace manifests selected by `pnpm-workspace.yaml`, including exclusion patterns.
 - Report changes to workspace patterns and manifest moves into or out of a configured workspace.
 - Extract top-level named functions, classes, interfaces, and type aliases from `.ts` and `.tsx` files.
 - Detect symbol additions, modifications, and removals with source locations.
@@ -172,6 +174,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Preserve unresolved relative imports and file read or parse failures as evidence.
 - Build the graph at the same result point as the diff: the working tree or the selected head ref.
 - Read intent, expected paths, allowed paths, and change budgets from `.intentpatch.json`.
+- Accept a request text/Markdown file through the CLI, or opt in to using the PR body in the GitHub Action.
 - Report each file outside expected and allowed patterns as a medium-severity finding.
 - Report file-count and measurable-line budget overruns with numeric evidence.
 - Classify source and test paths declared by the contract and connect related changes by basename.
@@ -219,6 +222,14 @@ node dist/presentation/cli/main.js analyze \
 ```
 
 The HTML file contains all styles and the dependency-impact SVG, so it opens directly without a server or API key. `--output` also works with text and JSON formats. Relative output paths are resolved from the directory where IntentPatch is executed. `--json` is an alias for `--format json`.
+
+To include the original request without writing a contract, save it in the analyzed repository and run:
+
+```bash
+intentpatch analyze --intent-file request.md --format html --output report.html
+```
+
+`--intent-file` overrides only the contract's `intent`; existing scope and test policies remain intact. The file must be a regular file inside the analyzed repository and at most 64 KiB. Request text alone does not infer expected paths or activate scope checks.
 
 ### Check request scope with a Change Contract
 
@@ -413,13 +424,16 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
    - ✅ npm `package-lock.json` v2/v3 resolved package changes
    - ✅ npm workspace manifest dependency changes
    - ✅ pnpm `pnpm-lock.yaml` v9 resolved registry package changes
-   - pnpm workspace manifest and Yarn adapters
+   - ✅ pnpm workspace manifest dependency changes
+   - Yarn adapter
 7. ✅ Detection of removed public exports
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
 9. ✅ Re-export and function/interface compatibility checks plus possible code duplication
 10. ✅ Detection of newly introduced single-implementation interfaces
 11. ✅ GitHub Action with PR/push comparison, Job Summary, annotations, and artifacts
-12. Codex, Claude Code, and Cursor adapters
+12. Request capture and agent adapters
+    - ✅ CLI request file and opt-in GitHub PR body
+    - Codex, Claude Code, and Cursor-specific adapters
 13. Optional LLM explanations grounded in deterministic evidence
 
 ## Current limitations
@@ -427,11 +441,13 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - The target must be a Git repository with at least one commit.
 - Untracked symbolic links are not read for safety.
 - Line counts are skipped for untracked files larger than 10 MiB.
-- Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root npm `package.json` and changed npm workspace manifests.
+- Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root `package.json` and changed npm/pnpm workspace manifests.
+- The no-static-reference finding is a review candidate, not proof that a package is unused. It checks explicit JS/TS imports, re-exports, literal `require()` and `import()` across maintained source files; CLI-only/configuration usage may not appear. It does not emit a candidate if source reads or parsing are incomplete, a computed module load exists, no source was scanned, or more than 5,000 source files are present.
 - npm `package-lock.json` v2/v3 analysis compares installed package paths and versions, not dependency provenance, integrity hashes, or vulnerability data. It does not attribute transitive packages to their parents.
 - pnpm `pnpm-lock.yaml` v9 analysis compares registry package IDs and versions in the project document. It ignores integrity-only edits, local/Git packages, snapshot peer variants, and dependency provenance. Root-direct evidence comes from the root importer only.
 - Workspace detection supports the root npm `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported.
-- pnpm workspace manifests, Yarn lockfiles, and real dependency usage in source code are not analyzed yet.
+- pnpm workspace detection reads `pnpm-workspace.yaml` `packages` patterns with `*`, `**`, `?`, and leading `!` exclusions. When both npm and pnpm workspace settings exist, pnpm settings take precedence to avoid duplicate findings. Other glob features and pnpm catalogs are not interpreted.
+- Yarn lockfiles and runtime dependency usage are not analyzed yet.
 - Working-tree `package-lock.json` and `pnpm-lock.yaml` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
 - Symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files.
 - Public API analysis supports named top-level functions and interfaces, local `export { name }`, external `export { name } from`, and `export * from`. Package `exports`, anonymous default exports, and detailed class or type-alias contracts are not interpreted yet.

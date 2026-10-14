@@ -33,6 +33,9 @@ AnalyzeChanges 유스케이스
   │   │   └─ FileSnapshotSource 포트 ─▶ GitFileSnapshotSource
   │   │                                 ├─ 기준 revision의 package.json
   │   │                                 └─ working tree 또는 head의 package.json
+  │   ├─ AddedDependencyUsageRule
+  │   │   ├─ ProjectFileSource 포트 ────▶ GitProjectFileSource
+  │   │   └─ ModuleReferenceExtractor ─▶ PackageModuleReferenceExtractor
   │   ├─ NpmLockfileRule
   │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
   │   │   └─ PackageLockParser 포트 ────▶ NpmPackageLockParser
@@ -41,7 +44,10 @@ AnalyzeChanges 유스케이스
   │   │   └─ PnpmLockParser 포트 ───────▶ PnpmYamlLockParser
   │   ├─ NpmWorkspaceDependencyRule
   │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
-  │   │   └─ PackageDependencyRule 재사용
+  │   │   └─ WorkspaceManifestAnalysis 재사용
+  │   ├─ PnpmWorkspaceDependencyRule
+  │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
+  │   │   └─ WorkspaceManifestAnalysis 재사용
   │   ├─ ExpectedScopeRule
   │   ├─ ChangeBudgetRule
   │   ├─ MissingTestChangeRule
@@ -97,7 +103,10 @@ presentation ───────▶ application ───────▶ domai
 `NpmLockfileRule`은 정규화된 설치 패키지의 차이를 계산하고, npm v2/v3 JSON 형식 해석은
 `PackageLockParser` 포트 뒤의 인프라 어댑터가 맡습니다. `NpmWorkspaceDependencyRule`은
 루트 `workspaces` 경로에 해당하는 변경 manifest를 선별하고 기존 `PackageDependencyRule`을
-재사용합니다. `PnpmLockfileRule`도 포트를 통해 pnpm v9 YAML의 프로젝트 문서를 읽고,
+재사용합니다. `PnpmWorkspaceDependencyRule`은 `pnpm-workspace.yaml`을 해석하며 동일한
+workspace manifest 비교 서비스를 재사용합니다. `AddedDependencyUsageRule`은 새 직접 dependency에
+대해 JS/TS의 정적 module 참조를 찾아 검토 후보만 보고합니다. `PnpmLockfileRule`도 포트를 통해
+pnpm v9 YAML의 프로젝트 문서를 읽고,
 레지스트리 패키지 ID 변화만 비교합니다. YAML 형식 해석은 `PnpmYamlLockParser`가 맡습니다.
 `CompareSourceSymbols`는 이전·현재 심볼
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
@@ -203,7 +212,8 @@ TypeScript 어댑터는 선언 원문을 SHA-256 fingerprint로 바꾸고 applic
 ### 13. 자연어 추측 대신 명시적 Change Contract 사용
 
 요청 문장만 보고 변경되어야 할 파일을 추측하면 실행마다 판단이 달라지고 오탐 근거를 설명하기
-어렵습니다. 기본 분석은 사용자가 선언한 예상 경로·허용 예외·변경량 예산만 사용합니다. 향후
+어렵습니다. CLI 요청 파일이나 선택적으로 PR 본문을 `intent`로 보존할 수 있지만,
+기본 분석은 사용자가 선언한 예상 경로·허용 예외·변경량 예산만 사용합니다. 향후
 LLM은 Contract 초안을 제안할 수 있지만, 실제 규칙 입력은 항상 명시적인 데이터로 유지합니다.
 
 ### 14. 설정 오류를 조용히 무시하지 않음
