@@ -25,6 +25,7 @@ import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-s
 import { GitProjectFileSource } from "../infrastructure/git/git-project-file-source.js";
 import { NpmPackageLockParser } from "../infrastructure/npm/npm-package-lock-parser.js";
 import { PnpmYamlLockParser } from "../infrastructure/pnpm/pnpm-lock-parser.js";
+import { PnpmYamlWorkspaceParser } from "../infrastructure/pnpm/pnpm-workspace-parser.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
 import { PackageModuleReferenceExtractor } from "../infrastructure/typescript/package-module-reference-extractor.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
@@ -59,17 +60,19 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
           ...(loadedContract?.tests === undefined ? {} : { tests: loadedContract.tests }),
         });
   const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
+  const pnpmWorkspaceParser = new PnpmYamlWorkspaceParser();
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
     new AddedDependencyUsageRule(
       snapshotSource,
       projectFiles,
       new PackageModuleReferenceExtractor(),
+      pnpmWorkspaceParser,
     ),
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
     new PnpmLockfileRule(snapshotSource, new PnpmYamlLockParser()),
     new NpmWorkspaceDependencyRule(snapshotSource),
-    new PnpmWorkspaceDependencyRule(snapshotSource),
+    new PnpmWorkspaceDependencyRule(snapshotSource, pnpmWorkspaceParser),
     new ExpectedScopeRule(),
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),

@@ -2,6 +2,7 @@ import type { Finding } from "../../domain/finding.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
+import type { PnpmWorkspaceParser } from "../ports/pnpm-workspace-parser.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
 import { NpmWorkspaceDependencyRule } from "./npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "./package-dependency-rule.js";
@@ -24,6 +25,7 @@ export class AddedDependencyUsageRule implements AnalysisRule {
     private readonly snapshots: FileSnapshotSource,
     private readonly files: ProjectFileSource,
     private readonly extractor: ModuleReferenceExtractor,
+    private readonly pnpmWorkspaceParser: PnpmWorkspaceParser,
   ) {}
 
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
@@ -31,7 +33,7 @@ export class AddedDependencyUsageRule implements AnalysisRule {
       await Promise.all([
         new PackageDependencyRule(this.snapshots, rootManifest).analyze(context),
         new NpmWorkspaceDependencyRule(this.snapshots).analyze(context),
-        new PnpmWorkspaceDependencyRule(this.snapshots).analyze(context),
+        new PnpmWorkspaceDependencyRule(this.snapshots, this.pnpmWorkspaceParser).analyze(context),
       ])
     ).flat();
     const added = manifestFindings.filter(

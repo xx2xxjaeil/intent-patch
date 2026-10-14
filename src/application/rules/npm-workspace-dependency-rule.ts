@@ -1,4 +1,5 @@
 import type { Finding } from "../../domain/finding.js";
+import { isRecord } from "../../domain/value-guards.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
 import {
@@ -131,8 +132,4 @@ function configFinding(
     file: rootManifestPath,
     evidence: { side, reason: result.reason },
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

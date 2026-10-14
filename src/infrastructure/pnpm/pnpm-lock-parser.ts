@@ -1,9 +1,11 @@
 import { parseAllDocuments } from "yaml";
+import { invalidParseResult as invalid } from "../../application/ports/parse-failure.js";
 import type {
   PnpmLockedPackage,
   PnpmLockParseResult,
   PnpmLockParser,
 } from "../../application/ports/pnpm-lock-parser.js";
+import { isRecord } from "../../domain/value-guards.js";
 
 const directSections = ["dependencies", "devDependencies", "optionalDependencies"] as const;
 const packageNamePattern = /^(?:@[^/@]+\/)?[^/@]+$/;
@@ -137,14 +139,6 @@ function parseRegistryPackageId(id: string): { name: string; version: string } |
     : undefined;
 }
 
-function invalid(reason: string): PnpmLockError {
-  return { ok: false, kind: "invalid", reason };
-}
-
 function unsupported(reason: string): PnpmLockError {
   return { ok: false, kind: "unsupported", reason };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -1,21 +1,23 @@
-import { parseAllDocuments } from "yaml";
 import type { Finding } from "../../domain/finding.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
+import type {
+  PnpmWorkspaceParseResult,
+  PnpmWorkspaceParser,
+} from "../ports/pnpm-workspace-parser.js";
 import {
   analyzeWorkspaceManifests,
   isNestedManifestChange,
-  type WorkspacePatterns,
 } from "../services/workspace-manifest-analysis.js";
 
 const configPath = "pnpm-workspace.yaml";
-type ConfigResult =
-  | Readonly<{ ok: true; patterns: WorkspacePatterns }>
-  | Readonly<{ ok: false; kind: "invalid" | "unsupported"; reason: string }>;
 
 /** pnpm-workspace.yaml의 package glob으로 변경 manifest를 찾아 직접 dependency를 비교한다. */
 export class PnpmWorkspaceDependencyRule implements AnalysisRule {
-  public constructor(private readonly snapshots: FileSnapshotSource) {}
+  public constructor(
+    private readonly snapshots: FileSnapshotSource,
+    private readonly parser: PnpmWorkspaceParser,
+  ) {}
 
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
     const manifests = context.changes.files.filter(isNestedManifestChange);
@@ -26,8 +28,8 @@ export class PnpmWorkspaceDependencyRule implements AnalysisRule {
 
     const snapshot = await this.snapshots.read(context.target, configPath);
     if (snapshot.before === undefined && snapshot.after === undefined) return [];
-    const before = parseConfig(snapshot.before);
-    const after = parseConfig(snapshot.after);
+    const before = this.parser.parse(snapshot.before);
+    const after = this.parser.parse(snapshot.after);
     const errors = [
       ...(!before.ok ? [configFinding("base", before)] : []),
       ...(!after.ok ? [configFinding("current", after)] : []),
@@ -59,66 +61,9 @@ export class PnpmWorkspaceDependencyRule implements AnalysisRule {
   }
 }
 
-function parseConfig(content: string | undefined): ConfigResult {
-  if (content === undefined || content.trim().length === 0) {
-    return { ok: true, patterns: { includes: [], excludes: [] } };
-  }
-  try {
-    const documents = parseAllDocuments(content, { stringKeys: true, logLevel: "error" });
-    if (documents.length !== 1 || documents[0] === undefined) {
-      return invalid("Expected one YAML document.");
-    }
-    const document = documents[0];
-    if (document.errors.length > 0) {
-      return invalid(
-        `The file is not valid YAML: ${document.errors[0]?.message ?? "unknown error"}`,
-      );
-    }
-    const value: unknown = document.toJS({ maxAliasCount: 100 });
-    if (!isRecord(value)) return invalid("The root value must be a YAML mapping.");
-    if (value.packages === undefined) return { ok: true, patterns: { includes: [], excludes: [] } };
-    if (!Array.isArray(value.packages)) return invalid("packages must be an array of paths.");
-
-    const includes: string[] = [];
-    const excludes: string[] = [];
-    for (const raw of value.packages) {
-      if (typeof raw !== "string" || raw.trim().length === 0) {
-        return invalid("Each package path must be a non-empty string.");
-      }
-      const excluded = raw.startsWith("!");
-      const pattern = raw
-        .slice(excluded ? 1 : 0)
-        .replace(/^(\.\/)+/u, "")
-        .replace(/\/+$/u, "");
-      if (pattern.length === 0 || pattern.startsWith("/") || pattern.split("/").includes("..")) {
-        return invalid(`Invalid workspace path: ${raw}.`);
-      }
-      if (/[{}[\]\\!]/u.test(pattern)) {
-        return {
-          ok: false,
-          kind: "unsupported",
-          reason: `Unsupported workspace pattern: ${raw}. Only *, **, and ? globs are supported.`,
-        };
-      }
-      (excluded ? excludes : includes).push(pattern);
-    }
-    return {
-      ok: true,
-      patterns: {
-        includes: [...new Set(includes)].sort(),
-        excludes: [...new Set(excludes)].sort(),
-      },
-    };
-  } catch (error) {
-    return invalid(
-      `The YAML parser could not read the configuration: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-}
-
 function configFinding(
   side: "base" | "current",
-  result: Extract<ConfigResult, { ok: false }>,
+  result: Extract<PnpmWorkspaceParseResult, { ok: false }>,
 ): Finding {
   const invalidConfig = result.kind === "invalid";
   return {
@@ -133,12 +78,4 @@ function configFinding(
     file: configPath,
     evidence: { side, reason: result.reason },
   };
-}
-
-function invalid(reason: string): ConfigResult {
-  return { ok: false, kind: "invalid", reason };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

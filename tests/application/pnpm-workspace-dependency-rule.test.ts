@@ -7,7 +7,9 @@ import type {
 import { NpmWorkspaceDependencyRule } from "../../src/application/rules/npm-workspace-dependency-rule.js";
 import { PnpmWorkspaceDependencyRule } from "../../src/application/rules/pnpm-workspace-dependency-rule.js";
 import { createChangeSet, type FileChange } from "../../src/domain/change.js";
+import { PnpmYamlWorkspaceParser } from "../../src/infrastructure/pnpm/pnpm-workspace-parser.js";
 
+const parser = new PnpmYamlWorkspaceParser();
 const changed = (path: string): FileChange => ({
   path,
   kind: "modified",
@@ -30,7 +32,7 @@ describe("PnpmWorkspaceDependencyRule", () => {
         after: '{"dependencies":{"ignored":"1"}}',
       },
     });
-    const rule = new PnpmWorkspaceDependencyRule(source);
+    const rule = new PnpmWorkspaceDependencyRule(source, parser);
     const result = await rule.analyze({
       target: { baseRef: "HEAD" },
       changes: createChangeSet([
@@ -63,6 +65,7 @@ describe("PnpmWorkspaceDependencyRule", () => {
           after: "packages:\n  - apps/*\n",
         },
       }),
+      parser,
     );
     assert.equal(
       (
@@ -78,6 +81,7 @@ describe("PnpmWorkspaceDependencyRule", () => {
       snapshots({
         "pnpm-workspace.yaml": { before: "packages:\n  - '[bad]'\n", after: "packages: [broken\n" },
       }),
+      parser,
     );
     const findings = await invalid.analyze({
       target: { baseRef: "HEAD" },
@@ -110,7 +114,7 @@ describe("PnpmWorkspaceDependencyRule", () => {
     };
     assert.deepEqual(await new NpmWorkspaceDependencyRule(source).analyze(context), []);
     assert.equal(
-      (await new PnpmWorkspaceDependencyRule(source).analyze(context))[0]?.ruleId,
+      (await new PnpmWorkspaceDependencyRule(source, parser).analyze(context))[0]?.ruleId,
       "dependency/new-production",
     );
   });

@@ -4,7 +4,7 @@ export interface GitHubActionInputs {
   readonly workingDirectory: string;
   readonly configurationPath?: string;
   readonly intentFilePath?: string;
-  readonly intentFromPrBody: boolean;
+  readonly intentFromPrBody?: boolean;
   readonly reportDirectory: string;
   readonly baseRef?: string;
   readonly headRef?: string;

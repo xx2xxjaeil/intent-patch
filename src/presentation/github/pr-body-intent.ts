@@ -13,6 +13,4 @@ export function pullRequestBodyIntent(
   return intent.length > 0 && intent.length <= maximumPullRequestIntentLength ? intent : undefined;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
+import { isRecord } from "../../domain/value-guards.js";
