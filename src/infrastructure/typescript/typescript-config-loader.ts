@@ -3,6 +3,7 @@ import ts from "typescript";
 import type { ProjectFileSource } from "../../application/ports/project-file-source.js";
 import type { ImpactAnalysisIssue } from "../../domain/impact.js";
 import type { AnalysisTarget } from "../../domain/report.js";
+import { isRecord } from "../../domain/value-guards.js";
 
 export const virtualProjectRoot = "/__intentpatch_project__";
 
@@ -126,8 +127,4 @@ function resolveExtendedConfig(
 
   const candidates = [basePath, `${basePath}.json`, posix.join(basePath, "tsconfig.json")];
   return candidates.find((candidate) => listedPaths.has(candidate));
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

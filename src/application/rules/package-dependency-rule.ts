@@ -1,4 +1,5 @@
 import type { Finding, Severity } from "../../domain/finding.js";
+import { isRecord } from "../../domain/value-guards.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
 
@@ -251,8 +252,4 @@ function invalidManifest(
 
 function severityFor(section: DependencySection): Severity {
   return section === "dependencies" ? "medium" : "low";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

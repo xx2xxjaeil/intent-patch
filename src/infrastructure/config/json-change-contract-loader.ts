@@ -5,6 +5,7 @@ import {
   type CreateChangeContractInput,
   createChangeContract,
 } from "../../domain/change-contract.js";
+import { isRecord } from "../../domain/value-guards.js";
 
 const defaultConfigurationFile = ".intentpatch.json";
 const rootFields = new Set(["intent", "scope", "tests"]);
@@ -138,10 +139,6 @@ function requiredNumber(value: unknown, field: string): number {
     throw new Error(`${field} must be a number.`);
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isFileNotFound(error: unknown): boolean {

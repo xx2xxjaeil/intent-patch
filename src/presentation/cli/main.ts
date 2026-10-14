@@ -2,6 +2,7 @@
 
 import { readFile } from "node:fs/promises";
 import process from "node:process";
+import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { CommandExecutionError } from "../../infrastructure/process/command-runner.js";
 import { analyzeRepository } from "../analyze-repository.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
@@ -22,8 +23,13 @@ async function main(): Promise<void> {
       return;
     }
 
+    const intentOverride =
+      options.intentFilePath === undefined
+        ? undefined
+        : await new TextIntentLoader().load(options.workingDirectory, options.intentFilePath);
     const report = await analyzeRepository({
       workingDirectory: options.workingDirectory,
+      ...(intentOverride === undefined ? {} : { intentOverride }),
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
       ...(options.headRef === undefined ? {} : { headRef: options.headRef }),
       ...(options.configurationPath === undefined

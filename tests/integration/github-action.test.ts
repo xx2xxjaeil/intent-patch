@@ -48,6 +48,57 @@ describe("GitHub Action integration", () => {
     assert.match(await readFile(htmlReport, "utf8"), /Agent Change Report/);
   });
 
+  it("uses PR body as fallback intent without replacing an explicit contract intent", async () => {
+    const { repository, eventPath, baseRef, headRef } = await createBreakingRepository();
+    temporaryDirectories.push(repository);
+    await writeFile(
+      eventPath,
+      JSON.stringify({
+        pull_request: {
+          base: { sha: baseRef },
+          head: { sha: headRef },
+          body: "  Implement account deletion  ",
+        },
+      }),
+    );
+    const environment = {
+      GITHUB_WORKSPACE: repository,
+      GITHUB_EVENT_NAME: "pull_request",
+      GITHUB_EVENT_PATH: eventPath,
+    };
+    const runtime = new FakeRuntime({ "intent-from-pr-body": "true" }, environment);
+    await runGitHubAction(runtime);
+    const reportPath = runtime.outputs.get("json-report");
+    assert.ok(reportPath);
+    assert.equal(
+      JSON.parse(await readFile(reportPath, "utf8")).contract.intent,
+      "Implement account deletion",
+    );
+
+    await writeFile(join(repository, ".intentpatch.json"), '{"intent":"Contract intent"}\n');
+    const withContract = new FakeRuntime({ "intent-from-pr-body": "true" }, environment);
+    await runGitHubAction(withContract);
+    const contractReportPath = withContract.outputs.get("json-report");
+    assert.ok(contractReportPath);
+    assert.equal(
+      JSON.parse(await readFile(contractReportPath, "utf8")).contract.intent,
+      "Contract intent",
+    );
+
+    await writeFile(join(repository, "request.md"), "Explicit intent\n");
+    const withFile = new FakeRuntime(
+      { "intent-from-pr-body": "true", "intent-file": "request.md" },
+      environment,
+    );
+    await runGitHubAction(withFile);
+    const fileReportPath = withFile.outputs.get("json-report");
+    assert.ok(fileReportPath);
+    assert.equal(
+      JSON.parse(await readFile(fileReportPath, "utf8")).contract.intent,
+      "Explicit intent",
+    );
+  });
+
   it("runs the bundled action without installing repository dependencies", async () => {
     const { repository, eventPath } = await createBreakingRepository();
     temporaryDirectories.push(repository);

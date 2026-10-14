@@ -145,12 +145,14 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
 - production·development dependency 추가 탐지
 - dependency 삭제, 버전 변경, 섹션 이동 탐지
+- 새 직접 dependency에 정적 JS/TS 참조가 없으면 `low` 심각도의 검토 후보로 표시
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
 - npm `package-lock.json` v2/v3의 실제 설치 패키지 추가·삭제·버전 변경 비교
 - scoped·중첩 설치 경로를 구분하고 로컬 workspace 링크는 제외
 - pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 추가·삭제·버전 변경 비교(2개 문서 형식 포함)
 - 잘못되었거나 미지원인 lockfile을 누락하지 않고 finding으로 보고
 - 루트 `workspaces` 패턴에 속한 변경 manifest의 직접 dependency를 workspace별로 보고
+- `pnpm-workspace.yaml`의 포함·제외 패턴에 속한 변경 manifest의 직접 dependency를 보고
 - workspace 설정 변경과 manifest의 workspace 안팎 이동을 탐지
 - finding 심각도(`high`, `medium`, `low`) 집계
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
@@ -173,6 +175,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
 - working tree의 tracked·untracked 파일 또는 지정한 head ref를 동일한 결과점에서 분석
 - `.intentpatch.json`에 요청 의도, 예상 경로, 허용 경로와 변경량 예산 선언
+- CLI 요청 문서 또는 선택적으로 GitHub PR 본문에서 요청 의도를 입력
 - 예상·허용 패턴을 벗어난 변경 파일을 파일별 `medium` finding으로 탐지
 - 변경 파일 수와 측정 라인 예산 초과를 수치 근거가 있는 `low` finding으로 탐지
 - Contract가 지정한 소스·테스트 경로를 분류하고 파일명 기준으로 관련 변경 연결
@@ -226,6 +229,16 @@ HTML 파일에는 스타일과 dependency 영향 SVG 그래프가 모두 포함�
 바로 열 수 있습니다. `--output`은 텍스트와 JSON 형식에도 사용할 수 있으며 상대 경로는
 IntentPatch를 실행한 현재 디렉터리를 기준으로 해석합니다. 기존 `--json`은
 `--format json`의 단축 옵션입니다.
+
+계약 파일 없이 원래 요청을 보고서에 담으려면 분석할 저장소 안에 텍스트·Markdown 파일을 저장하고 실행합니다.
+
+```bash
+intentpatch analyze --intent-file request.md --format html --output report.html
+```
+
+`--intent-file`은 계약의 `intent`만 덮어쓰며 기존 scope·테스트 정책은 유지합니다.
+요청 파일은 저장소 안의 일반 파일이어야 하고 64 KiB 이하여야 합니다. 요청 문장만으로
+예상 경로를 추측하거나 범위 검사를 활성화하지 않습니다.
 
 ### Change Contract로 요청 범위 검사
 
@@ -427,13 +440,16 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
    - ✅ npm `package-lock.json` v2/v3의 설치 패키지 변경
    - ✅ npm workspace manifest의 직접 dependency 변경
    - ✅ pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 변경
-   - pnpm workspace manifest·Yarn adapter
+   - ✅ pnpm workspace manifest의 직접 dependency 변경
+   - Yarn adapter
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
 9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
 10. ✅ 구현체가 하나뿐인 신규 인터페이스 탐지
 11. ✅ PR·push 비교, Job Summary와 artifact 출력을 제공하는 GitHub Action
-12. Codex·Claude Code·Cursor adapter
+12. 요청 입력과 에이전트 adapter
+    - ✅ CLI 요청 문서와 선택적 GitHub PR 본문 입력
+    - Codex·Claude Code·Cursor 전용 adapter
 13. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
@@ -441,8 +457,12 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
 - untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
 - 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
-- 직접 dependency 선언 분석은 저장소 루트와 변경된 npm workspace `package.json`의
+- 직접 dependency 선언 분석은 저장소 루트와 변경된 npm·pnpm workspace `package.json`의
   `dependencies`와 `devDependencies`를 대상으로 합니다.
+- 정적 참조 없음 finding은 미사용 확정이 아닌 검토 후보입니다. 유지보수 대상 JS/TS
+  소스의 명시적 import·re-export·문자열 `require()`·`import()`를 살펴봅니다. CLI나 설정
+  파일에서만 사용하는 경우는 놓칠 수 있습니다. 파일 읽기·파싱이 불완전하거나 계산된 module
+  load가 있거나, 스캔한 소스가 없거나, 소스 파일이 5,000개를 넘으면 후보를 보고하지 않습니다.
 - npm `package-lock.json` v2/v3은 설치 경로와 버전을 비교합니다. 부모 dependency 귀속,
   integrity hash나 취약점 정보까지 분석하지는 않습니다.
 - pnpm `pnpm-lock.yaml` v9은 프로젝트 문서의 레지스트리 패키지 ID와 버전을 비교합니다.
@@ -450,7 +470,10 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   루트의 직접 dependency 여부는 루트 importer를 기준으로 표시합니다.
 - workspace 판별은 루트의 npm `workspaces` 배열과 명시 경로, `*`·`**`·`?` 패턴을 지원합니다.
   부정·중괄호·문자 클래스 패턴은 미지원 finding으로 보고합니다.
-- pnpm workspace manifest·Yarn lockfile과 코드에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
+- pnpm workspace는 `pnpm-workspace.yaml`의 `packages`에 명시한 `*`·`**`·`?`와 선행 `!`
+  제외 패턴을 지원합니다. npm 설정이 함께 있으면 중복 보고를 막기 위해 pnpm 설정을
+  우선합니다. 그 외 glob 문법과 catalog는 해석하지 않습니다.
+- Yarn lockfile과 런타임에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
 - working tree의 `package-lock.json`·`pnpm-lock.yaml`은 10 MiB, 그 외 텍스트 snapshot은 1 MiB로 제한합니다.
 - 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.

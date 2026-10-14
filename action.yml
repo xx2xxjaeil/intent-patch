@@ -10,6 +10,13 @@ inputs:
   config:
     description: Change Contract path relative to the analyzed repository
     required: false
+  intent-file:
+    description: Plain-text or Markdown request path relative to the analyzed repository
+    required: false
+  intent-from-pr-body:
+    description: Use the pull request body as fallback intent when the contract has no intent
+    required: false
+    default: 'false'
   base:
     description: Base Git reference; detected automatically for pull_request and push events
     required: false

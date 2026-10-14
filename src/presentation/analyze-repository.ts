@@ -1,3 +1,4 @@
+import { AddedDependencyUsageRule } from "../application/rules/added-dependency-usage-rule.js";
 import { ChangeBudgetRule } from "../application/rules/change-budget-rule.js";
 import { DuplicateImplementationRule } from "../application/rules/duplicate-implementation-rule.js";
 import { ExpectedScopeRule } from "../application/rules/expected-scope-rule.js";
@@ -6,6 +7,7 @@ import { NpmLockfileRule } from "../application/rules/npm-lockfile-rule.js";
 import { NpmWorkspaceDependencyRule } from "../application/rules/npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "../application/rules/package-dependency-rule.js";
 import { PnpmLockfileRule } from "../application/rules/pnpm-lockfile-rule.js";
+import { PnpmWorkspaceDependencyRule } from "../application/rules/pnpm-workspace-dependency-rule.js";
 import { PublicApiCompatibilityRule } from "../application/rules/public-api-compatibility-rule.js";
 import { PublicApiRemovalRule } from "../application/rules/public-api-removal-rule.js";
 import { SingleImplementationAbstractionRule } from "../application/rules/single-implementation-abstraction-rule.js";
@@ -15,6 +17,7 @@ import { AnalyzeTestChanges } from "../application/services/analyze-test-changes
 import { CompareSourceSymbols } from "../application/services/compare-source-symbols.js";
 import { RuleEngine } from "../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../application/use-cases/analyze-changes.js";
+import { createChangeContract } from "../domain/change-contract.js";
 import type { ChangeReport } from "../domain/report.js";
 import { JsonChangeContractLoader } from "../infrastructure/config/json-change-contract-loader.js";
 import { GitChangeSource } from "../infrastructure/git/git-change-source.js";
@@ -22,7 +25,9 @@ import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-s
 import { GitProjectFileSource } from "../infrastructure/git/git-project-file-source.js";
 import { NpmPackageLockParser } from "../infrastructure/npm/npm-package-lock-parser.js";
 import { PnpmYamlLockParser } from "../infrastructure/pnpm/pnpm-lock-parser.js";
+import { PnpmYamlWorkspaceParser } from "../infrastructure/pnpm/pnpm-workspace-parser.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
+import { PackageModuleReferenceExtractor } from "../infrastructure/typescript/package-module-reference-extractor.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
 import { TypeScriptModuleReferenceExtractor } from "../infrastructure/typescript/typescript-module-reference-extractor.js";
@@ -33,21 +38,41 @@ export interface RepositoryAnalysisOptions {
   readonly baseRef?: string;
   readonly headRef?: string;
   readonly configurationPath?: string;
+  readonly intentOverride?: string;
+  readonly fallbackIntent?: string;
 }
 
 /** CLI와 자동화 어댑터가 동일한 분석 구성과 규칙 집합을 사용하도록 조립을 공유한다. */
 export async function analyzeRepository(options: RepositoryAnalysisOptions): Promise<ChangeReport> {
   const commandRunner = new NodeCommandRunner();
   const snapshotSource = new GitFileSnapshotSource(options.workingDirectory, commandRunner);
-  const contract = await new JsonChangeContractLoader().load(
+  const loadedContract = await new JsonChangeContractLoader().load(
     options.workingDirectory,
     options.configurationPath,
   );
+  const intent = options.intentOverride ?? loadedContract?.intent ?? options.fallbackIntent;
+  const contract =
+    intent === undefined
+      ? loadedContract
+      : createChangeContract({
+          intent,
+          ...(loadedContract === undefined ? {} : { scope: loadedContract.scope }),
+          ...(loadedContract?.tests === undefined ? {} : { tests: loadedContract.tests }),
+        });
+  const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
+  const pnpmWorkspaceParser = new PnpmYamlWorkspaceParser();
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
+    new AddedDependencyUsageRule(
+      snapshotSource,
+      projectFiles,
+      new PackageModuleReferenceExtractor(),
+      pnpmWorkspaceParser,
+    ),
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
     new PnpmLockfileRule(snapshotSource, new PnpmYamlLockParser()),
     new NpmWorkspaceDependencyRule(snapshotSource),
+    new PnpmWorkspaceDependencyRule(snapshotSource, pnpmWorkspaceParser),
     new ExpectedScopeRule(),
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),
@@ -59,7 +84,6 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
   const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
     new TypeScriptSymbolExtractor(),
   ]);
-  const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
   const impactAnalyzer = new AnalyzeImportImpact(
     projectFiles,
     [new TypeScriptModuleReferenceExtractor()],

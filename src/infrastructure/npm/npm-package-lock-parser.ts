@@ -3,6 +3,8 @@ import type {
   PackageLockParseResult,
   PackageLockParser,
 } from "../../application/ports/package-lock-parser.js";
+import { invalidParseResult as invalid } from "../../application/ports/parse-failure.js";
+import { isRecord } from "../../domain/value-guards.js";
 
 const directDependencySections = [
   "dependencies",
@@ -94,12 +96,4 @@ function packageNameAt(path: string): string | undefined {
   }
   const name = path.slice(markerIndex + marker.length);
   return /^(?:@[^/]+\/)?[^/]+$/.test(name) ? name : undefined;
-}
-
-function invalid(reason: string): PackageLockParseResult {
-  return { ok: false, kind: "invalid", reason };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

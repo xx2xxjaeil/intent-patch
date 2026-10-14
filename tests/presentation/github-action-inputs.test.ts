@@ -11,6 +11,7 @@ describe("readGitHubActionInputs", () => {
       workingDirectory: ".",
       reportDirectory: "intentpatch-report",
       failOn: "high",
+      intentFromPrBody: false,
     });
   });
 
@@ -21,6 +22,8 @@ describe("readGitHubActionInputs", () => {
           "working-directory": "packages/api",
           "report-directory": "artifacts/intentpatch",
           config: "contracts/pr.json",
+          "intent-file": "requests/pr.md",
+          "intent-from-pr-body": "true",
           base: "main",
           head: "feature/delete-user",
           "fail-on": "medium",
@@ -30,6 +33,8 @@ describe("readGitHubActionInputs", () => {
         workingDirectory: "packages/api",
         reportDirectory: "artifacts/intentpatch",
         configurationPath: "contracts/pr.json",
+        intentFilePath: "requests/pr.md",
+        intentFromPrBody: true,
         baseRef: "main",
         headRef: "feature/delete-user",
         failOn: "medium",
@@ -45,6 +50,10 @@ describe("readGitHubActionInputs", () => {
     assert.throws(
       () => readGitHubActionInputs(inputSource({ "fail-on": "critical" })),
       /Invalid GitHub Action fail-on severity/,
+    );
+    assert.throws(
+      () => readGitHubActionInputs(inputSource({ "intent-from-pr-body": "yes" })),
+      /Invalid GitHub Action intent-from-pr-body/,
     );
   });
 });
