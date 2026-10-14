@@ -36,6 +36,9 @@ AnalyzeChanges 유스케이스
   │   ├─ NpmLockfileRule
   │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
   │   │   └─ PackageLockParser 포트 ────▶ NpmPackageLockParser
+  │   ├─ PnpmLockfileRule
+  │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
+  │   │   └─ PnpmLockParser 포트 ───────▶ PnpmYamlLockParser
   │   ├─ NpmWorkspaceDependencyRule
   │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
   │   │   └─ PackageDependencyRule 재사용
@@ -94,7 +97,9 @@ presentation ───────▶ application ───────▶ domai
 `NpmLockfileRule`은 정규화된 설치 패키지의 차이를 계산하고, npm v2/v3 JSON 형식 해석은
 `PackageLockParser` 포트 뒤의 인프라 어댑터가 맡습니다. `NpmWorkspaceDependencyRule`은
 루트 `workspaces` 경로에 해당하는 변경 manifest를 선별하고 기존 `PackageDependencyRule`을
-재사용합니다. `CompareSourceSymbols`는 이전·현재 심볼
+재사용합니다. `PnpmLockfileRule`도 포트를 통해 pnpm v9 YAML의 프로젝트 문서를 읽고,
+레지스트리 패키지 ID 변화만 비교합니다. YAML 형식 해석은 `PnpmYamlLockParser`가 맡습니다.
+`CompareSourceSymbols`는 이전·현재 심볼
 목록의 차이만 계산하고 언어별 파싱은 `SourceSymbolExtractor`에 위임합니다.
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
 문법·설정 별칭 해석은 각각 `ProjectFileSource`, `ModuleReferenceExtractor`,
