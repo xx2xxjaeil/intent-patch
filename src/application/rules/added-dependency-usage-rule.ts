@@ -3,7 +3,9 @@ import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
+import { NpmWorkspaceDependencyRule } from "./npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "./package-dependency-rule.js";
+import { PnpmWorkspaceDependencyRule } from "./pnpm-workspace-dependency-rule.js";
 
 const rootManifest = "package.json";
 const generatedDirectories = new Set([
@@ -25,9 +27,13 @@ export class AddedDependencyUsageRule implements AnalysisRule {
   ) {}
 
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
-    const manifestFindings = await new PackageDependencyRule(this.snapshots, rootManifest).analyze(
-      context,
-    );
+    const manifestFindings = (
+      await Promise.all([
+        new PackageDependencyRule(this.snapshots, rootManifest).analyze(context),
+        new NpmWorkspaceDependencyRule(this.snapshots).analyze(context),
+        new PnpmWorkspaceDependencyRule(this.snapshots).analyze(context),
+      ])
+    ).flat();
     const added = manifestFindings.filter(
       (finding) =>
         finding.ruleId === "dependency/new-production" ||
@@ -71,12 +77,18 @@ export class AddedDependencyUsageRule implements AnalysisRule {
           ruleId: "dependency/no-static-reference",
           severity: "low",
           title: "New dependency has no static source reference",
-          description: `${name} was added, but no static JS/TS import was found. Check CLI, configuration, and generated-code usage before removing it.`,
-          file: rootManifest,
+          description: `${name} was added to ${finding.file}, but no static JS/TS import was found. Check CLI, configuration, and generated-code usage before removing it.`,
+          file: finding.file,
           evidence: {
             package: name,
             section: String(finding.evidence.section),
             scannedFiles: paths.length,
+            ...(finding.evidence.workspace === undefined
+              ? {}
+              : { workspace: finding.evidence.workspace }),
+            ...(finding.evidence.packageManager === undefined
+              ? {}
+              : { packageManager: finding.evidence.packageManager }),
           },
         } satisfies Finding,
       ];

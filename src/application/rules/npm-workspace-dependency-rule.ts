@@ -1,12 +1,12 @@
-import type { FileChange } from "../../domain/change.js";
 import type { Finding } from "../../domain/finding.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
-import { matchesPathPattern } from "../services/path-pattern.js";
-import { PackageDependencyRule } from "./package-dependency-rule.js";
+import {
+  analyzeWorkspaceManifests,
+  isNestedManifestChange,
+} from "../services/workspace-manifest-analysis.js";
 
 const rootManifestPath = "package.json";
-const manifestSuffix = "/package.json";
 
 type WorkspaceConfigResult =
   | Readonly<{ ok: true; patterns: readonly string[] }>
@@ -24,6 +24,10 @@ export class NpmWorkspaceDependencyRule implements AnalysisRule {
     if (manifestChanges.length === 0 && !rootChanged) {
       return [];
     }
+
+    // pnpm-workspace.yaml이 있으면 pnpm 설정이 우선한다. 동일 manifest의 finding 중복을 피한다.
+    const pnpmConfig = await this.snapshots.read(context.target, "pnpm-workspace.yaml");
+    if (pnpmConfig.before !== undefined || pnpmConfig.after !== undefined) return [];
 
     const snapshot = await this.snapshots.read(context.target, rootManifestPath);
     const before = parseWorkspaceConfig(snapshot.before);
@@ -54,72 +58,18 @@ export class NpmWorkspaceDependencyRule implements AnalysisRule {
       });
     }
 
-    const results = await Promise.all(
-      manifestChanges.map(async (change) => {
-        const previousPath =
-          change.kind === "renamed" ? (change.previousPath ?? change.path) : change.path;
-        const currentPath = change.path;
-        const wasWorkspace =
-          change.kind !== "added" &&
-          change.kind !== "copied" &&
-          isConfiguredWorkspace(previousPath, before.patterns);
-        const isWorkspace =
-          change.kind !== "deleted" && isConfiguredWorkspace(currentPath, after.patterns);
-        if (!wasWorkspace && !isWorkspace) {
-          return [];
-        }
-
-        const manifestPath = isNestedManifestPath(currentPath) ? currentPath : previousPath;
-        const workspacePath = manifestPath.slice(0, -manifestSuffix.length);
-        const membershipFinding: Finding[] =
-          change.kind === "renamed" && wasWorkspace !== isWorkspace
-            ? [
-                {
-                  ruleId: "dependency/workspace-membership-changed",
-                  severity: "low",
-                  title: "npm workspace membership changed",
-                  description: `${previousPath} moved to ${currentPath}, changing workspace membership.`,
-                  file: currentPath,
-                  evidence: {
-                    previousPath,
-                    currentPath,
-                    fromWorkspace: wasWorkspace,
-                    toWorkspace: isWorkspace,
-                  },
-                },
-              ]
-            : [];
-        const dependencyFindings = await new PackageDependencyRule(
-          this.snapshots,
-          manifestPath,
-        ).analyze(context);
-        return [
-          ...membershipFinding,
-          ...dependencyFindings.map((finding) => ({
-            ...finding,
-            evidence: { ...finding.evidence, workspace: workspacePath },
-          })),
-        ];
-      }),
-    );
-    return [...findings, ...results.flat()];
+    return [
+      ...findings,
+      ...(await analyzeWorkspaceManifests(
+        context,
+        this.snapshots,
+        manifestChanges,
+        { includes: before.patterns, excludes: [] },
+        { includes: after.patterns, excludes: [] },
+        "npm",
+      )),
+    ];
   }
-}
-
-function isNestedManifestChange(change: FileChange): boolean {
-  return isNestedManifestPath(change.path) || isNestedManifestPath(change.previousPath);
-}
-
-function isNestedManifestPath(path: string | undefined): path is string {
-  return path?.endsWith(manifestSuffix) === true;
-}
-
-function isConfiguredWorkspace(path: string, patterns: readonly string[]): boolean {
-  if (!isNestedManifestPath(path)) {
-    return false;
-  }
-  const directory = path.slice(0, -manifestSuffix.length);
-  return patterns.some((pattern) => matchesPathPattern(directory, pattern));
 }
 
 function parseWorkspaceConfig(content: string | undefined): WorkspaceConfigResult {
