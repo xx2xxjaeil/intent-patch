@@ -127,6 +127,11 @@ LOW     구현체가 하나뿐인 추상화 추가
 분석 결과는 단순한 경고 문구가 아니라 관련 파일, 규칙 ID, 판단 근거와 함께 제공하는 것을
 원칙으로 합니다.
 
+실제 IntentPatch 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html)와
+[3건의 검증 결과·재현 명령](./docs/real-world-evaluation.md)을 볼 수 있습니다. 저장소를 clone한
+뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
+있습니다.
+
 ## 현재 구현된 기능
 
 현재 소스는 Git 변경사항 수집, 루트·npm workspace `package.json`의 직접 dependency와 npm lockfile 분석, TypeScript

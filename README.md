@@ -121,6 +121,11 @@ LOW     New abstraction has only one implementation
 
 Every finding includes the relevant file, a stable rule ID, and evidence for the decision instead of only presenting an unexplained warning.
 
+For a report generated from an actual IntentPatch commit, see the
+[standalone HTML example](./docs/examples/intent-input-change.html) and the
+[three-case evaluation with reproduction commands](./docs/real-world-evaluation.md). After cloning,
+open the HTML file locally in a browser; GitHub may show its source rather than render it.
+
 ## Implemented capabilities
 
 The current source tree analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript symbols and public API changes, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
