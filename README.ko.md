@@ -21,7 +21,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.2.0은 전역 설치 없이
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.3.0은 전역 설치 없이
 실행할 수 있습니다.
 
 ```bash
@@ -67,7 +67,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.2.0
+        uses: xx2xxjaeil/intent-patch@v0.3.0
         with:
           fail-on: high
 
@@ -79,8 +79,9 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.2.0에는 TypeScript
-경로 별칭과 npm lockfile/workspace 분석이 포함되며, `@main`은 미릴리스 변경을 따라갑니다.
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.3.0에는 pnpm
+lockfile/workspace 분석, 새 의존성의 정적 사용 검토, 명시적 요청문 입력이 포함됩니다.
+`@main`은 미릴리스 변경을 따라갑니다.
 Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다음 결과를 남깁니다.
 
 - GitHub Actions Job Summary의 Markdown 보고서
