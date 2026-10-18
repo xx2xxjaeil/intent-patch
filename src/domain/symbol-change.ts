@@ -16,17 +16,20 @@ export interface FunctionPublicApi {
   readonly signatures: readonly string[];
 }
 
-export interface PublicApiMember {
+export interface InterfacePublicApiMember {
   readonly name: string;
   readonly memberKind: "property" | "method";
   readonly optional: boolean;
   readonly signature: string;
 }
 
+/** 인터페이스와 객체 타입 별칭이 공유하는 구성원 표현이다. */
+export type PublicApiMember = InterfacePublicApiMember;
+
 export interface InterfacePublicApi {
   readonly kind: "interface";
   readonly extendsTypes: readonly string[];
-  readonly members: readonly PublicApiMember[];
+  readonly members: readonly InterfacePublicApiMember[];
 }
 
 /** 정적으로 해석 가능한 객체 타입 별칭의 구성원만 기록한다. */
