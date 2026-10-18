@@ -21,7 +21,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.3.0은 전역 설치 없이
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.4.0은 전역 설치 없이
 실행할 수 있습니다.
 
 ```bash
@@ -67,7 +67,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.3.0
+        uses: xx2xxjaeil/intent-patch@v0.4.0
         with:
           fail-on: high
 
@@ -79,9 +79,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.3.0에는 pnpm
-lockfile/workspace 분석, 새 의존성의 정적 사용 검토, 명시적 요청문 입력이 포함됩니다.
-`@main`은 미릴리스 변경을 따라갑니다.
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.4.0에는
+JS/JSX import 영향 범위 분석과 ESM export 변경 분석이 추가됐습니다. 외부 저장소에서의
+검증 결과는 [평가 보고서](./docs/external-repository-evaluation.md)에 기록했습니다. `@main`은
+미릴리스 변경을 따라갑니다.
 Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다음 결과를 남깁니다.
 
 - GitHub Actions Job Summary의 Markdown 보고서
@@ -423,7 +424,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.1.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.4.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
