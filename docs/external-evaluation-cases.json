@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "focusRule": "api/exported-symbol-removed",
+  "repositories": {
+    "nanoid": "https://github.com/ai/nanoid.git",
+    "p-queue": "https://github.com/sindresorhus/p-queue.git"
+  },
+  "cases": [
+    {
+      "id": "p-queue-242-add-type",
+      "repository": "p-queue",
+      "head": "a20e1f34b5c82e4e91e5d2e0c8b663e831dc16ab",
+      "reason": "Adds an exported type without removing a public name.",
+      "expected": []
+    },
+    {
+      "id": "p-queue-244-performance",
+      "repository": "p-queue",
+      "head": "87077d0214c203f38d0f36c4efee8172e67bf1c4",
+      "reason": "Changes an implementation and tests without removing a public name.",
+      "expected": []
+    },
+    {
+      "id": "p-queue-235-abort-listener",
+      "repository": "p-queue",
+      "head": "e9074f06fff500a13e0ef7c910ff4fc2fe65b01c",
+      "reason": "Fixes abort-listener cleanup without removing a public name.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-616-non-integer-size",
+      "repository": "nanoid",
+      "head": "0b2cec58ffd5ddc45978bf75a3bab46f53c76128",
+      "reason": "Modifies exported JavaScript functions but retains their names.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-618-cli-validation",
+      "repository": "nanoid",
+      "head": "58193a1d3aab9877315c42e995eb94667e0b1a4a",
+      "reason": "Updates CLI validation and tests, not the tracked public exports.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-609-docs",
+      "repository": "nanoid",
+      "head": "8588e3a0db022b3876a4724e25cce4961e2a47a4",
+      "reason": "Changes documentation only.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-612-custom-random",
+      "repository": "nanoid",
+      "head": "ccb0e6ee5582eeb241ed3ea361eb98d5c5c7aea4",
+      "reason": "Fixes a customRandom byte request while retaining exported names.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-613-size-limit",
+      "repository": "nanoid",
+      "head": "05057d860107d47c09f356da8347179e2ce9c23c",
+      "reason": "Reduces implementation and package size while retaining exported names.",
+      "expected": []
+    },
+    {
+      "id": "p-queue-130-events",
+      "repository": "p-queue",
+      "head": "a176837ec4fe2e5e6c4c4b7cdb828aab0f0790d8",
+      "reason": "Adds error and completed events while retaining exported names.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-602-function-to-variable",
+      "repository": "nanoid",
+      "head": "b1bb75fc112ca14004fd71e9b5884a2434fb7122",
+      "reason": "Changes the exported nanoid declaration from function to variable but preserves its public name.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-simplify-variable-to-function",
+      "repository": "nanoid",
+      "head": "14eec75542868e72c5752de9c4a61b9ebfde1ada",
+      "reason": "Changes exported variables into functions while retaining their names.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-remove-async-api",
+      "repository": "nanoid",
+      "head": "c0572e2df79fe1e064c14b71b6354b15048a52d2",
+      "reason": "Deletes the async entry point and its exported runtime and declaration names.",
+      "expected": [
+        { "file": "async/index.browser.js", "symbolName": "customAlphabet" },
+        { "file": "async/index.browser.js", "symbolName": "nanoid" },
+        { "file": "async/index.browser.js", "symbolName": "random" },
+        { "file": "async/index.d.ts", "symbolName": "customAlphabet" },
+        { "file": "async/index.d.ts", "symbolName": "nanoid" },
+        { "file": "async/index.d.ts", "symbolName": "random" },
+        { "file": "async/index.js", "symbolName": "customAlphabet" },
+        { "file": "async/index.js", "symbolName": "nanoid" },
+        { "file": "async/index.js", "symbolName": "random" }
+      ]
+    },
+    {
+      "id": "p-queue-remove-abort-error",
+      "repository": "p-queue",
+      "head": "68dfe953e58bbf55332a879aa01669d56bd93ffa",
+      "reason": "Removes the exported AbortError class while retaining the names of interfaces converted to type aliases.",
+      "expected": [{ "file": "source/index.ts", "symbolName": "AbortError" }]
+    },
+    {
+      "id": "p-queue-remove-timeout-option",
+      "repository": "p-queue",
+      "head": "e48716fa1236fdd8ac0ad88f7831467f2455976a",
+      "reason": "Removes the throwOnTimeout option, a known type-alias/member compatibility gap, but not a top-level export name.",
+      "expected": []
+    },
+    {
+      "id": "p-queue-replace-timeout-error",
+      "repository": "p-queue",
+      "head": "300a52d93618c3fdcb63aaa4e1c016a987a7e534",
+      "reason": "Replaces an exported TimeoutError re-export with a local class of the same public name; behavior can change, but the name was not removed.",
+      "expected": []
+    }
+  ]
+}
