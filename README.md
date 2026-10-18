@@ -124,12 +124,13 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 
 For a report generated from an actual IntentPatch commit, see the
 [standalone HTML example](./docs/examples/intent-input-change.html) and the
-[three-case evaluation with reproduction commands](./docs/real-world-evaluation.md). After cloning,
+[three-case self-evaluation](./docs/real-world-evaluation.md) and
+[six-case external evaluation](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
 
-The current source tree analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript symbols and public API changes, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
+The current source tree analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript and JavaScript symbols and public exports, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
 
 ### Git and reporting
 
@@ -160,6 +161,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Analyze changed pnpm workspace manifests selected by `pnpm-workspace.yaml`, including exclusion patterns.
 - Report changes to workspace patterns and manifest moves into or out of a configured workspace.
 - Extract top-level named functions, classes, interfaces, and type aliases from `.ts` and `.tsx` files.
+- Track named top-level JavaScript/JSX functions, classes, variables, ESM export aliases, and default exports without inferring type compatibility.
 - Detect symbol additions, modifications, and removals with source locations.
 - Preserve direct exports, local export lists, and external re-exports as public-symbol evidence.
 - Report removed public symbols and removed exports as high-severity compatibility risks.
@@ -172,7 +174,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 
 ### Impact, scope, and tests
 
-- Build relative static import and re-export relationships for `.ts` and `.tsx` files.
+- Build relative string-literal import, re-export, `require()`, and `import()` relationships for TypeScript and JavaScript modules, including JSX.
 - Resolve local imports through the nearest `tsconfig.json` or `jsconfig.json` `paths` and
   `baseUrl`, including relative `extends` files.
 - Resolve `.js`, `.jsx`, `.mjs`, and `.cjs` import specifiers to matching TypeScript sources.
@@ -188,7 +190,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Report source files without a related test change as medium-severity findings.
 - Support repository-relative `*`, `**`, and `?` path patterns.
 
-Transitive lockfile dependency provenance, JavaScript and method-level structure analysis, and optional AI review are not implemented yet.
+Transitive lockfile dependency provenance, JavaScript duplicate-implementation and method-level structure analysis, and optional AI review are not implemented yet.
 
 ## CLI usage
 
@@ -424,6 +426,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 2. ✅ TypeScript AST analysis for functions, classes, interfaces, and types
 3. ✅ Relative static import graph and change-impact calculation
    - ✅ TypeScript `paths` and `baseUrl` aliases from the nearest project config
+   - ✅ JS/JSX ESM, CommonJS `require()`, and string-literal dynamic imports
 4. ✅ Change Contract scope and change-budget analysis
 5. ✅ Contract-based detection of missing related test changes
 6. Package-manager adapters for lockfiles and workspaces
@@ -433,6 +436,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
    - ✅ pnpm workspace manifest dependency changes
    - Yarn adapter
 7. ✅ Detection of removed public exports
+   - ✅ Named and default ESM exports in JavaScript, without inferred type compatibility
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
 9. ✅ Re-export and function/interface compatibility checks plus possible code duplication
 10. ✅ Detection of newly introduced single-implementation interfaces
@@ -455,19 +459,17 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - pnpm workspace detection reads `pnpm-workspace.yaml` `packages` patterns with `*`, `**`, `?`, and leading `!` exclusions. When both npm and pnpm workspace settings exist, pnpm settings take precedence to avoid duplicate findings. Other glob features and pnpm catalogs are not interpreted.
 - Yarn lockfiles and runtime dependency usage are not analyzed yet.
 - Working-tree `package-lock.json` and `pnpm-lock.yaml` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
-- Symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files.
-- Public API analysis supports named top-level functions and interfaces, local `export { name }`, external `export { name } from`, and `export * from`. Package `exports`, anonymous default exports, and detailed class or type-alias contracts are not interpreted yet.
+- TypeScript symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
+- TypeScript public API analysis supports named top-level functions and interfaces, local `export { name }`, external `export { name } from`, and `export * from`. JavaScript supports identifiable named and default ESM export removal, but does not infer function signatures. Package `exports`, CommonJS `module.exports`, and detailed class or type-alias contracts are not interpreted yet.
 - Function compatibility compares explicitly written parameter and return-type text. It does not evaluate inferred return types or full TypeScript structural assignability.
 - Duplicate candidates require a newly added top-level function and an existing top-level function to have exactly the same normalized tokens after comments and whitespace are removed, with at least 12 body tokens. Renamed identifiers, methods, and semantically equivalent implementations are not detected.
 - A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
-- Methods, variable declarations, enums, nested declarations, and JavaScript files are not included in symbol analysis.
+- Methods, TypeScript variable declarations, enums, and nested declarations are not included in symbol analysis.
 - Formatting or comment changes inside a declaration can be counted as symbol modifications.
-- Impact analysis covers static `import`, side-effect imports, `export ... from`, and
-  `import = require()` in `.ts` and `.tsx` files. Local aliases use the nearest `tsconfig.json` or
+- Impact analysis covers static `import`, side-effect imports, `export ... from`, `import = require()`, and string-literal `require()` and `import()` in JS/TS source files. Local aliases use the nearest `tsconfig.json` or
   `jsconfig.json`, with relative `extends` support.
 - Package-based config `extends`, project references, arbitrary config filenames, package
-  `imports`/`exports`, external package imports, dynamic `import()`, and ordinary `require()` are
-  not included in the graph.
+  `imports`/`exports`, external package imports, and computed module loads are not resolved in the graph.
 - The graph is built from files at the comparison result point: the working tree or head ref. Impact from historical imports that referenced a deleted module cannot be calculated yet.
 - Source files used for impact analysis are limited to 1 MiB per file, and symbolic links are not read.
 - IntentPatch does not infer expected paths from natural-language intent. Scope decisions use the contract's explicit `include` and `allow` patterns.

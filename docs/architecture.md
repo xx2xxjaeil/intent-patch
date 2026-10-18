@@ -22,7 +22,7 @@ AnalyzeChanges 유스케이스
   │
   ├─ CompareSourceSymbols
   │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
-  │   └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor
+  │   └─ SourceSymbolExtractor 포트 ──▶ TypeScriptSymbolExtractor / JavaScriptSymbolExtractor
   │
   ├─ AnalyzeCodeStructure
   │   ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
@@ -35,7 +35,7 @@ AnalyzeChanges 유스케이스
   │   │                                 └─ working tree 또는 head의 package.json
   │   ├─ AddedDependencyUsageRule
   │   │   ├─ ProjectFileSource 포트 ────▶ GitProjectFileSource
-  │   │   └─ ModuleReferenceExtractor ─▶ PackageModuleReferenceExtractor
+  │   │   └─ ModuleReferenceExtractor ─▶ SourceModuleReferenceExtractor
   │   ├─ NpmLockfileRule
   │   │   ├─ FileSnapshotSource 포트 ───▶ GitFileSnapshotSource
   │   │   └─ PackageLockParser 포트 ────▶ NpmPackageLockParser
@@ -60,7 +60,7 @@ AnalyzeChanges 유스케이스
       ├─ ProjectFileSource 포트 ──────▶ GitProjectFileSource
       │                                ├─ working tree의 tracked·untracked 파일
       │                                └─ head ref의 전체 파일 tree
-      ├─ ModuleReferenceExtractor ────▶ TypeScriptModuleReferenceExtractor
+      ├─ ModuleReferenceExtractor ────▶ SourceModuleReferenceExtractor
       └─ ModuleAliasResolver ─────────▶ TypeScriptModuleAliasResolver
                                        └─ TypeScriptConfigLoader
   │
@@ -123,7 +123,8 @@ pnpm v9 YAML의 프로젝트 문서를 읽고,
 
 Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·현재 파일 스냅샷 읽기와
 TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
-목록을 제공하고, TypeScript 어댑터는 최상위 선언 또는 정적 module specifier로 변환합니다.
+목록을 제공하고, TypeScript Compiler API 기반 JS/TS 어댑터는 최상위 선언 또는 문자열 기반
+module specifier로 변환합니다. JS 공개 심볼은 ESM export 근거만 보존하며 타입 호환성을 추측하지 않습니다.
 별칭 어댑터는 선택한 Git 결과점의 가장 가까운 TypeScript 설정과 상대 경로 `extends`를 읽고
 TypeScript 모듈 해석기를 통해 로컬 소스 파일만 그래프에 연결합니다.
 심볼 어댑터는 직접 export, 로컬 export 목록, 외부 re-export와 함수·인터페이스 공개 계약을 분석
