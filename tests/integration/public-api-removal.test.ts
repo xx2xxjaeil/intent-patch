@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
@@ -174,6 +174,37 @@ describe("public API removal integration", () => {
       })),
       [{ ruleId: "api/exported-symbol-removed", symbolName: "default" }],
     );
+  });
+
+  it("does not report generated JavaScript bundle exports as source API", async () => {
+    const repository = await createRepository("export const source = true;\n", "api.js");
+    await mkdir(join(repository, "action-dist"));
+    await writeFile(join(repository, "action-dist/index.cjs"), "export const generated = true;\n");
+    await runGit(repository, ["add", "action-dist/index.cjs"]);
+    await runGit(repository, [
+      "-c",
+      "user.name=IntentPatch Test",
+      "-c",
+      "user.email=intentpatch@example.invalid",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      "Add generated bundle",
+    ]);
+    await writeFile(join(repository, "action-dist/index.cjs"), "const generated = true;\n");
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new JavaScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.equal(report.symbolChanges.summary.filesAnalyzed, 0);
+    assert.deepEqual(report.findings.items, []);
   });
 });
 

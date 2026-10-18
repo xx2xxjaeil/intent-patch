@@ -4,21 +4,12 @@ import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
 import type { PnpmWorkspaceParser } from "../ports/pnpm-workspace-parser.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
+import { isMaintainedSourcePath } from "../services/is-maintained-source-path.js";
 import { NpmWorkspaceDependencyRule } from "./npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "./package-dependency-rule.js";
 import { PnpmWorkspaceDependencyRule } from "./pnpm-workspace-dependency-rule.js";
 
 const rootManifest = "package.json";
-const generatedDirectories = new Set([
-  "node_modules",
-  "dist",
-  "build",
-  "coverage",
-  "action-dist",
-  ".next",
-  ".turbo",
-]);
-
 /** 새 직접 dependency의 정적 소스 참조가 없을 때만 검토 후보를 제시한다. */
 export class AddedDependencyUsageRule implements AnalysisRule {
   public constructor(
@@ -44,9 +35,7 @@ export class AddedDependencyUsageRule implements AnalysisRule {
     if (added.length === 0) return [];
 
     const paths = (await this.files.listPaths(context.target)).filter(
-      (path) =>
-        this.extractor.supports(path) &&
-        !path.split("/").some((part) => generatedDirectories.has(part)),
+      (path) => this.extractor.supports(path) && isMaintainedSourcePath(path),
     );
     const referenced = new Set<string>();
     if (paths.length === 0 || paths.length > 5_000) return [];

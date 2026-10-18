@@ -12,6 +12,7 @@ import type { ChangeImpactAnalyzer } from "../ports/change-impact-analyzer.js";
 import type { ModuleAliasResolver } from "../ports/module-alias-resolver.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
+import { isMaintainedSourcePath } from "./is-maintained-source-path.js";
 
 const typeScriptSourceExtensions = [
   ".ts",
@@ -35,7 +36,9 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
 
   public async analyze(context: AnalysisContext): Promise<ImpactAnalysis> {
     const allPaths = await this.files.listPaths(context.target);
-    const sourcePaths = allPaths.filter((path) => this.extractorFor(path) !== undefined);
+    const sourcePaths = allPaths.filter(
+      (path) => isMaintainedSourcePath(path) && this.extractorFor(path) !== undefined,
+    );
     const availablePaths = new Set(sourcePaths);
     const aliasResolver = await this.aliases.prepare(context.target, allPaths, availablePaths);
     const dependencies: ModuleDependency[] = [];
@@ -79,7 +82,9 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
     }
 
     const changedModules = context.changes.files
-      .filter((file) => this.extractorFor(file.path) !== undefined)
+      .filter(
+        (file) => isMaintainedSourcePath(file.path) && this.extractorFor(file.path) !== undefined,
+      )
       .map((file) => file.path);
     const impactedFiles = calculateImpactedFiles(changedModules, dependencies);
 

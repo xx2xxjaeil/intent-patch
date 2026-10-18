@@ -78,32 +78,43 @@ describe("import alias impact integration", () => {
     await writeFile(join(repository, "src/extensionless.js"), 'import "./core";\n');
     await writeFile(join(repository, "src/typed.mts"), "export const typed = true;\n");
     await writeFile(join(repository, "src/typed-user.mjs"), 'import "./typed.mjs";\n');
-    await runGit(repository, [
-      "add",
-      "src/core.js",
-      "src/aliased.js",
-      "src/view.jsx",
-      "src/page.mjs",
-      "src/legacy.cjs",
-      "src/lazy.js",
-      "src/extensionless.js",
-      "src/typed.mts",
-      "src/typed-user.mjs",
-      "jsconfig.json",
-      "tsconfig.json",
-    ]);
-    await runGit(repository, [
-      "-c",
-      "user.name=IntentPatch Test",
-      "-c",
-      "user.email=intentpatch@example.invalid",
-      "-c",
-      "commit.gpgsign=false",
-      "commit",
-      "--quiet",
-      "-m",
-      "Add JavaScript fixture",
-    ]);
+    await mkdir(join(repository, "action-dist"));
+    await writeFile(join(repository, "action-dist/index.cjs"), 'require("../src/core.js");\n');
+    await executeFile(
+      "git",
+      [
+        "add",
+        "src/core.js",
+        "src/aliased.js",
+        "src/view.jsx",
+        "src/page.mjs",
+        "src/legacy.cjs",
+        "src/lazy.js",
+        "src/extensionless.js",
+        "src/typed.mts",
+        "src/typed-user.mjs",
+        "action-dist/index.cjs",
+        "jsconfig.json",
+        "tsconfig.json",
+      ],
+      { cwd: repository },
+    );
+    await executeFile(
+      "git",
+      [
+        "-c",
+        "user.name=IntentPatch Test",
+        "-c",
+        "user.email=intentpatch@example.invalid",
+        "-c",
+        "commit.gpgsign=false",
+        "commit",
+        "--quiet",
+        "-m",
+        "Add JavaScript fixture",
+      ],
+      { cwd: repository },
+    );
 
     const files = new GitProjectFileSource(repository);
     const report = await new AnalyzeImportImpact(
@@ -154,10 +165,6 @@ describe("import alias impact integration", () => {
     );
   });
 });
-
-async function runGit(repository: string, arguments_: readonly string[]): Promise<void> {
-  await executeFile("git", [...arguments_], { cwd: repository });
-}
 
 async function createRepository(): Promise<string> {
   const repository = await mkdtemp(join(tmpdir(), "intentpatch-alias-impact-test-"));

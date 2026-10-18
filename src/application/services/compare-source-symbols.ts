@@ -12,6 +12,7 @@ import type {
   SymbolExtractionResult,
 } from "../ports/source-symbol-extractor.js";
 import type { SymbolChangeAnalyzer } from "../ports/symbol-change-analyzer.js";
+import { isMaintainedSourcePath } from "./is-maintained-source-path.js";
 
 /** 변경 파일의 이전·현재 심볼을 비교하되 언어별 AST 구현은 extractor에 위임한다. */
 export class CompareSourceSymbols implements SymbolChangeAnalyzer {
@@ -27,6 +28,7 @@ export class CompareSourceSymbols implements SymbolChangeAnalyzer {
 
     // 파일 수가 큰 저장소에서 Git 프로세스를 무제한 생성하지 않도록 순차 분석한다.
     for (const file of context.changes.files) {
+      if (!isMaintainedSourcePath(file.path)) continue;
       const extractor = this.extractors.find((candidate) => candidate.supports(file.path));
       if (extractor === undefined) {
         continue;
