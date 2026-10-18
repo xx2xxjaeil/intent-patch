@@ -511,6 +511,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
   삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
 - 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
+- `dist`·`build`·`coverage`·`action-dist`·`node_modules` 같은 생성 디렉터리는 Git 변경량에는
+  포함하지만 심볼·import graph·정적 package 참조 분석에서는 제외합니다.
 - IntentPatch는 자연어 intent만으로 예상 경로를 추측하지 않습니다. 범위 판단은 Contract에 명시한
   `include`와 `allow`를 기준으로 수행합니다.
 - 경로 패턴은 저장소 상대 경로와 `*`, `**`, `?`만 지원합니다. 부정 패턴과 brace 확장은 아직

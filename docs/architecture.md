@@ -131,6 +131,9 @@ TypeScript 모듈 해석기를 통해 로컬 소스 파일만 그래프에 연�
 사실로 보존합니다. 구조 어댑터는 함수 본문을 공백·주석에 영향받지 않는 토큰 fingerprint로 바꾸고
 인터페이스 선언과 클래스의 명시적 `implements` 이름을 추출합니다.
 Compiler API의 노드 타입은 application과 domain 계층으로 전파되지 않습니다.
+두 레거시 모듈 참조 extractor의 deep-import 경로는 얇은 호환 어댑터로 유지하고, 조립에는
+`SourceModuleReferenceExtractor` 하나만 사용합니다. 생성 디렉터리 제외 정책은 application
+계층에서 공유하여 보고서의 파일 변경량은 보존하면서 원본 소스 분석의 중복을 막습니다.
 `JsonChangeContractLoader`는 외부 JSON 형식을 검증한 뒤 정규화된 도메인 모델로 변환합니다.
 
 ### Presentation

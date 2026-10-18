@@ -472,6 +472,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
   `imports`/`exports`, external package imports, and computed module loads are not resolved in the graph.
 - The graph is built from files at the comparison result point: the working tree or head ref. Impact from historical imports that referenced a deleted module cannot be calculated yet.
 - Source files used for impact analysis are limited to 1 MiB per file, and symbolic links are not read.
+- Generated directories such as `dist`, `build`, `coverage`, `action-dist`, and `node_modules` remain visible in Git change counts but are excluded from symbol, import-graph, and static package-reference scans.
 - IntentPatch does not infer expected paths from natural-language intent. Scope decisions use the contract's explicit `include` and `allow` patterns.
 - Path patterns support only repository-relative `*`, `**`, and `?`; negation and brace expansion are not supported.
 - `maxLines` sums only measurable added and deleted lines in text files. Binary or unmeasurable files are not treated as zero lines, but their size is not included in the budget.
