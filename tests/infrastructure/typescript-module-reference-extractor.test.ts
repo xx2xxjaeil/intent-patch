@@ -40,4 +40,19 @@ describe("TypeScriptModuleReferenceExtractor", () => {
       assert.match(result.reason, /line 1, column/);
     }
   });
+
+  it("reads declaration-file imports without requiring emitted JavaScript", () => {
+    assert.deepEqual(
+      extractor.extract("index.d.ts", 'export { type Options } from "./options.js";'),
+      { kind: "success", specifiers: ["./options.js"] },
+    );
+  });
+
+  it("returns syntax errors in declaration files as unavailable", () => {
+    const result = extractor.extract("index.d.ts", "export interface Options {");
+    assert.equal(result.kind, "unavailable");
+    if (result.kind === "unavailable") {
+      assert.match(result.reason, /line 1, column/);
+    }
+  });
 });
