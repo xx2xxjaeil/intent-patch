@@ -27,10 +27,10 @@ import { NpmPackageLockParser } from "../infrastructure/npm/npm-package-lock-par
 import { PnpmYamlLockParser } from "../infrastructure/pnpm/pnpm-lock-parser.js";
 import { PnpmYamlWorkspaceParser } from "../infrastructure/pnpm/pnpm-workspace-parser.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
-import { PackageModuleReferenceExtractor } from "../infrastructure/typescript/package-module-reference-extractor.js";
+import { JavaScriptSymbolExtractor } from "../infrastructure/typescript/javascript-symbol-extractor.js";
+import { SourceModuleReferenceExtractor } from "../infrastructure/typescript/source-module-reference-extractor.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
-import { TypeScriptModuleReferenceExtractor } from "../infrastructure/typescript/typescript-module-reference-extractor.js";
 import { TypeScriptSymbolExtractor } from "../infrastructure/typescript/typescript-symbol-extractor.js";
 
 export interface RepositoryAnalysisOptions {
@@ -61,12 +61,13 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
         });
   const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);
   const pnpmWorkspaceParser = new PnpmYamlWorkspaceParser();
+  const moduleReferenceExtractor = new SourceModuleReferenceExtractor();
   const ruleEngine = new RuleEngine([
     new PackageDependencyRule(snapshotSource),
     new AddedDependencyUsageRule(
       snapshotSource,
       projectFiles,
-      new PackageModuleReferenceExtractor(),
+      moduleReferenceExtractor,
       pnpmWorkspaceParser,
     ),
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
@@ -83,10 +84,11 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
   ]);
   const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
     new TypeScriptSymbolExtractor(),
+    new JavaScriptSymbolExtractor(),
   ]);
   const impactAnalyzer = new AnalyzeImportImpact(
     projectFiles,
-    [new TypeScriptModuleReferenceExtractor()],
+    [moduleReferenceExtractor],
     new TypeScriptModuleAliasResolver(projectFiles),
   );
   const codeStructureAnalyzer = new AnalyzeCodeStructure(projectFiles, [

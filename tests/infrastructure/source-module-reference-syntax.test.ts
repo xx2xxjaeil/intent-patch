@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { TypeScriptModuleReferenceExtractor } from "../../src/infrastructure/typescript/typescript-module-reference-extractor.js";
+import { SourceModuleReferenceExtractor } from "../../src/infrastructure/typescript/source-module-reference-extractor.js";
 
-describe("TypeScriptModuleReferenceExtractor", () => {
-  const extractor = new TypeScriptModuleReferenceExtractor();
+describe("SourceModuleReferenceExtractor syntax handling", () => {
+  const extractor = new SourceModuleReferenceExtractor();
 
-  it("supports TypeScript files but not JavaScript files", () => {
+  it("supports TypeScript and JavaScript files", () => {
     assert.equal(extractor.supports("src/user.ts"), true);
     assert.equal(extractor.supports("src/view.tsx"), true);
-    assert.equal(extractor.supports("src/user.js"), false);
+    assert.equal(extractor.supports("src/user.js"), true);
+    assert.equal(extractor.supports("src/view.jsx"), true);
+    assert.equal(extractor.supports("src/module.mjs"), true);
+    assert.equal(extractor.supports("src/legacy.cjs"), true);
   });
 
   it("extracts and deduplicates static imports and re-exports", () => {
@@ -28,7 +31,16 @@ describe("TypeScriptModuleReferenceExtractor", () => {
 
     assert.deepEqual(result, {
       kind: "success",
-      specifiers: ["./bootstrap.js", "./legacy.cjs", "./session.js", "./shared.js", "./user.js"],
+      specifiers: [
+        "./bootstrap.js",
+        "./dynamic.js",
+        "./legacy.cjs",
+        "./runtime.cjs",
+        "./session.js",
+        "./shared.js",
+        "./user.js",
+      ],
+      hasDynamicSpecifier: false,
     });
   });
 
@@ -44,7 +56,7 @@ describe("TypeScriptModuleReferenceExtractor", () => {
   it("reads declaration-file imports without requiring emitted JavaScript", () => {
     assert.deepEqual(
       extractor.extract("index.d.ts", 'export { type Options } from "./options.js";'),
-      { kind: "success", specifiers: ["./options.js"] },
+      { kind: "success", specifiers: ["./options.js"], hasDynamicSpecifier: false },
     );
   });
 

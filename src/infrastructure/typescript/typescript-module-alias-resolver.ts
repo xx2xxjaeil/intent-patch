@@ -45,6 +45,10 @@ export class TypeScriptModuleAliasResolver implements ModuleAliasResolver {
       realpath: (path) => path,
       useCaseSensitiveFileNames: true,
     };
+    const javaScriptHost: ts.ModuleResolutionHost = {
+      ...host,
+      fileExists: (path) => virtualSources.has(path) && isJavaScriptPath(path),
+    };
 
     return {
       issues: loaded.issues,
@@ -58,12 +62,19 @@ export class TypeScriptModuleAliasResolver implements ModuleAliasResolver {
           return undefined;
         }
 
-        const resolved = ts.resolveModuleName(
-          specifier,
-          virtualProjectPath(importer),
-          options,
-          host,
-        ).resolvedModule?.resolvedFileName;
+        // TS 모듈 해석은 동일한 stem의 .ts를 .js보다 선호한다. JS 소비자에서는
+        // 실제 JS 파일을 먼저 시도하고, 없을 때만 TS 소스로 되돌아간다.
+        const hosts = isJavaScriptPath(importer) ? [javaScriptHost, host] : [host];
+        let resolved: string | undefined;
+        for (const candidateHost of hosts) {
+          resolved = ts.resolveModuleName(
+            specifier,
+            virtualProjectPath(importer),
+            { ...options, allowJs: true },
+            candidateHost,
+          ).resolvedModule?.resolvedFileName;
+          if (resolved !== undefined) break;
+        }
         if (resolved === undefined) {
           return undefined;
         }
@@ -73,6 +84,10 @@ export class TypeScriptModuleAliasResolver implements ModuleAliasResolver {
       },
     };
   }
+}
+
+function isJavaScriptPath(path: string): boolean {
+  return /\.(?:[cm]?js|jsx)$/u.test(path);
 }
 
 function isProjectConfig(path: string): boolean {

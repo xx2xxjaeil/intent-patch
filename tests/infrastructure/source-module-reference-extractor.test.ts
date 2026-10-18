@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { PackageModuleReferenceExtractor } from "../../src/infrastructure/typescript/package-module-reference-extractor.js";
+import { SourceModuleReferenceExtractor } from "../../src/infrastructure/typescript/source-module-reference-extractor.js";
 
-const extractor = new PackageModuleReferenceExtractor();
+const extractor = new SourceModuleReferenceExtractor();
 
-describe("PackageModuleReferenceExtractor", () => {
+describe("SourceModuleReferenceExtractor", () => {
   it("collects static JS and TS module loads, including subpaths and type imports", () => {
     const source = `
       import type { A } from '@scope/types/subpath';
