@@ -16,7 +16,7 @@ export interface FunctionPublicApi {
   readonly signatures: readonly string[];
 }
 
-export interface InterfacePublicApiMember {
+export interface PublicApiMember {
   readonly name: string;
   readonly memberKind: "property" | "method";
   readonly optional: boolean;
@@ -26,10 +26,16 @@ export interface InterfacePublicApiMember {
 export interface InterfacePublicApi {
   readonly kind: "interface";
   readonly extendsTypes: readonly string[];
-  readonly members: readonly InterfacePublicApiMember[];
+  readonly members: readonly PublicApiMember[];
 }
 
-export type PublicApi = FunctionPublicApi | InterfacePublicApi;
+/** 정적으로 해석 가능한 객체 타입 별칭의 구성원만 기록한다. */
+export interface TypeAliasPublicApi {
+  readonly kind: "type-alias";
+  readonly members: readonly PublicApiMember[];
+}
+
+export type PublicApi = FunctionPublicApi | InterfacePublicApi | TypeAliasPublicApi;
 
 /** 파서가 추출한 심볼의 비교용 표현이다. fingerprint는 보고서에 노출하지 않는다. */
 export interface SourceSymbol {
@@ -130,6 +136,12 @@ function freezePublicApi(publicApi: PublicApi): PublicApi {
     return Object.freeze({
       kind: publicApi.kind,
       signatures: Object.freeze([...publicApi.signatures]),
+    });
+  }
+  if (publicApi.kind === "type-alias") {
+    return Object.freeze({
+      kind: publicApi.kind,
+      members: Object.freeze(publicApi.members.map((member) => Object.freeze({ ...member }))),
     });
   }
   return Object.freeze({

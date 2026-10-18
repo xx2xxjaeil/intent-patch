@@ -5,8 +5,8 @@ import type {
   SymbolExtractionResult,
 } from "../../application/ports/source-symbol-extractor.js";
 import type {
-  InterfacePublicApiMember,
   PublicApi,
+  PublicApiMember,
   SourceSymbol,
   SourceSymbolKind,
 } from "../../domain/symbol-change.js";
@@ -34,6 +34,7 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
     }
     const { sourceFile } = parseResult;
     const localExports = collectLocalExports(sourceFile);
+    const localTypeAliases = collectLocalTypeAliases(sourceFile);
     const groups = new Map<string, SymbolGroup>();
 
     for (const statement of sourceFile.statements) {
@@ -65,7 +66,7 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
     collectExternalReExports(sourceFile, groups);
 
     const symbols = [...groups.values()]
-      .map((group) => toSourceSymbol(group, sourceFile))
+      .map((group) => toSourceSymbol(group, sourceFile, localTypeAliases))
       .sort(
         (left, right) =>
           left.line - right.line ||
@@ -74,6 +75,18 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
       );
     return { kind: "success", symbols };
   }
+}
+
+function collectLocalTypeAliases(
+  sourceFile: ts.SourceFile,
+): ReadonlyMap<string, ts.TypeAliasDeclaration> {
+  const aliases = new Map<string, ts.TypeAliasDeclaration>();
+  for (const statement of sourceFile.statements) {
+    if (ts.isTypeAliasDeclaration(statement)) {
+      aliases.set(statement.name.text, statement);
+    }
+  }
+  return aliases;
 }
 
 function collectLocalExports(sourceFile: ts.SourceFile): ReadonlySet<string> {
@@ -163,19 +176,34 @@ function declarationIdentity(
   return undefined;
 }
 
-function toSourceSymbol(group: SymbolGroup, sourceFile: ts.SourceFile): SourceSymbol {
-  const publicApi = group.exported ? extractPublicApi(group, sourceFile) : undefined;
+function toSourceSymbol(
+  group: SymbolGroup,
+  sourceFile: ts.SourceFile,
+  localTypeAliases: ReadonlyMap<string, ts.TypeAliasDeclaration>,
+): SourceSymbol {
+  const publicApi = group.exported
+    ? extractPublicApi(group, sourceFile, localTypeAliases)
+    : undefined;
   return {
     name: group.name,
     kind: group.kind,
     line: group.line,
     exported: group.exported,
-    fingerprint: createHash("sha256").update(group.declarations.join("\0")).digest("hex"),
+    // 로컬 타입 별칭을 참조하는 공개 타입은 선언문이 그대로여도 계약이 달라질 수 있다.
+    fingerprint: createHash("sha256")
+      .update(group.declarations.join("\0"))
+      .update("\0")
+      .update(JSON.stringify(publicApi) ?? "")
+      .digest("hex"),
     ...(publicApi === undefined ? {} : { publicApi }),
   };
 }
 
-function extractPublicApi(group: SymbolGroup, sourceFile: ts.SourceFile): PublicApi | undefined {
+function extractPublicApi(
+  group: SymbolGroup,
+  sourceFile: ts.SourceFile,
+  localTypeAliases: ReadonlyMap<string, ts.TypeAliasDeclaration>,
+): PublicApi | undefined {
   if (group.kind === "function") {
     const declarations = group.statements.filter(ts.isFunctionDeclaration);
     const overloads = declarations.filter((declaration) => declaration.body === undefined);
@@ -201,10 +229,66 @@ function extractPublicApi(group: SymbolGroup, sourceFile: ts.SourceFile): Public
         .sort(),
       members: declarations
         .flatMap((declaration) =>
-          declaration.members.flatMap((member) => interfaceMember(member, sourceFile)),
+          declaration.members.flatMap((member) => publicApiMember(member, sourceFile)),
         )
-        .sort(compareInterfaceMembers),
+        .sort(comparePublicApiMembers),
     };
+  }
+  if (group.kind === "type-alias") {
+    const declaration = group.statements.find(ts.isTypeAliasDeclaration);
+    if (declaration === undefined) return undefined;
+    const members = resolveTypeAliasMembers(
+      declaration.type,
+      sourceFile,
+      localTypeAliases,
+      new Set([declaration.name.text]),
+    );
+    return members === undefined
+      ? undefined
+      : { kind: "type-alias", members: [...members].sort(comparePublicApiMembers) };
+  }
+  return undefined;
+}
+
+/** 완전히 해석 가능한 객체 리터럴과 같은 파일의 교집합만 추적한다. */
+function resolveTypeAliasMembers(
+  type: ts.TypeNode,
+  sourceFile: ts.SourceFile,
+  localTypeAliases: ReadonlyMap<string, ts.TypeAliasDeclaration>,
+  visited: ReadonlySet<string>,
+): readonly PublicApiMember[] | undefined {
+  if (ts.isParenthesizedTypeNode(type)) {
+    return resolveTypeAliasMembers(type.type, sourceFile, localTypeAliases, visited);
+  }
+  if (ts.isTypeLiteralNode(type)) {
+    const members = type.members.map((member) => publicApiMember(member, sourceFile));
+    return members.some((member) => member.length !== 1) ? undefined : members.flat();
+  }
+  if (ts.isIntersectionTypeNode(type)) {
+    const members = type.types.map((part) =>
+      resolveTypeAliasMembers(part, sourceFile, localTypeAliases, visited),
+    );
+    return members.some((part) => part === undefined)
+      ? undefined
+      : members.flatMap((part) => part ?? []);
+  }
+  if (ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName)) {
+    const name = type.typeName.text;
+    const alias = localTypeAliases.get(name);
+    if (
+      alias === undefined ||
+      visited.has(name) ||
+      alias.typeParameters !== undefined ||
+      type.typeArguments !== undefined
+    ) {
+      return undefined;
+    }
+    return resolveTypeAliasMembers(
+      alias.type,
+      sourceFile,
+      localTypeAliases,
+      new Set([...visited, name]),
+    );
   }
   return undefined;
 }
@@ -232,14 +316,16 @@ function parameterSignature(parameter: ts.ParameterDeclaration, sourceFile: ts.S
   return `${rest}${normalize(type)}${optional}`;
 }
 
-function interfaceMember(
+function publicApiMember(
   member: ts.TypeElement,
   sourceFile: ts.SourceFile,
-): readonly InterfacePublicApiMember[] {
+): readonly PublicApiMember[] {
   if (ts.isPropertySignature(member) && member.name !== undefined) {
+    const name = staticMemberName(member.name);
+    if (name === undefined) return [];
     return [
       {
-        name: normalize(member.name.getText(sourceFile)),
+        name,
         memberKind: "property",
         optional: member.questionToken !== undefined,
         signature: normalize(member.type?.getText(sourceFile) ?? "inferred"),
@@ -247,9 +333,11 @@ function interfaceMember(
     ];
   }
   if (ts.isMethodSignature(member)) {
+    const name = staticMemberName(member.name);
+    if (name === undefined) return [];
     return [
       {
-        name: normalize(member.name.getText(sourceFile)),
+        name,
         memberKind: "method",
         optional: member.questionToken !== undefined,
         signature: functionSignature(member, sourceFile),
@@ -259,10 +347,14 @@ function interfaceMember(
   return [];
 }
 
-function compareInterfaceMembers(
-  left: InterfacePublicApiMember,
-  right: InterfacePublicApiMember,
-): number {
+function staticMemberName(name: ts.PropertyName): string | undefined {
+  if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    return name.text;
+  }
+  return undefined;
+}
+
+function comparePublicApiMembers(left: PublicApiMember, right: PublicApiMember): number {
   return left.name.localeCompare(right.name) || left.memberKind.localeCompare(right.memberKind);
 }
 

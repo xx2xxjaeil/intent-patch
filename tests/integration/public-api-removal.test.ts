@@ -101,6 +101,67 @@ describe("public API removal integration", () => {
     ]);
   });
 
+  it("reports a public type member removed through a local options alias", async () => {
+    const repository = await createRepository(
+      [
+        "type TimeoutOptions = { timeout?: number; throwOnTimeout?: boolean };",
+        "export type Options = { concurrency?: number } & TimeoutOptions;",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      join(repository, "api.ts"),
+      [
+        "type TimeoutOptions = { timeout?: number };",
+        "export type Options = { concurrency?: number } & TimeoutOptions;",
+        "",
+      ].join("\n"),
+    );
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiCompatibilityRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.equal(
+      report.symbolChanges.changes.find((change) => change.name === "Options")?.changeKind,
+      "modified",
+    );
+    assert.deepEqual(report.findings.items, [
+      {
+        ruleId: "api/public-type-member-removed",
+        severity: "high",
+        title: "Public type member removed",
+        description: "The exported type Options no longer contains every previous member.",
+        file: "api.ts",
+        evidence: { symbolName: "Options", removedMembers: "throwOnTimeout", currentLine: 2 },
+      },
+    ]);
+  });
+
+  it("does not report a member moved from a local alias into the exported type", async () => {
+    const repository = await createRepository(
+      "type TimeoutOptions = { throwOnTimeout?: boolean };\nexport type Options = {} & TimeoutOptions;\n",
+    );
+    await writeFile(
+      join(repository, "api.ts"),
+      "type TimeoutOptions = {};\nexport type Options = { throwOnTimeout?: boolean } & TimeoutOptions;\n",
+    );
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiCompatibilityRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.deepEqual(report.findings.items, []);
+  });
+
   it("reports a removed public re-export", async () => {
     const repository = await createRepository('export { findUser } from "./user.js";\n');
     await writeFile(join(repository, "api.ts"), "");

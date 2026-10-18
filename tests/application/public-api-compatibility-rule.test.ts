@@ -78,6 +78,64 @@ describe("PublicApiCompatibilityRule", () => {
     );
   });
 
+  it("reports removed members of an exported object type alias", async () => {
+    const findings = await analyze({
+      path: "src/options.ts",
+      name: "Options",
+      symbolKind: "type-alias",
+      changeKind: "modified",
+      beforeExported: true,
+      afterExported: true,
+      beforePublicApi: {
+        kind: "type-alias",
+        members: [
+          { name: "timeout", memberKind: "property", optional: true, signature: "number" },
+          { name: "throwOnTimeout", memberKind: "property", optional: true, signature: "boolean" },
+        ],
+      },
+      afterPublicApi: {
+        kind: "type-alias",
+        members: [{ name: "timeout", memberKind: "property", optional: true, signature: "number" }],
+      },
+      afterLine: 4,
+    });
+
+    assert.deepEqual(findings, [
+      {
+        ruleId: "api/public-type-member-removed",
+        severity: "high",
+        title: "Public type member removed",
+        description: "The exported type Options no longer contains every previous member.",
+        file: "src/options.ts",
+        evidence: { symbolName: "Options", removedMembers: "throwOnTimeout", currentLine: 4 },
+      },
+    ]);
+  });
+
+  it("does not mistake added members or type annotation edits for removals", async () => {
+    const findings = await analyze({
+      path: "src/options.ts",
+      name: "Options",
+      symbolKind: "type-alias",
+      changeKind: "modified",
+      beforeExported: true,
+      afterExported: true,
+      beforePublicApi: {
+        kind: "type-alias",
+        members: [{ name: "timeout", memberKind: "property", optional: true, signature: "number" }],
+      },
+      afterPublicApi: {
+        kind: "type-alias",
+        members: [
+          { name: "timeout", memberKind: "property", optional: true, signature: "bigint" },
+          { name: "signal", memberKind: "property", optional: true, signature: "AbortSignal" },
+        ],
+      },
+    });
+
+    assert.deepEqual(findings, []);
+  });
+
   it("allows implementation-only edits, added overloads, and optional interface members", async () => {
     const functionFindings = await analyze({
       path: "src/user.ts",

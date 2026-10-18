@@ -66,10 +66,71 @@ describe("TypeScriptSymbolExtractor", () => {
         },
       ],
     });
+    assert.equal(result.symbols.find((symbol) => symbol.name === "UserId")?.publicApi, undefined);
     assert.equal(
       result.symbols.find((symbol) => symbol.name === "internalOnly")?.publicApi,
       undefined,
     );
+  });
+
+  it("resolves exported object types through local aliases and intersections", () => {
+    const result = extractor.extract(
+      "src/options.ts",
+      [
+        "type TimeoutOptions = { timeout?: number; throwOnTimeout?: boolean };",
+        "export type Options = { concurrency?: number } & TimeoutOptions;",
+      ].join("\n"),
+    );
+
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    assert.equal(
+      result.symbols.find((symbol) => symbol.name === "TimeoutOptions")?.publicApi,
+      undefined,
+    );
+    assert.deepEqual(result.symbols.find((symbol) => symbol.name === "Options")?.publicApi, {
+      kind: "type-alias",
+      members: [
+        { name: "concurrency", memberKind: "property", optional: true, signature: "number" },
+        { name: "throwOnTimeout", memberKind: "property", optional: true, signature: "boolean" },
+        { name: "timeout", memberKind: "property", optional: true, signature: "number" },
+      ],
+    });
+  });
+
+  it("does not infer members from unions or unresolved and recursive aliases", () => {
+    const result = extractor.extract(
+      "src/options.ts",
+      [
+        "export type Union = { old?: boolean } | { next?: boolean };",
+        "export type External = { old?: boolean } & ImportedOptions;",
+        "type Recursive = { old?: boolean } & Recursive;",
+        "export type Cyclic = Recursive;",
+        "export type Indexed = { old?: boolean; [key: string]: unknown };",
+      ].join("\n"),
+    );
+
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    for (const name of ["Union", "External", "Cyclic", "Indexed"]) {
+      assert.equal(result.symbols.find((symbol) => symbol.name === name)?.publicApi, undefined);
+    }
+  });
+
+  it("normalizes quoted static member names", () => {
+    const result = extractor.extract(
+      "src/options.ts",
+      'export type Options = { "throwOnTimeout"?: boolean };',
+    );
+
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    assert.deepEqual(result.symbols[0]?.publicApi, {
+      kind: "type-alias",
+      members: [
+        { name: "throwOnTimeout", memberKind: "property", optional: true, signature: "boolean" },
+      ],
+    });
   });
 
   it("groups overload declarations into one function symbol", () => {

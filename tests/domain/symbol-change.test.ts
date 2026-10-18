@@ -70,4 +70,34 @@ describe("createSymbolChangeSet", () => {
       /Duplicate symbol change/,
     );
   });
+
+  it("freezes resolved public type members", () => {
+    const result = createSymbolChangeSet([
+      {
+        path: "src/options.ts",
+        name: "Options",
+        symbolKind: "type-alias",
+        changeKind: "modified",
+        beforePublicApi: {
+          kind: "type-alias",
+          members: [
+            {
+              name: "throwOnTimeout",
+              memberKind: "property",
+              optional: true,
+              signature: "boolean",
+            },
+          ],
+        },
+        afterPublicApi: { kind: "type-alias", members: [] },
+      },
+    ]);
+
+    const before = result.changes[0]?.beforePublicApi;
+    assert.equal(before?.kind, "type-alias");
+    if (before?.kind !== "type-alias") return;
+    assert.equal(Object.isFrozen(before), true);
+    assert.equal(Object.isFrozen(before.members), true);
+    assert.equal(Object.isFrozen(before.members[0]), true);
+  });
 });
