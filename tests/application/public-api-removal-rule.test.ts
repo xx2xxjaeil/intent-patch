@@ -86,4 +86,39 @@ describe("PublicApiRemovalRule", () => {
       },
     ]);
   });
+
+  it("does not call a retained export a removal when its declaration kind changes", async () => {
+    const findings = await new PublicApiRemovalRule().analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([]),
+      symbolChanges: createSymbolChangeSet([
+        {
+          path: "src/api.ts",
+          name: "TimeoutError",
+          symbolKind: "re-export",
+          changeKind: "deleted",
+          beforeExported: true,
+        },
+        {
+          path: "src/api.ts",
+          name: "TimeoutError",
+          symbolKind: "class",
+          changeKind: "added",
+          afterExported: true,
+        },
+        {
+          path: "src/legacy.ts",
+          name: "TimeoutError",
+          symbolKind: "class",
+          changeKind: "deleted",
+          beforeExported: true,
+        },
+      ]),
+    });
+
+    assert.deepEqual(
+      findings.map((finding) => [finding.file, finding.evidence.symbolName]),
+      [["src/legacy.ts", "TimeoutError"]],
+    );
+  });
 });

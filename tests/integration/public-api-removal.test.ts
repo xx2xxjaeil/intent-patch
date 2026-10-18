@@ -120,6 +120,43 @@ describe("public API removal integration", () => {
     });
   });
 
+  it("preserves an exported name when a re-export becomes a local class", async () => {
+    const repository = await createRepository('export { TimeoutError } from "./timeout.js";\n');
+    await writeFile(join(repository, "api.ts"), "export class TimeoutError extends Error {}\n");
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.deepEqual(report.findings.items, []);
+    assert.deepEqual(
+      report.symbolChanges.changes.map((change) => [change.symbolKind, change.changeKind]),
+      [
+        ["class", "added"],
+        ["re-export", "deleted"],
+      ],
+    );
+  });
+
+  it("preserves an exported JavaScript name when a variable becomes a function", async () => {
+    const repository = await createRepository("export const nanoid = () => 'id';\n", "api.js");
+    await writeFile(join(repository, "api.js"), "export function nanoid() { return 'id'; }\n");
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new JavaScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.deepEqual(report.findings.items, []);
+  });
+
   it("reports removed JavaScript ESM exports without inferring function signatures", async () => {
     const repository = await createRepository(
       'export const enabled = true;\nexport function run(value) { return value; }\nexport { legacy } from "./legacy.js";\n',
