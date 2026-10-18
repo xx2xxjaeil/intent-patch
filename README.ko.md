@@ -131,7 +131,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 실제 IntentPatch 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html)와
 [자체 변경 3건의 검증 결과](./docs/real-world-evaluation.md)와
-[외부 저장소 6건의 검증 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
+[외부 저장소 변경 15건의 검증 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
@@ -409,6 +409,9 @@ npm run check
 - 실제 임시 Git 저장소를 사용하는 통합 테스트
 - 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
 - 계층 간 의존 방향을 검증하는 아키텍처 테스트
+
+외부 저장소의 실제 변경 15건에서 공개 export 삭제 경고를 사람이 검토한 기대 결과와 비교하는
+방법은 [외부 저장소 평가 문서](./docs/external-repository-evaluation.md)에 정리했습니다.
 
 프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
 

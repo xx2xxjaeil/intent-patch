@@ -125,7 +125,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For a report generated from an actual IntentPatch commit, see the
 [standalone HTML example](./docs/examples/intent-input-change.html) and the
 [three-case self-evaluation](./docs/real-world-evaluation.md) and
-[six-case external evaluation](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 15 changes](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -396,6 +396,9 @@ This command runs:
 - a package integration test that installs the generated npm tarball in a temporary project and executes it;
 - architecture tests that enforce dependency direction;
 - a reproducibility check for the bundled GitHub Action.
+
+For a focused, reproducible check of public-export-removal findings against 15 reviewed changes in
+external repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
 
 Run only the production build with:
 
