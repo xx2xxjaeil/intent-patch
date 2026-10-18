@@ -75,11 +75,33 @@ deletion even though the same file still exported that name. The rule now checks
 exported name remains in the file, and local regression tests cover both JavaScript and TypeScript.
 That does **not** establish behavioral or type compatibility of the replacement.
 
-The p-queue `throwOnTimeout` removal is deliberately a no-deletion case here. It removes a member
-from a public options type, which the current type-alias/member analysis does not follow. Likewise,
-changing the implementation behind an unchanged exported name can still break callers. These are
-uncovered risks, not clean bills of health. The sample is hand-selected and non-random; the counts
-above are agreement on these cases, not a general precision or recall estimate.
+The p-queue `throwOnTimeout` removal is deliberately a no-deletion case in this focused
+export-removal evaluation. It is assessed separately below by the new type-member rule. Changing
+the implementation behind an unchanged exported name can also break callers. These are not clean
+bills of health: the sample is hand-selected and non-random, so the counts above are agreement on
+these cases rather than a general precision or recall estimate.
+
+## Public type-member spot-check
+
+The `api/public-type-member-removed` rule was run against p-queue commit
+`e48716fa1236fdd8ac0ad88f7831467f2455976a` and its first parent, without installing or
+executing p-queue. It reports two `high` findings in `source/options.ts`: the removed
+`throwOnTimeout` member of exported `Options` and `QueueAddOptions`. Both public aliases include
+the same changed private `TimeoutOptions` type through local intersections. The integration suite
+also includes a smaller Git-snapshot regression for this shape and a negative case where a member
+is moved between local type components.
+
+```bash
+node dist/presentation/cli/main.js analyze \
+  --cwd ../p-queue \
+  --base 'e48716fa1236fdd8ac0ad88f7831467f2455976a^' \
+  --head e48716fa1236fdd8ac0ad88f7831467f2455976a \
+  --json
+```
+
+This spot-check establishes detection for that fixed commit, not general recall. Unions,
+cross-file type references, generic alias instantiation, and full TypeScript assignability remain
+outside the member-removal rule.
 
 ## What these results do not prove
 

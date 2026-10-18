@@ -111,7 +111,7 @@
       "id": "p-queue-remove-timeout-option",
       "repository": "p-queue",
       "head": "e48716fa1236fdd8ac0ad88f7831467f2455976a",
-      "reason": "Removes the throwOnTimeout option, a known type-alias/member compatibility gap, but not a top-level export name.",
+      "reason": "Removes the throwOnTimeout option. The focused export-removal score excludes type members; the separate type-member spot-check finds both affected public aliases.",
       "expected": []
     },
     {
