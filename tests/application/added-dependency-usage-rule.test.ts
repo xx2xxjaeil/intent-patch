@@ -5,7 +5,7 @@ import type { ProjectFileSource } from "../../src/application/ports/project-file
 import { AddedDependencyUsageRule } from "../../src/application/rules/added-dependency-usage-rule.js";
 import { createChangeSet } from "../../src/domain/change.js";
 import { PnpmYamlWorkspaceParser } from "../../src/infrastructure/pnpm/pnpm-workspace-parser.js";
-import { PackageModuleReferenceExtractor } from "../../src/infrastructure/typescript/package-module-reference-extractor.js";
+import { SourceModuleReferenceExtractor } from "../../src/infrastructure/typescript/source-module-reference-extractor.js";
 
 const changes = createChangeSet([
   {
@@ -47,7 +47,7 @@ describe("AddedDependencyUsageRule", () => {
         listPaths: async () => ["src/index.ts"],
         read: async () => ({ kind: "unavailable", reason: "too large" }),
       },
-      new PackageModuleReferenceExtractor(),
+      new SourceModuleReferenceExtractor(),
       new PnpmYamlWorkspaceParser(),
     );
     assert.deepEqual(await unreadable.analyze(context), []);
@@ -74,7 +74,7 @@ function createRule(
   return new AddedDependencyUsageRule(
     { read: async () => snapshot },
     files,
-    new PackageModuleReferenceExtractor(),
+    new SourceModuleReferenceExtractor(),
     new PnpmYamlWorkspaceParser(),
   );
 }

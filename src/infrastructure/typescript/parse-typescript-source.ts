@@ -11,26 +11,32 @@ export function parseTypeScriptSource(path: string, source: string): TypeScriptP
     source,
     ts.ScriptTarget.Latest,
     true,
-    path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    scriptKind(path),
   );
-  const parseError = firstParseError(path, source);
+  const parseError = firstParseError(sourceFile);
 
   return parseError === undefined
     ? { kind: "success", sourceFile }
     : { kind: "unavailable", reason: parseError };
 }
 
-function firstParseError(path: string, source: string): string | undefined {
+function firstParseError(sourceFile: ts.SourceFile): string | undefined {
+  // transpileModule은 JavaScript를 방출하지 않는 .d.ts에서 예외를 던진다.
+  // 단일 파일 프로그램의 공개 syntactic-diagnostics API로 파싱 오류만 확인한다.
+  const options: ts.CompilerOptions = {
+    allowJs: true,
+    checkJs: false,
+    jsx: ts.JsxEmit.ReactJSX,
+    noEmit: true,
+    noLib: true,
+    noResolve: true,
+  };
+  const host = ts.createCompilerHost(options);
+  host.getSourceFile = (path) => (path === sourceFile.fileName ? sourceFile : undefined);
   const diagnostic = ts
-    .transpileModule(source, {
-      fileName: path,
-      reportDiagnostics: true,
-      compilerOptions: {
-        jsx: ts.JsxEmit.ReactJSX,
-        target: ts.ScriptTarget.Latest,
-      },
-    })
-    .diagnostics?.find((candidate) => candidate.category === ts.DiagnosticCategory.Error);
+    .createProgram([sourceFile.fileName], options, host)
+    .getSyntacticDiagnostics(sourceFile)
+    .find((candidate) => candidate.category === ts.DiagnosticCategory.Error);
   if (diagnostic === undefined) {
     return undefined;
   }
@@ -41,4 +47,11 @@ function firstParseError(path: string, source: string): string | undefined {
   }
   const position = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
   return `line ${position.line + 1}, column ${position.character + 1}: ${message}`;
+}
+
+function scriptKind(path: string): ts.ScriptKind {
+  if (path.endsWith(".tsx")) return ts.ScriptKind.TSX;
+  if (path.endsWith(".jsx")) return ts.ScriptKind.JSX;
+  if (/\.(?:c|m)?js$/u.test(path)) return ts.ScriptKind.JS;
+  return ts.ScriptKind.TS;
 }

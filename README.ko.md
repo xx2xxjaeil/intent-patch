@@ -129,14 +129,15 @@ LOW     구현체가 하나뿐인 추상화 추가
 원칙으로 합니다.
 
 실제 IntentPatch 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html)와
-[3건의 검증 결과·재현 명령](./docs/real-world-evaluation.md)을 볼 수 있습니다. 저장소를 clone한
+[자체 변경 3건의 검증 결과](./docs/real-world-evaluation.md)와
+[외부 저장소 6건의 검증 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
 ## 현재 구현된 기능
 
 현재 소스는 Git 변경사항 수집, 루트·npm workspace `package.json`의 직접 dependency와 npm lockfile 분석, TypeScript
-최상위 심볼과 공개 API 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
+최상위 TypeScript·JavaScript 심볼과 공개 export 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
 영향 범위와 테스트 동반 변경 분석을 제공합니다.
 
 - `HEAD`와 현재 working tree 비교
@@ -164,6 +165,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
 - 설치된 패키지 버전을 확인하는 `--version` 명령
 - `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
+- `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수와 식별 가능한 ESM export 추적
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
 - 직접 `export`된 선언, 로컬 export 목록과 외부 re-export를 공개 심볼 근거에 보존
 - 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
@@ -173,7 +175,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 신규 인터페이스를 명시적으로 구현하는 클래스가 하나뿐이면 추상화 검토 `low` finding으로 탐지
 - rename 전후 파일 경로를 사용한 심볼 비교
 - 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
-- `.ts`·`.tsx` 파일의 상대 경로 정적 import와 re-export 관계 수집
+- JS/TS 소스의 상대 경로 정적 import·re-export·문자열 `require()`·`import()` 관계 수집
 - 가장 가까운 `tsconfig.json`·`jsconfig.json`의 `paths`·`baseUrl`과 상대 경로 `extends`를
   사용해 로컬 별칭 import 해석
 - `.js`·`.jsx`·`.mjs`·`.cjs` specifier를 대응하는 TypeScript 소스로 해석
@@ -191,7 +193,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - Pull Request·push commit 범위를 자동 판별하는 GitHub Action
 - GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
 
-아직 lockfile 전이 dependency의 부모 귀속 분석, JavaScript·메서드 구조 분석과 AI 리뷰
+아직 lockfile 전이 dependency의 부모 귀속 분석, JavaScript 중복 구현·메서드 구조 분석과 AI 리뷰
 기능은 구현되지 않았습니다.
 
 ## 상세 사용법
@@ -439,6 +441,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 1. ✅ `package.json` 직접 dependency 변경 탐지와 규칙 엔진
 2. ✅ TypeScript AST 기반 함수·클래스·인터페이스·타입 변경 분석
 3. ✅ 상대 경로 정적 import graph 기반 변경 영향 범위 계산
+   - ✅ JS/JSX의 ESM·문자열 `require()`·동적 import 관계
    - ✅ 가장 가까운 TypeScript 프로젝트 설정의 `paths`·`baseUrl` 별칭 해석
 4. ✅ Change Contract 기반 예상 범위 이탈과 변경량 예산 탐지
 5. ✅ Contract 기반 관련 테스트 변경 누락 탐지
@@ -449,6 +452,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
    - ✅ pnpm workspace manifest의 직접 dependency 변경
    - Yarn adapter
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
+   - ✅ JavaScript ESM의 이름 있는 export·default export 삭제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
 9. ✅ re-export·함수/인터페이스 호환성과 기존 코드 중복 가능성 탐지
 10. ✅ 구현체가 하나뿐인 신규 인터페이스 탐지
@@ -481,11 +485,14 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   우선합니다. 그 외 glob 문법과 catalog는 해석하지 않습니다.
 - Yarn lockfile과 런타임에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
 - working tree의 `package-lock.json`·`pnpm-lock.yaml`은 10 MiB, 그 외 텍스트 snapshot은 1 MiB로 제한합니다.
-- 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
+- TypeScript 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
-- 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
-  `export { name } from`, `export * from`을 지원합니다. package `exports`, 익명 default export,
-  클래스·타입 별칭의 세부 계약은 아직 해석하지 않습니다.
+- JavaScript 심볼 분석은 `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수 및 식별 가능한
+  ESM export를 추적합니다. CommonJS `module.exports`는 아직 공개 API 분석 대상이 아닙니다.
+- TypeScript 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
+  `export { name } from`, `export * from`을 지원합니다. JavaScript는 이름 있는 ESM export와
+  default export 삭제를 탐지하지만 함수의 타입 호환성을 추정하지 않습니다. package `exports`와
+  클래스·타입 별칭의 세부 계약은 해석하지 않습니다.
 - 함수 호환성은 명시된 파라미터·반환 타입 텍스트를 비교합니다. 추론된 반환 타입 변화나
   TypeScript의 구조적 타입 할당 가능성까지 판정하지 않습니다.
 - 중복 구현 후보는 새로 추가된 최상위 함수와 기존 최상위 함수의 토큰이 공백·주석을 제외하고
@@ -493,17 +500,19 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   의미적으로만 같은 구현은 탐지하지 않습니다.
 - 단일 구현 추상화는 새 인터페이스를 `implements`로 명시한 이름 있는 클래스가 정확히 하나일 때만
   보고합니다. TypeScript의 구조적 구현, factory 반환 타입과 런타임 등록은 계산하지 않습니다.
-- 메서드, 변수 선언, enum, 중첩 선언, JavaScript 파일은 아직 심볼 분석 대상이 아닙니다.
+- 메서드, TypeScript 변수 선언, enum, 중첩 선언은 아직 심볼 분석 대상이 아닙니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
-- 영향 분석은 `.ts`·`.tsx` 파일의 정적 `import`, side-effect import, `export ... from`,
-  `import = require()`를 대상으로 합니다. 로컬 별칭은 가장 가까운 `tsconfig.json` 또는
+- 영향 분석은 JS/TS 소스의 정적 `import`, side-effect import, `export ... from`,
+  `import = require()` 및 문자열 `require()`·`import()`를 대상으로 합니다. 로컬 별칭은 가장 가까운 `tsconfig.json` 또는
   `jsconfig.json`과 상대 경로 `extends`를 해석합니다.
 - 외부 패키지 설정을 참조하는 `extends`, project references, 임의 이름의 설정 파일,
-  package `imports`·`exports`, 외부 package import, dynamic `import()`, 일반 `require()`는
-  아직 그래프에 포함하지 않습니다.
+  package `imports`·`exports`, 외부 package import, 계산된 모듈 경로는 아직 그래프에서
+  해석하지 않습니다.
 - 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
   삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
 - 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
+- `dist`·`build`·`coverage`·`action-dist`·`node_modules` 같은 생성 디렉터리는 Git 변경량에는
+  포함하지만 심볼·import graph·정적 package 참조 분석에서는 제외합니다.
 - IntentPatch는 자연어 intent만으로 예상 경로를 추측하지 않습니다. 범위 판단은 Contract에 명시한
   `include`와 `allow`를 기준으로 수행합니다.
 - 경로 패턴은 저장소 상대 경로와 `*`, `**`, `?`만 지원합니다. 부정 패턴과 brace 확장은 아직

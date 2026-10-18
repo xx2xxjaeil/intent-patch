@@ -12,9 +12,19 @@ import type { ChangeImpactAnalyzer } from "../ports/change-impact-analyzer.js";
 import type { ModuleAliasResolver } from "../ports/module-alias-resolver.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
+import { isMaintainedSourcePath } from "./is-maintained-source-path.js";
 
-const sourceExtensions = [".ts", ".tsx", ".d.ts"] as const;
+const typeScriptSourceExtensions = [
+  ".ts",
+  ".tsx",
+  ".d.ts",
+  ".mts",
+  ".d.mts",
+  ".cts",
+  ".d.cts",
+] as const;
 const emittedJavaScriptExtensions = [".js", ".jsx", ".mjs", ".cjs"] as const;
+const sourceExtensions = [...typeScriptSourceExtensions, ...emittedJavaScriptExtensions] as const;
 
 /** 현재 module graph를 역방향으로 탐색해 변경 파일의 직접·간접 의존자를 찾는다. */
 export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
@@ -26,7 +36,9 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
 
   public async analyze(context: AnalysisContext): Promise<ImpactAnalysis> {
     const allPaths = await this.files.listPaths(context.target);
-    const sourcePaths = allPaths.filter((path) => this.extractorFor(path) !== undefined);
+    const sourcePaths = allPaths.filter(
+      (path) => isMaintainedSourcePath(path) && this.extractorFor(path) !== undefined,
+    );
     const availablePaths = new Set(sourcePaths);
     const aliasResolver = await this.aliases.prepare(context.target, allPaths, availablePaths);
     const dependencies: ModuleDependency[] = [];
@@ -70,7 +82,9 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
     }
 
     const changedModules = context.changes.files
-      .filter((file) => this.extractorFor(file.path) !== undefined)
+      .filter(
+        (file) => isMaintainedSourcePath(file.path) && this.extractorFor(file.path) !== undefined,
+      )
       .map((file) => file.path);
     const impactedFiles = calculateImpactedFiles(changedModules, dependencies);
 
@@ -103,7 +117,7 @@ function resolveRelativeModule(
     return undefined;
   }
 
-  for (const candidate of moduleCandidates(basePath)) {
+  for (const candidate of moduleCandidates(basePath, importer)) {
     if (availablePaths.has(candidate)) {
       return candidate;
     }
@@ -111,7 +125,7 @@ function resolveRelativeModule(
   return undefined;
 }
 
-function moduleCandidates(basePath: string): string[] {
+function moduleCandidates(basePath: string, importer: string): string[] {
   const candidates = [basePath];
   const emittedExtension = emittedJavaScriptExtensions.find((extension) =>
     basePath.endsWith(extension),
@@ -119,15 +133,23 @@ function moduleCandidates(basePath: string): string[] {
 
   if (emittedExtension !== undefined) {
     const stem = basePath.slice(0, -emittedExtension.length);
-    candidates.push(...sourceExtensions.map((extension) => `${stem}${extension}`));
+    const generatedExtensions =
+      emittedExtension === ".mjs"
+        ? [".mts", ".d.mts"]
+        : emittedExtension === ".cjs"
+          ? [".cts", ".d.cts"]
+          : [".ts", ".tsx", ".d.ts"];
+    candidates.push(...generatedExtensions.map((extension) => `${stem}${extension}`));
     return candidates;
   }
 
   if (posix.extname(basePath).length === 0) {
-    candidates.push(...sourceExtensions.map((extension) => `${basePath}${extension}`));
-    candidates.push(
-      ...sourceExtensions.map((extension) => posix.join(basePath, `index${extension}`)),
-    );
+    // 확장자가 없는 JS import는 같은 이름의 TS 파일보다 실행 가능한 JS 파일을 우선한다.
+    const extensions = /\.(?:[cm]?js|jsx)$/u.test(importer)
+      ? [...emittedJavaScriptExtensions, ...typeScriptSourceExtensions]
+      : sourceExtensions;
+    candidates.push(...extensions.map((extension) => `${basePath}${extension}`));
+    candidates.push(...extensions.map((extension) => posix.join(basePath, `index${extension}`)));
   }
 
   return candidates;

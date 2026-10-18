@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
@@ -12,6 +12,7 @@ import { RuleEngine } from "../../src/application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../src/application/use-cases/analyze-changes.js";
 import { GitChangeSource } from "../../src/infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../../src/infrastructure/git/git-file-snapshot-source.js";
+import { JavaScriptSymbolExtractor } from "../../src/infrastructure/typescript/javascript-symbol-extractor.js";
 import { TypeScriptSymbolExtractor } from "../../src/infrastructure/typescript/typescript-symbol-extractor.js";
 
 const executeFile = promisify(execFile);
@@ -118,17 +119,105 @@ describe("public API removal integration", () => {
       previousLine: 1,
     });
   });
+
+  it("reports removed JavaScript ESM exports without inferring function signatures", async () => {
+    const repository = await createRepository(
+      'export const enabled = true;\nexport function run(value) { return value; }\nexport { legacy } from "./legacy.js";\n',
+      "api.js",
+    );
+    await writeFile(
+      join(repository, "api.js"),
+      "const enabled = true;\nexport function run(value, options) { return value; }\n",
+    );
+
+    const snapshots = new GitFileSnapshotSource(repository);
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule(), new PublicApiCompatibilityRule()]),
+      new CompareSourceSymbols(snapshots, [new JavaScriptSymbolExtractor()]),
+    ).execute();
+
+    assert.deepEqual(
+      report.findings.items.map(({ ruleId, evidence }) => ({
+        ruleId,
+        symbolName: evidence.symbolName,
+      })),
+      [
+        { ruleId: "api/export-removed", symbolName: "enabled" },
+        { ruleId: "api/exported-symbol-removed", symbolName: "legacy" },
+      ],
+    );
+    assert.equal(
+      report.symbolChanges.changes.find((change) => change.name === "run")?.afterPublicApi,
+      undefined,
+    );
+  });
+
+  it("reports a removed JavaScript default export even when its function remains", async () => {
+    const repository = await createRepository(
+      "export default function App() { return null; }\n",
+      "api.jsx",
+    );
+    await writeFile(join(repository, "api.jsx"), "function App() { return null; }\n");
+
+    const snapshots = new GitFileSnapshotSource(repository);
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(snapshots, [new JavaScriptSymbolExtractor()]),
+    ).execute();
+
+    assert.deepEqual(
+      report.findings.items.map(({ ruleId, evidence }) => ({
+        ruleId,
+        symbolName: evidence.symbolName,
+      })),
+      [{ ruleId: "api/exported-symbol-removed", symbolName: "default" }],
+    );
+  });
+
+  it("does not report generated JavaScript bundle exports as source API", async () => {
+    const repository = await createRepository("export const source = true;\n", "api.js");
+    await mkdir(join(repository, "action-dist"));
+    await writeFile(join(repository, "action-dist/index.cjs"), "export const generated = true;\n");
+    await runGit(repository, ["add", "action-dist/index.cjs"]);
+    await runGit(repository, [
+      "-c",
+      "user.name=IntentPatch Test",
+      "-c",
+      "user.email=intentpatch@example.invalid",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      "Add generated bundle",
+    ]);
+    await writeFile(join(repository, "action-dist/index.cjs"), "const generated = true;\n");
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new JavaScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.equal(report.symbolChanges.summary.filesAnalyzed, 0);
+    assert.deepEqual(report.findings.items, []);
+  });
 });
 
 async function createRepository(
   initialSource = "export function deleteUser(): void {}\n",
+  filename = "api.ts",
 ): Promise<string> {
   const repository = await mkdtemp(join(tmpdir(), "intentpatch-public-api-test-"));
   temporaryRepositories.push(repository);
 
   await runGit(repository, ["init", "--quiet"]);
-  await writeFile(join(repository, "api.ts"), initialSource);
-  await runGit(repository, ["add", "api.ts"]);
+  await writeFile(join(repository, filename), initialSource);
+  await runGit(repository, ["add", filename]);
   await runGit(repository, [
     "-c",
     "user.name=IntentPatch Test",

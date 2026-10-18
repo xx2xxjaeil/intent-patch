@@ -1,6 +1,7 @@
 export const sourceSymbolKinds = [
   "function",
   "class",
+  "variable",
   "interface",
   "type-alias",
   "re-export",
