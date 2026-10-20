@@ -1,6 +1,5 @@
 {
-  "schemaVersion": 1,
-  "focusRule": "api/exported-symbol-removed",
+  "schemaVersion": 2,
   "repositories": {
     "nanoid": "https://github.com/ai/nanoid.git",
     "p-queue": "https://github.com/sindresorhus/p-queue.git"
@@ -8,6 +7,7 @@
   "cases": [
     {
       "id": "p-queue-242-add-type",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "a20e1f34b5c82e4e91e5d2e0c8b663e831dc16ab",
       "reason": "Adds an exported type without removing a public name.",
@@ -15,6 +15,7 @@
     },
     {
       "id": "p-queue-244-performance",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "87077d0214c203f38d0f36c4efee8172e67bf1c4",
       "reason": "Changes an implementation and tests without removing a public name.",
@@ -22,6 +23,7 @@
     },
     {
       "id": "p-queue-235-abort-listener",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "e9074f06fff500a13e0ef7c910ff4fc2fe65b01c",
       "reason": "Fixes abort-listener cleanup without removing a public name.",
@@ -29,6 +31,7 @@
     },
     {
       "id": "nanoid-616-non-integer-size",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "0b2cec58ffd5ddc45978bf75a3bab46f53c76128",
       "reason": "Modifies exported JavaScript functions but retains their names.",
@@ -36,6 +39,7 @@
     },
     {
       "id": "nanoid-618-cli-validation",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "58193a1d3aab9877315c42e995eb94667e0b1a4a",
       "reason": "Updates CLI validation and tests, not the tracked public exports.",
@@ -43,6 +47,7 @@
     },
     {
       "id": "nanoid-609-docs",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "8588e3a0db022b3876a4724e25cce4961e2a47a4",
       "reason": "Changes documentation only.",
@@ -50,6 +55,7 @@
     },
     {
       "id": "nanoid-612-custom-random",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "ccb0e6ee5582eeb241ed3ea361eb98d5c5c7aea4",
       "reason": "Fixes a customRandom byte request while retaining exported names.",
@@ -57,6 +63,7 @@
     },
     {
       "id": "nanoid-613-size-limit",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "05057d860107d47c09f356da8347179e2ce9c23c",
       "reason": "Reduces implementation and package size while retaining exported names.",
@@ -64,6 +71,7 @@
     },
     {
       "id": "p-queue-130-events",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "a176837ec4fe2e5e6c4c4b7cdb828aab0f0790d8",
       "reason": "Adds error and completed events while retaining exported names.",
@@ -71,6 +79,7 @@
     },
     {
       "id": "nanoid-602-function-to-variable",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "b1bb75fc112ca14004fd71e9b5884a2434fb7122",
       "reason": "Changes the exported nanoid declaration from function to variable but preserves its public name.",
@@ -78,6 +87,7 @@
     },
     {
       "id": "nanoid-simplify-variable-to-function",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "14eec75542868e72c5752de9c4a61b9ebfde1ada",
       "reason": "Changes exported variables into functions while retaining their names.",
@@ -85,6 +95,7 @@
     },
     {
       "id": "nanoid-remove-async-api",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "nanoid",
       "head": "c0572e2df79fe1e064c14b71b6354b15048a52d2",
       "reason": "Deletes the async entry point and its exported runtime and declaration names.",
@@ -102,6 +113,7 @@
     },
     {
       "id": "p-queue-remove-abort-error",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "68dfe953e58bbf55332a879aa01669d56bd93ffa",
       "reason": "Removes the exported AbortError class while retaining the names of interfaces converted to type aliases.",
@@ -109,16 +121,73 @@
     },
     {
       "id": "p-queue-remove-timeout-option",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "e48716fa1236fdd8ac0ad88f7831467f2455976a",
-      "reason": "Removes the throwOnTimeout option. The focused export-removal score excludes type members; the separate type-member spot-check finds both affected public aliases.",
+      "reason": "Removes the throwOnTimeout option without removing an exported name; its public type members are scored separately.",
       "expected": []
     },
     {
       "id": "p-queue-replace-timeout-error",
+      "ruleId": "api/exported-symbol-removed",
       "repository": "p-queue",
       "head": "300a52d93618c3fdcb63aaa4e1c016a987a7e534",
       "reason": "Replaces an exported TimeoutError re-export with a local class of the same public name; behavior can change, but the name was not removed.",
+      "expected": []
+    },
+    {
+      "id": "p-queue-remove-timeout-type-members",
+      "ruleId": "api/public-type-member-removed",
+      "repository": "p-queue",
+      "head": "e48716fa1236fdd8ac0ad88f7831467f2455976a",
+      "reason": "The private TimeoutOptions member throwOnTimeout is inherited by exported Options and QueueAddOptions aliases and is removed from both.",
+      "expected": [
+        { "file": "source/options.ts", "symbolName": "Options" },
+        { "file": "source/options.ts", "symbolName": "QueueAddOptions" }
+      ]
+    },
+    {
+      "id": "p-queue-add-carryover-option",
+      "ruleId": "api/public-type-member-removed",
+      "repository": "p-queue",
+      "head": "a6096de0fe60ab142c7db3a416416cfebad44601",
+      "reason": "Adds carryoverIntervalCount while keeping carryoverConcurrencyCount as a deprecated member; no type member is removed.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-change-custom-alphabet-signature",
+      "ruleId": "api/public-signature-changed",
+      "repository": "nanoid",
+      "head": "38f188832d01e02e6c02f21ad357b607a1b59533",
+      "reason": "Changes customAlphabet declarations in the secure, async, and non-secure entry points from a required size argument to an optional defaultSize argument and a size-accepting returned function.",
+      "expected": [
+        { "file": "async/index.d.ts", "symbolName": "customAlphabet" },
+        { "file": "index.d.ts", "symbolName": "customAlphabet" },
+        { "file": "non-secure/index.d.ts", "symbolName": "customAlphabet" }
+      ]
+    },
+    {
+      "id": "nanoid-implementation-without-signature-change",
+      "ruleId": "api/public-signature-changed",
+      "repository": "nanoid",
+      "head": "0b2cec58ffd5ddc45978bf75a3bab46f53c76128",
+      "reason": "Updates exported JavaScript implementations and tests without changing declaration-file call signatures.",
+      "expected": []
+    },
+    {
+      "id": "p-queue-change-queue-interface",
+      "ruleId": "api/public-interface-changed",
+      "repository": "p-queue",
+      "head": "a9f57787d80bfff93df621058d34be6212a91fd2",
+      "reason": "Changes exported Queue interface arity and member signatures and adds a required filter member.",
+      "expected": [{ "file": "source/queue.ts", "symbolName": "Queue" }]
+    },
+    {
+      "id": "p-queue-add-type-without-interface-change",
+      "ruleId": "api/public-interface-changed",
+      "repository": "p-queue",
+      "head": "a20e1f34b5c82e4e91e5d2e0c8b663e831dc16ab",
+      "reason": "Adds an exported type declaration without changing an existing exported interface contract.",
       "expected": []
     }
   ]

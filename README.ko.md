@@ -80,8 +80,8 @@ jobs:
 ```
 
 Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.5.0에는
-해석 가능한 공개 객체 타입 별칭의 구성원 삭제 탐지와 외부 저장소 변경에 대한 공개 export 삭제
-규칙의 집중 평가가 포함됩니다. 결과와 한계는 [평가 보고서](./docs/external-repository-evaluation.md)에
+해석 가능한 공개 객체 타입 별칭의 구성원 삭제 탐지가 포함됩니다. 외부 저장소 변경에
+대한 공개 API 규칙 4개의 평가 결과와 한계는 [평가 보고서](./docs/external-repository-evaluation.md)에
 기록했습니다. `@main`은 미릴리스 변경을 따라갑니다.
 Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다음 결과를 남깁니다.
 
@@ -131,7 +131,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 실제 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
 [자체 저장소 변경 3건의 사례 연구](./docs/real-world-evaluation.md),
-[외부 저장소 변경 15건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
+[외부 저장소 변경 18건·규칙별 판정 21건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
@@ -410,7 +410,7 @@ npm run check
 - 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
 - 계층 간 의존 방향을 검증하는 아키텍처 테스트
 
-외부 저장소의 실제 변경 15건에서 공개 export 삭제 경고를 사람이 검토한 기대 결과와 비교하는
+외부 저장소의 실제 변경 18건에서 공개 API 규칙 4개의 경고를 사람이 검토한 기대 결과와 비교하는
 방법은 [외부 저장소 평가 문서](./docs/external-repository-evaluation.md)에 정리했습니다.
 
 프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
