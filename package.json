@@ -36,6 +36,7 @@
     "check": "npm run typecheck && npm run lint && npm run test && npm run check:action",
     "check:action": "npm run build:action && git diff --exit-code -- action-dist/index.cjs",
     "dev": "node --import tsx src/presentation/cli/main.ts",
+    "evaluate:external": "npm run build && node scripts/evaluate-external.mjs",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "prepack": "npm run build",

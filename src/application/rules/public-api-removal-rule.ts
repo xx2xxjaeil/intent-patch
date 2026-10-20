@@ -5,7 +5,17 @@ import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 /** 확인 가능한 공개 심볼의 삭제와 export 해제를 호환성 위험으로 보고한다. */
 export class PublicApiRemovalRule implements AnalysisRule {
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
-    return (context.symbolChanges?.changes ?? []).flatMap(toFinding);
+    const changes = context.symbolChanges?.changes ?? [];
+    const currentExports = new Set(
+      changes
+        .filter((change) => change.afterExported === true)
+        .map((change) => `${change.path}\0${change.name}`),
+    );
+
+    // 구현 종류가 바뀌어도 같은 파일에서 공개 이름이 유지되면 삭제로 보고하지 않는다.
+    return changes.flatMap((change) =>
+      currentExports.has(`${change.path}\0${change.name}`) ? [] : toFinding(change),
+    );
   }
 }
 

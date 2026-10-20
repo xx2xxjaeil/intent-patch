@@ -1,10 +1,11 @@
 # External repository evaluation
 
-IntentPatch was run against six merged changes from two independent open-source projects. This
-checks whether a report can be produced outside this repository and illustrates what the current
-static analysis can and cannot establish. Only Git snapshots were read; the external projects'
-install, build, and test scripts were not run. Results were measured with this branch's source on
-2026-10-18 and are not a precision or recall benchmark.
+The first exploratory run compared six merged changes from two independent open-source projects.
+The focused, reviewed-label evaluation below extends that set to 15 changes. Together they show
+what IntentPatch can and cannot establish outside its own repository. Only Git snapshots were
+read; the external projects' install, build, and test scripts were not run. The six-case results
+were measured on 2026-10-18; the focused evaluation was measured on 2026-10-19. Neither is a
+general precision or recall benchmark.
 
 ## Reproduce
 
@@ -43,6 +44,42 @@ declaration files. The JS/JSX import graph and ESM export tracking then made the
 measurable. `p-queue` still reports one unavailable configuration file per case because its
 package-based `tsconfig` extension is absent in a no-install checkout. This is visible in the
 report rather than silently treated as a complete alias graph.
+
+## Curated public-export-removal evaluation
+
+A separate, versioned [case manifest](./external-evaluation-cases.json) contains 15 reviewed
+changes from these two repositories, including the six changes above. It scores only the
+`api/exported-symbol-removed` rule. Each expected label is a file path and exported name, reviewed
+against the Git diff before running the evaluator. Ten labels are expected in two changes:
+Nano ID's deleted async entry point and p-queue's removed `AbortError` class. The other 13 changes
+should produce no finding for this particular rule; they are not necessarily risk-free.
+
+With full clones in a common parent directory, reproduce the evaluation without installing or
+running either external project's dependencies or scripts:
+
+```bash
+git clone https://github.com/ai/nanoid.git ../nanoid
+git clone https://github.com/sindresorhus/p-queue.git ../p-queue
+npm ci
+npm run evaluate:external -- --repositories ..
+```
+
+The script checks every fixed commit and its parent, builds IntentPatch, runs the CLI against the
+Git snapshots, and compares findings with the reviewed labels. `--json` provides a machine-readable
+result. A mismatch exits nonzero. On 2026-10-19, all 15 cases matched: **10 expected labels found,
+0 missing, 0 unexpected** for the focused rule.
+
+This evaluation exposed a concrete false positive: changing an exported function to a variable,
+an interface to a type alias, or a re-export to a class could previously be reported as an export
+deletion even though the same file still exported that name. The rule now checks whether an
+exported name remains in the file, and local regression tests cover both JavaScript and TypeScript.
+That does **not** establish behavioral or type compatibility of the replacement.
+
+The p-queue `throwOnTimeout` removal is deliberately a no-deletion case here. It removes a member
+from a public options type, which the current type-alias/member analysis does not follow. Likewise,
+changing the implementation behind an unchanged exported name can still break callers. These are
+uncovered risks, not clean bills of health. The sample is hand-selected and non-random; the counts
+above are agreement on these cases, not a general precision or recall estimate.
 
 ## What these results do not prove
 
