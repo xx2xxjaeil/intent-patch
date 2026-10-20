@@ -18,7 +18,7 @@ IntentPatch combines **Git diff analysis, static analysis, and dependency analys
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Run the published v0.4.0 CLI without
+IntentPatch requires Node.js 20 or later and Git. Run the published v0.5.0 CLI without
 installing it globally:
 
 ```bash
@@ -62,7 +62,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.4.0
+        uses: xx2xxjaeil/intent-patch@v0.5.0
         with:
           fail-on: high
 
@@ -74,9 +74,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. The v0.4.0 release adds
-JS/JSX import-impact and ESM export analysis, with external-repository evaluation documented in
-[the evaluation report](./docs/external-repository-evaluation.md). `@main` follows unreleased changes.
+Pin the action to a released version or an immutable commit SHA. The v0.5.0 release adds
+removed-member detection for resolvable public object type aliases and a focused evaluation of
+public-export removal on external changes. See [the evaluation report](./docs/external-repository-evaluation.md)
+for the results and limits. `@main` follows unreleased changes.
 
 The action detects the comparison range for pull request and push events and produces:
 
@@ -122,9 +123,9 @@ LOW     New abstraction has only one implementation
 
 Every finding includes the relevant file, a stable rule ID, and evidence for the decision instead of only presenting an unexplained warning.
 
-For a report generated from an actual IntentPatch commit, see the
-[standalone HTML example](./docs/examples/intent-input-change.html) and the
-[three-case self-evaluation](./docs/real-world-evaluation.md) and
+For reports generated from actual commits, see the
+[standalone HTML example](./docs/examples/intent-input-change.html), the
+[three-case self-repository study](./docs/real-world-evaluation.md), and the
 [external evaluation of 15 changes](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
@@ -414,7 +415,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.4.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.5.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
