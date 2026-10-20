@@ -126,7 +126,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
 [three-case self-repository study](./docs/real-world-evaluation.md), and the
-[external evaluation of 15 changes](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 18 changes and 21 rule checks](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -398,7 +398,7 @@ This command runs:
 - architecture tests that enforce dependency direction;
 - a reproducibility check for the bundled GitHub Action.
 
-For a focused, reproducible check of public-export-removal findings against 15 reviewed changes in
+For a reproducible check of four public-API rules against 18 reviewed changes in
 external repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
 
 Run only the production build with:
