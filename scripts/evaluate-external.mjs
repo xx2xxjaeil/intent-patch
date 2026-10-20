@@ -4,7 +4,12 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { compareEvaluationLabels, summarizeEvaluation } from "./evaluation-metrics.mjs";
+import { validateEvaluationManifest } from "./evaluation-manifest.mjs";
+import {
+  compareEvaluationLabels,
+  summarizeEvaluation,
+  summarizeEvaluationByRule,
+} from "./evaluation-metrics.mjs";
 
 const executeFile = promisify(execFile);
 const projectRoot = fileURLToPath(new URL("../", import.meta.url));
@@ -14,27 +19,34 @@ const manifestUrl = new URL("../docs/external-evaluation-cases.json", import.met
 async function main() {
   const options = parseArguments(process.argv.slice(2));
   const manifest = JSON.parse(await readFile(manifestUrl, "utf8"));
-  validateManifest(manifest);
+  validateEvaluationManifest(manifest);
 
   const results = [];
+  const reports = new Map();
   for (const evaluationCase of manifest.cases) {
     const repository = join(options.repositories, evaluationCase.repository);
-    await verifyCommit(repository, evaluationCase.head);
-    const report = await analyze(repository, evaluationCase.head);
+    const commitKey = `${evaluationCase.repository}:${evaluationCase.head}`;
+    if (!reports.has(commitKey)) {
+      await verifyCommit(repository, evaluationCase.head);
+      reports.set(commitKey, await analyze(repository, evaluationCase.head));
+    }
+    const report = reports.get(commitKey);
     const actual = report.findings.items
-      .filter((finding) => finding.ruleId === manifest.focusRule)
+      .filter((finding) => finding.ruleId === evaluationCase.ruleId)
       .map((finding) => ({ file: finding.file, symbolName: finding.evidence.symbolName }));
     results.push({
       id: evaluationCase.id,
       repository: evaluationCase.repository,
       head: evaluationCase.head,
+      ruleId: evaluationCase.ruleId,
       ...compareEvaluationLabels(evaluationCase.expected, actual),
     });
   }
 
   const output = {
-    focusRule: manifest.focusRule,
+    uniqueChanges: reports.size,
     cases: results,
+    byRule: summarizeEvaluationByRule(results),
     totals: summarizeEvaluation(results),
   };
   process.stdout.write(options.json ? `${JSON.stringify(output, null, 2)}\n` : formatText(output));
@@ -66,35 +78,6 @@ function parseArguments(arguments_) {
   return { repositories, json };
 }
 
-function validateManifest(manifest) {
-  if (
-    manifest.schemaVersion !== 1 ||
-    manifest.focusRule !== "api/exported-symbol-removed" ||
-    typeof manifest.repositories !== "object" ||
-    manifest.repositories === null ||
-    !Array.isArray(manifest.cases)
-  ) {
-    throw new Error("Unsupported external evaluation manifest");
-  }
-  const ids = new Set();
-  for (const evaluationCase of manifest.cases) {
-    if (
-      typeof evaluationCase.id !== "string" ||
-      ids.has(evaluationCase.id) ||
-      !/^[a-z0-9-]+$/.test(evaluationCase.repository) ||
-      !Object.hasOwn(manifest.repositories, evaluationCase.repository) ||
-      typeof manifest.repositories[evaluationCase.repository] !== "string" ||
-      !/^[0-9a-f]{40}$/.test(evaluationCase.head) ||
-      !Array.isArray(evaluationCase.expected) ||
-      typeof evaluationCase.reason !== "string" ||
-      evaluationCase.reason.length === 0
-    ) {
-      throw new Error(`Invalid external evaluation case: ${evaluationCase.id ?? "unknown"}`);
-    }
-    ids.add(evaluationCase.id);
-  }
-}
-
 async function verifyCommit(repository, head) {
   try {
     const { stdout } = await executeFile("git", ["rev-parse", "--verify", `${head}^{commit}`], {
@@ -117,16 +100,23 @@ async function analyze(repository, head) {
 }
 
 function formatText(output) {
-  const lines = [`External evaluation: ${output.focusRule}`];
+  const lines = [
+    `External evaluation: ${output.uniqueChanges} changes, ${output.cases.length} rule checks`,
+  ];
   for (const result of output.cases) {
     const status = result.missing.length === 0 && result.unexpected.length === 0 ? "PASS" : "FAIL";
     lines.push(
-      `${status} ${result.id}: matched ${result.matched.length}, missing ${result.missing.length}, unexpected ${result.unexpected.length}`,
+      `${status} ${result.id} [${result.ruleId}]: matched ${result.matched.length}, missing ${result.missing.length}, unexpected ${result.unexpected.length}`,
     );
     for (const label of result.missing) lines.push(`  missing: ${label.file} ${label.symbolName}`);
     for (const label of result.unexpected) {
       lines.push(`  unexpected: ${label.file} ${label.symbolName}`);
     }
+  }
+  for (const [ruleId, totals] of Object.entries(output.byRule)) {
+    lines.push(
+      `${ruleId}: ${totals.cases} checks, ${totals.matched} matched, ${totals.missing} missing, ${totals.unexpected} unexpected`,
+    );
   }
   lines.push(
     `Totals: ${output.totals.matched} matched, ${output.totals.missing} missing, ${output.totals.unexpected} unexpected`,

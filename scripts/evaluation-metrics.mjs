@@ -43,3 +43,23 @@ export function summarizeEvaluation(results) {
     { matched: 0, missing: 0, unexpected: 0 },
   );
 }
+
+/** Keep reviewed-label agreement visible per rule instead of hiding it in one total. */
+export function summarizeEvaluationByRule(results) {
+  const byRule = {};
+  for (const result of results) {
+    const current = byRule[result.ruleId] ?? {
+      cases: 0,
+      matched: 0,
+      missing: 0,
+      unexpected: 0,
+    };
+    byRule[result.ruleId] = {
+      cases: current.cases + 1,
+      matched: current.matched + result.matched.length,
+      missing: current.missing + result.missing.length,
+      unexpected: current.unexpected + result.unexpected.length,
+    };
+  }
+  return byRule;
+}
