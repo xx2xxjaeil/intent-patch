@@ -1,7 +1,8 @@
-# Real-change evaluation
+# Self-repository case study
 
-IntentPatch was run against three changes in its own Git history. These are real commits, not
-hand-written demo findings. The checked-in [HTML example](./examples/intent-input-change.html) is
+IntentPatch was run against three changes in its own Git history. This is a self-repository case
+study, not an independent evaluation. These are real commits, not hand-written demo findings.
+The checked-in [HTML example](./examples/intent-input-change.html) is
 the report for the request-input commit. Clone this repository and open the HTML file locally to
 see the standalone dashboard; GitHub's file viewer may display the HTML source instead.
 
