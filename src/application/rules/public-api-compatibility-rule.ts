@@ -2,12 +2,13 @@ import type { Finding } from "../../domain/finding.js";
 import type {
   FunctionPublicApi,
   InterfacePublicApi,
-  InterfacePublicApiMember,
+  PublicApiMember,
   SymbolChange,
+  TypeAliasPublicApi,
 } from "../../domain/symbol-change.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 
-/** 공개 함수와 인터페이스의 이전 계약을 더 이상 만족하지 않는 변경을 찾는다. */
+/** 공개 함수·인터페이스 계약과 공개 객체 타입의 구성원 삭제를 찾는다. */
 export class PublicApiCompatibilityRule implements AnalysisRule {
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
     return (context.symbolChanges?.changes ?? []).flatMap(toFinding);
@@ -32,7 +33,41 @@ function toFinding(change: SymbolChange): Finding[] {
   if (change.beforePublicApi.kind === "interface" && change.afterPublicApi.kind === "interface") {
     return interfaceFinding(change, change.beforePublicApi, change.afterPublicApi);
   }
+  if (change.beforePublicApi.kind === "type-alias" && change.afterPublicApi.kind === "type-alias") {
+    return typeAliasFinding(change, change.beforePublicApi, change.afterPublicApi);
+  }
   return [];
+}
+
+function typeAliasFinding(
+  change: SymbolChange,
+  before: TypeAliasPublicApi,
+  after: TypeAliasPublicApi,
+): Finding[] {
+  const currentMembers = new Set(after.members.map(memberIdentity));
+  const removedMembers = [
+    ...new Set(
+      before.members
+        .filter((member) => !currentMembers.has(memberIdentity(member)))
+        .map((member) => member.name),
+    ),
+  ].sort();
+  if (removedMembers.length === 0) return [];
+
+  return [
+    {
+      ruleId: "api/public-type-member-removed",
+      severity: "high",
+      title: "Public type member removed",
+      description: `The exported type ${change.name} no longer contains every previous member.`,
+      file: change.path,
+      evidence: {
+        symbolName: change.name,
+        removedMembers: removedMembers.join(", "),
+        ...(change.afterLine === undefined ? {} : { currentLine: change.afterLine }),
+      },
+    },
+  ];
 }
 
 function functionFinding(
@@ -118,8 +153,12 @@ function interfaceBreakingReasons(
   return [...new Set(reasons)].sort();
 }
 
-function memberContract(member: InterfacePublicApiMember): string {
+function memberContract(member: PublicApiMember): string {
   return [member.memberKind, member.name, member.optional, member.signature].join("\0");
+}
+
+function memberIdentity(member: PublicApiMember): string {
+  return [member.memberKind, member.name].join("\0");
 }
 
 function sameValues(left: readonly string[], right: readonly string[]): boolean {

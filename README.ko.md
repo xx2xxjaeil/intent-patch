@@ -170,7 +170,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
 - 직접 `export`된 선언, 로컬 export 목록과 외부 re-export를 공개 심볼 근거에 보존
 - 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
-- 공개 함수의 기존 호출 시그니처 제거와 공개 인터페이스의 호환성 파괴를 `high` finding으로 탐지
+- 공개 함수의 기존 호출 시그니처 제거, 공개 인터페이스의 호환성 파괴, 해석 가능한 공개 객체 타입 별칭의 구성원 삭제를 `high` finding으로 탐지
 - 구현이 추가된 기존 overload는 제외하고 기존 overload가 사라진 경우만 함수 계약 변경으로 판정
 - 공백과 주석을 제외한 구현 토큰이 같은 신규 함수와 기존 함수를 재사용 후보 `medium` finding으로 탐지
 - 신규 인터페이스를 명시적으로 구현하는 클래스가 하나뿐이면 추상화 검토 `low` finding으로 탐지
@@ -493,10 +493,13 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   별칭만 지원합니다.
 - JavaScript 심볼 분석은 `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수 및 식별 가능한
   ESM export를 추적합니다. CommonJS `module.exports`는 아직 공개 API 분석 대상이 아닙니다.
-- TypeScript 공개 API 분석은 이름이 있는 최상위 함수·인터페이스, 로컬 `export { name }`, 외부
-  `export { name } from`, `export * from`을 지원합니다. JavaScript는 이름 있는 ESM export와
-  default export 삭제를 탐지하지만 함수의 타입 호환성을 추정하지 않습니다. package `exports`와
-  클래스·타입 별칭의 세부 계약은 해석하지 않습니다.
+- TypeScript 공개 API 분석은 이름이 있는 최상위 함수·인터페이스와 객체 리터럴, 같은 파일의
+  비제네릭 별칭·교집합으로 구성된 공개 타입 별칭의 구성원 삭제를 지원합니다. 로컬
+  `export { name }`, 외부 `export { name } from`, `export * from`은 export 근거로 추적합니다.
+  JavaScript는 이름 있는 ESM export와 default export 삭제를 탐지하지만 함수의 타입 호환성을
+  추정하지 않습니다. package `exports`, CommonJS `module.exports`, 클래스 계약, 제네릭 별칭
+  인스턴스화, 합집합, 파일 간 타입 참조와 완전한 타입 할당 가능성은 해석하지 않습니다. 지원하지
+  않는 타입 별칭 형태에서는 구성원 삭제 finding을 내지 않습니다.
 - 함수 호환성은 명시된 파라미터·반환 타입 텍스트를 비교합니다. 추론된 반환 타입 변화나
   TypeScript의 구조적 타입 할당 가능성까지 판정하지 않습니다.
 - 중복 구현 후보는 새로 추가된 최상위 함수와 기존 최상위 함수의 토큰이 공백·주석을 제외하고
