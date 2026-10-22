@@ -164,7 +164,7 @@ function formatImpactedFile(file: ImpactedFile): string[] {
   const relationship = file.distance === 1 ? "direct" : `transitive · ${file.distance} hops`;
   return [
     `→  ${relationship.padEnd(20)}${file.path}`,
-    `   changed: ${file.changedModules.join(", ")}`,
+    `   changed: ${file.changedModules.join(", ")}${file.viaPreviousImports ? " (previous imports)" : ""}`,
   ];
 }
 

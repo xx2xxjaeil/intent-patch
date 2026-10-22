@@ -84,7 +84,12 @@ describe("formatTextReport", () => {
           { importer: "src/app.ts", imported: "src/api.ts" },
         ],
         impactedFiles: [
-          { path: "src/api.ts", distance: 1, changedModules: ["src/core.ts"] },
+          {
+            path: "src/api.ts",
+            distance: 1,
+            changedModules: ["src/core.ts"],
+            viaPreviousImports: true,
+          },
           { path: "src/app.ts", distance: 2, changedModules: ["src/core.ts"] },
         ],
         unresolvedReferences: [{ importer: "src/app.ts", specifier: "./missing.js" }],
@@ -121,6 +126,7 @@ describe("formatTextReport", () => {
     assert.match(output, /A {2}Function {6}deleteUser/);
     assert.match(output, /src\/user\.ts:12/);
     assert.match(output, /direct {14}src\/api\.ts/);
+    assert.match(output, /src\/core\.ts \(previous imports\)/);
     assert.match(output, /transitive · 2 hops {1}src\/app\.ts/);
     assert.match(output, /src\/app\.ts → \.\/missing\.js/);
     assert.match(output, /MEDIUM {2}New production dependency/);

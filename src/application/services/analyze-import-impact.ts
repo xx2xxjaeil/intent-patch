@@ -11,7 +11,7 @@ import type { AnalysisContext } from "../ports/analysis-rule.js";
 import type { ChangeImpactAnalyzer } from "../ports/change-impact-analyzer.js";
 import type { ModuleAliasResolver } from "../ports/module-alias-resolver.js";
 import type { ModuleReferenceExtractor } from "../ports/module-reference-extractor.js";
-import type { ProjectFileSource } from "../ports/project-file-source.js";
+import type { ProjectFileSource, ProjectSnapshot } from "../ports/project-file-source.js";
 import { isMaintainedSourcePath } from "./is-maintained-source-path.js";
 
 const typeScriptSourceExtensions = [
@@ -26,7 +26,15 @@ const typeScriptSourceExtensions = [
 const emittedJavaScriptExtensions = [".js", ".jsx", ".mjs", ".cjs"] as const;
 const sourceExtensions = [...typeScriptSourceExtensions, ...emittedJavaScriptExtensions] as const;
 
-/** 현재 module graph를 역방향으로 탐색해 변경 파일의 직접·간접 의존자를 찾는다. */
+interface ImportGraph {
+  readonly sourcePaths: readonly string[];
+  readonly availablePaths: ReadonlySet<string>;
+  readonly dependencies: readonly ModuleDependency[];
+  readonly unresolvedReferences: readonly UnresolvedModuleReference[];
+  readonly issues: readonly ImpactAnalysisIssue[];
+}
+
+/** 현재 그래프와 삭제 파일에 한한 이전 그래프에서 직접·간접 의존자를 찾는다. */
 export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
   public constructor(
     private readonly files: ProjectFileSource,
@@ -35,32 +43,80 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
   ) {}
 
   public async analyze(context: AnalysisContext): Promise<ImpactAnalysis> {
-    const allPaths = await this.files.listPaths(context.target);
+    const current = await this.buildGraph(context, "current");
+    const changedModules = context.changes.files
+      .filter(
+        (file) => isMaintainedSourcePath(file.path) && this.extractorFor(file.path) !== undefined,
+      )
+      .map((file) => file.path);
+    const deletedModules = context.changes.files
+      .filter(
+        (file) =>
+          file.kind === "deleted" &&
+          isMaintainedSourcePath(file.path) &&
+          this.extractorFor(file.path) !== undefined,
+      )
+      .map((file) => file.path);
+
+    let impactedFiles = calculateImpactedFiles(changedModules, current.dependencies);
+    const issues = [...current.issues];
+    if (deletedModules.length > 0) {
+      const previous = await this.buildGraph(context, "base");
+      const historical = calculateImpactedFiles(deletedModules, previous.dependencies);
+      impactedFiles = mergeHistoricalImpact(impactedFiles, historical, current.availablePaths);
+      issues.push(
+        ...previous.issues.map((issue) => ({
+          path: issue.path,
+          reason: `Previous snapshot: ${issue.reason}`,
+        })),
+      );
+    }
+
+    return createImpactAnalysis({
+      sourceFiles: current.sourcePaths.length,
+      changedModules,
+      dependencies: current.dependencies,
+      impactedFiles,
+      unresolvedReferences: current.unresolvedReferences,
+      issues,
+    });
+  }
+
+  private async buildGraph(
+    context: AnalysisContext,
+    snapshot: ProjectSnapshot,
+  ): Promise<ImportGraph> {
+    const allPaths = await this.files.listPaths(context.target, snapshot);
     const sourcePaths = allPaths.filter(
       (path) => isMaintainedSourcePath(path) && this.extractorFor(path) !== undefined,
     );
-    const availablePaths = new Set(sourcePaths);
-    const aliasResolver = await this.aliases.prepare(context.target, allPaths, availablePaths);
+    const sources = new Map<string, string>();
+    const issues: ImpactAnalysisIssue[] = [];
+
+    // Git ls-files는 working tree에서 삭제한 tracked 파일도 열거하므로 읽힌 파일만 해석에 사용한다.
+    for (const path of sourcePaths) {
+      const file = await this.files.read(context.target, path, snapshot);
+      if (file.kind === "success") sources.set(path, file.content);
+      if (file.kind === "unavailable") issues.push({ path, reason: file.reason });
+    }
+
+    const availablePaths = new Set(sources.keys());
+    const aliasResolver = await this.aliases.prepare(
+      context.target,
+      allPaths,
+      availablePaths,
+      snapshot,
+    );
     const dependencies: ModuleDependency[] = [];
     const unresolvedReferences: UnresolvedModuleReference[] = [];
-    const issues: ImpactAnalysisIssue[] = [...aliasResolver.issues];
+    issues.push(...aliasResolver.issues);
 
-    // 저장소 크기에 비례해 파일 핸들과 Git 프로세스가 폭증하지 않도록 순차 처리한다.
-    for (const path of sourcePaths) {
+    for (const [path, source] of sources) {
       const extractor = this.extractorFor(path);
       if (extractor === undefined) {
         continue;
       }
-      const file = await this.files.read(context.target, path);
-      if (file.kind === "missing") {
-        continue;
-      }
-      if (file.kind === "unavailable") {
-        issues.push({ path, reason: file.reason });
-        continue;
-      }
-
-      const references = extractor.extract(path, file.content);
+      const references = extractor.extract(path, source);
       if (references.kind === "unavailable") {
         issues.push({ path, reason: references.reason });
         continue;
@@ -81,26 +137,42 @@ export class AnalyzeImportImpact implements ChangeImpactAnalyzer {
       }
     }
 
-    const changedModules = context.changes.files
-      .filter(
-        (file) => isMaintainedSourcePath(file.path) && this.extractorFor(file.path) !== undefined,
-      )
-      .map((file) => file.path);
-    const impactedFiles = calculateImpactedFiles(changedModules, dependencies);
-
-    return createImpactAnalysis({
-      sourceFiles: sourcePaths.length,
-      changedModules,
+    return {
+      sourcePaths: [...sources.keys()],
+      availablePaths,
       dependencies,
-      impactedFiles,
       unresolvedReferences,
       issues,
-    });
+    };
   }
 
   private extractorFor(path: string): ModuleReferenceExtractor | undefined {
     return this.extractors.find((extractor) => extractor.supports(path));
   }
+}
+
+function mergeHistoricalImpact(
+  current: readonly ImpactedFile[],
+  historical: readonly ImpactedFile[],
+  availablePaths: ReadonlySet<string>,
+): ImpactedFile[] {
+  const byPath = new Map(current.map((file) => [file.path, file]));
+  for (const file of historical) {
+    if (!availablePaths.has(file.path)) continue;
+    const existing = byPath.get(file.path);
+    byPath.set(
+      file.path,
+      existing === undefined
+        ? { ...file, viaPreviousImports: true }
+        : {
+            ...existing,
+            distance: Math.min(existing.distance, file.distance),
+            changedModules: [...new Set([...existing.changedModules, ...file.changedModules])],
+            viaPreviousImports: true,
+          },
+    );
+  }
+  return [...byPath.values()];
 }
 
 function isRelativeSpecifier(specifier: string): boolean {

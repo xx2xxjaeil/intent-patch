@@ -40,6 +40,29 @@ describe("formatHtmlReport", () => {
     assert.match(output, /Review &lt;unsafe&gt;/);
     assert.doesNotMatch(output, /<script>alert/);
   });
+
+  it("marks impact found through previous imports after a module deletion", () => {
+    const report = createReport();
+    const output = formatHtmlReport({
+      ...report,
+      impact: createImpactAnalysis({
+        sourceFiles: 1,
+        changedModules: ["src/deleted.ts"],
+        dependencies: [],
+        impactedFiles: [
+          {
+            path: "src/importer.ts",
+            distance: 1,
+            changedModules: ["src/deleted.ts"],
+            viaPreviousImports: true,
+          },
+        ],
+      }),
+    });
+
+    assert.match(output, /graph-edge direct previous/);
+    assert.match(output, /previous imports/);
+  });
 });
 
 function createReport(): ChangeReport {

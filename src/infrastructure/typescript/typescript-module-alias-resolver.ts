@@ -4,7 +4,10 @@ import type {
   ModuleAliasResolver,
   PreparedModuleAliasResolver,
 } from "../../application/ports/module-alias-resolver.js";
-import type { ProjectFileSource } from "../../application/ports/project-file-source.js";
+import type {
+  ProjectFileSource,
+  ProjectSnapshot,
+} from "../../application/ports/project-file-source.js";
 import type { AnalysisTarget } from "../../domain/report.js";
 import {
   TypeScriptConfigLoader,
@@ -20,6 +23,7 @@ export class TypeScriptModuleAliasResolver implements ModuleAliasResolver {
     target: AnalysisTarget,
     repositoryPaths: readonly string[],
     sourcePaths: ReadonlySet<string>,
+    snapshot: ProjectSnapshot = "current",
   ): Promise<PreparedModuleAliasResolver> {
     const configPaths = new Set(repositoryPaths.filter(isProjectConfig));
     const configByImporter = new Map<string, string>();
@@ -34,6 +38,7 @@ export class TypeScriptModuleAliasResolver implements ModuleAliasResolver {
       target,
       repositoryPaths,
       [...new Set(configByImporter.values())].sort(),
+      snapshot,
     );
     const virtualSources = new Set([...sourcePaths].map(virtualProjectPath));
     const directories = sourceDirectories(virtualSources);
