@@ -7,6 +7,8 @@ export interface ImpactedFile {
   readonly path: string;
   readonly distance: number;
   readonly changedModules: readonly string[];
+  /** 삭제된 모듈을 향한 변경 전 import 경로로도 도달한 경우다. */
+  readonly viaPreviousImports?: true;
 }
 
 export interface UnresolvedModuleReference {

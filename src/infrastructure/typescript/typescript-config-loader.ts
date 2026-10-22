@@ -1,6 +1,9 @@
 import { posix } from "node:path";
 import ts from "typescript";
-import type { ProjectFileSource } from "../../application/ports/project-file-source.js";
+import type {
+  ProjectFileSource,
+  ProjectSnapshot,
+} from "../../application/ports/project-file-source.js";
 import type { ImpactAnalysisIssue } from "../../domain/impact.js";
 import type { AnalysisTarget } from "../../domain/report.js";
 import { isRecord } from "../../domain/value-guards.js";
@@ -24,6 +27,7 @@ export class TypeScriptConfigLoader {
     target: AnalysisTarget,
     repositoryPaths: readonly string[],
     configPaths: readonly string[],
+    snapshot: ProjectSnapshot = "current",
   ): Promise<LoadedTypeScriptConfigs> {
     const listedPaths = new Set(repositoryPaths);
     const configContents = new Map<string, string>();
@@ -37,7 +41,7 @@ export class TypeScriptConfigLoader {
       }
       visited.add(path);
 
-      const file = await this.files.read(target, path);
+      const file = await this.files.read(target, path, snapshot);
       if (file.kind !== "success") {
         issues.push({
           path,

@@ -191,7 +191,7 @@ function renderImpact(changedModules: readonly string[], files: readonly Impacte
           (file) => `<article>
           <span class="distance">${file.distance === 1 ? "DIRECT" : `${file.distance} HOPS`}</span>
           <code>${escapeHtml(file.path)}</code>
-          <small>from ${escapeHtml(file.changedModules.join(", "))}</small>
+          <small>from ${escapeHtml(file.changedModules.join(", "))}${file.viaPreviousImports ? " · previous imports" : ""}</small>
         </article>`,
         )
         .join("")}</div>`;
@@ -217,7 +217,7 @@ function renderImpactGraph(
       const startY = top + moduleIndex * rowHeight + nodeHeight / 2;
       const endY = top + fileIndex * rowHeight + nodeHeight / 2;
       return [
-        `<path class="graph-edge ${file.distance === 1 ? "direct" : "transitive"}" d="M 390 ${startY} C 480 ${startY}, 520 ${endY}, 610 ${endY}" />`,
+        `<path class="graph-edge ${file.distance === 1 ? "direct" : "transitive"}${file.viaPreviousImports ? " previous" : ""}" d="M 390 ${startY} C 480 ${startY}, 520 ${endY}, 610 ${endY}" />`,
       ];
     }),
   );
@@ -441,6 +441,7 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .graph-edge { fill:none; stroke:#56627a; stroke-width:1.5; marker-end:url(#arrow); }
 #arrow path { fill:#7a879e; }
 .graph-edge.direct { stroke:var(--cyan); }.graph-edge.transitive { stroke:var(--violet); stroke-dasharray:5 5; }
+.graph-edge.previous { stroke:var(--medium); stroke-dasharray:3 4; }
 .graph-node rect { fill:#151b26; stroke:#303a4b; }.graph-node.changed rect { stroke:#537b7b; }.graph-node.direct rect { stroke:#3d716f; }.graph-node.transitive rect { stroke:#615787; }
 .graph-node text { fill:#cbd5e5; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
 .table-wrap { overflow-x:auto; }
