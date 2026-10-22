@@ -89,6 +89,10 @@ The action detects the comparison range for pull request and push events and pro
 
 See the [GitHub Action guide](./docs/github-action.md) for inputs, outputs, and event-specific comparison behavior.
 
+## Claude Code Hook (current source)
+
+An opt-in Hook adapter captures a turn's original prompt and starting commit, then shows a small change/finding summary when Claude Code stops. It does not send the prompt to an external service. This adapter is not part of the published v0.5.0 package yet; see the [setup guide](./docs/claude-code.md) for the current-source workflow, installation example, and local-state security notes.
+
 ## What the report looks like
 
 ```text
@@ -184,6 +188,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Calculate direct importers and transitively impacted files for changed modules.
 - Preserve unresolved relative imports and file read or parse failures as evidence.
 - Build the graph at the same result point as the diff: the working tree or the selected head ref.
+- Include importers that depended on a deleted module in the previous revision, with a distinct previous-import marker.
 - Read intent, expected paths, allowed paths, and change budgets from `.intentpatch.json`.
 - Accept a request text/Markdown file through the CLI, or opt in to using the PR body in the GitHub Action.
 - Report each file outside expected and allowed patterns as a medium-severity finding.

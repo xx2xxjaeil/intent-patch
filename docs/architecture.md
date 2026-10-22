@@ -277,6 +277,14 @@ Action은 GitHub API를 호출하지 않고 runner가 제공하는 event payload
 TypeScript Compiler를 `action-dist/index.cjs`에 번들하고, 원본 소스와 번들의 일치를 CI에서
 검사합니다.
 
+### 20. 에이전트 Hook은 분석 엔진 밖에서 턴 문맥을 전달
+
+Claude Code 어댑터는 `UserPromptSubmit`의 요청문과 시작 commit을 `AgentIntentSessionStore`
+포트에 기록하고, `Stop`에서 꺼내 기존 `analyzeRepository`를 호출합니다. Git 구현은 세션 ID를
+해시한 파일명을 사용하고 Git 메타데이터 아래 소유자 전용 디렉터리에 원자적으로 씁니다. 요청문은
+보고서 포맷이나 Hook 출력에 포함하지 않고, UI에는 finding 수만 보냅니다. `StopFailure`와
+`SessionEnd`에서 남은 상태를 정리하며, Hook 설정은 사용자가 명시적으로 활성화해야 합니다.
+
 ## 확장 지점
 
 - 다른 변경 소스: `ChangeSource` 구현 추가

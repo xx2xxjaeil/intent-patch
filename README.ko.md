@@ -94,6 +94,10 @@ Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다�
 입력·출력과 이벤트별 비교 기준은 [GitHub Action 사용 문서](./docs/github-action.md)에서
 확인할 수 있습니다.
 
+## Claude Code Hook (현재 소스)
+
+선택적으로 Hook을 연결하면 한 턴의 원래 요청과 시작 commit을 보관하고, Claude Code가 응답을 마칠 때 변경 파일·finding 개수를 짧게 보여줍니다. 요청문을 외부 서비스로 보내지 않습니다. 이 어댑터는 아직 npm v0.5.0에 포함되지 않았습니다. 현재 소스 빌드 방법, 설정 예시, 로컬 임시 저장의 보안상 주의점은 [설정 문서](./docs/claude-code.md)를 참고하세요.
+
 ## 프로젝트가 지향하는 결과
 
 ```text
@@ -182,6 +186,7 @@ LOW     구현체가 하나뿐인 추상화 추가
   사용해 로컬 별칭 import 해석
 - `.js`·`.jsx`·`.mjs`·`.cjs` specifier를 대응하는 TypeScript 소스로 해석
 - 변경 모듈을 import하는 직접 의존자와 여러 단계를 거친 간접 영향 파일 계산
+- 삭제된 모듈을 이전 revision에서 import하던 파일도 별도 과거 import 표시와 함께 영향 범위에 포함
 - 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
 - working tree의 tracked·untracked 파일 또는 지정한 head ref를 동일한 결과점에서 분석
 - `.intentpatch.json`에 요청 의도, 예상 경로, 허용 경로와 변경량 예산 선언
