@@ -7,6 +7,7 @@ import {
 } from "../../domain/symbol-change.js";
 import type { AnalysisContext } from "../ports/analysis-rule.js";
 import type { FileSnapshotSource } from "../ports/file-snapshot-source.js";
+import type { PublicApiBoundary } from "../ports/public-api-boundary.js";
 import type {
   SourceSymbolExtractor,
   SymbolExtractionResult,
@@ -19,12 +20,18 @@ export class CompareSourceSymbols implements SymbolChangeAnalyzer {
   public constructor(
     private readonly snapshots: FileSnapshotSource,
     private readonly extractors: readonly SourceSymbolExtractor[],
+    private readonly publicApiBoundary?: PublicApiBoundary,
   ) {}
 
   public async analyze(context: AnalysisContext): Promise<SymbolChangeSet> {
     const changes: SymbolChange[] = [];
     const issues: SymbolAnalysisIssue[] = [];
     let filesAnalyzed = 0;
+    const internalPaths =
+      (await this.publicApiBoundary?.internalPaths(
+        context.target,
+        context.changes.files.map((file) => file.previousPath ?? file.path),
+      )) ?? new Set<string>();
 
     // 파일 수가 큰 저장소에서 Git 프로세스를 무제한 생성하지 않도록 순차 분석한다.
     for (const file of context.changes.files) {
@@ -50,7 +57,14 @@ export class CompareSourceSymbols implements SymbolChangeAnalyzer {
       }
 
       filesAnalyzed += 1;
-      changes.push(...compareFileSymbols(file.path, before.symbols, after.symbols));
+      const fileChanges = compareFileSymbols(file.path, before.symbols, after.symbols);
+      changes.push(
+        ...fileChanges.map((change) =>
+          internalPaths.has(basePath)
+            ? { ...change, beforePubliclyReachable: false as const }
+            : change,
+        ),
+      );
     }
 
     return createSymbolChangeSet(changes, issues, filesAnalyzed);

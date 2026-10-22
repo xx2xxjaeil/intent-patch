@@ -12,7 +12,9 @@ import { RuleEngine } from "../../src/application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../src/application/use-cases/analyze-changes.js";
 import { GitChangeSource } from "../../src/infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../../src/infrastructure/git/git-file-snapshot-source.js";
+import { GitProjectFileSource } from "../../src/infrastructure/git/git-project-file-source.js";
 import { JavaScriptSymbolExtractor } from "../../src/infrastructure/typescript/javascript-symbol-extractor.js";
+import { PackageExportsApiBoundary } from "../../src/infrastructure/typescript/package-exports-api-boundary.js";
 import { TypeScriptFunctionSignatureCompatibility } from "../../src/infrastructure/typescript/typescript-function-signature-compatibility.js";
 import { TypeScriptSymbolExtractor } from "../../src/infrastructure/typescript/typescript-symbol-extractor.js";
 
@@ -26,6 +28,48 @@ afterEach(async () => {
 });
 
 describe("public API removal integration", () => {
+  it("reports only source files reachable from the previous package exports", async () => {
+    const repository = await createRepository('export { visible } from "./visible.js";\n');
+    await writeFile(join(repository, "package.json"), '{"exports":"./api.ts"}\n');
+    await writeFile(join(repository, "visible.ts"), "export function visible(): void {}\n");
+    await writeFile(join(repository, "private.ts"), "export function hidden(): void {}\n");
+    await runGit(repository, ["add", "package.json", "visible.ts", "private.ts"]);
+    await runGit(repository, [
+      "-c",
+      "user.name=IntentPatch Test",
+      "-c",
+      "user.email=intentpatch@example.invalid",
+      "-c",
+      "commit.gpgsign=false",
+      "commit",
+      "--quiet",
+      "-m",
+      "Add package exports",
+    ]);
+    await writeFile(join(repository, "visible.ts"), "function visible(): void {}\n");
+    await writeFile(join(repository, "private.ts"), "function hidden(): void {}\n");
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(
+        new GitFileSnapshotSource(repository),
+        [new TypeScriptSymbolExtractor()],
+        new PackageExportsApiBoundary(new GitProjectFileSource(repository)),
+      ),
+    ).execute();
+
+    assert.deepEqual(
+      report.findings.items.map((finding) => finding.file),
+      ["visible.ts"],
+    );
+    assert.equal(
+      report.symbolChanges.changes.find((change) => change.path === "private.ts")
+        ?.beforePubliclyReachable,
+      false,
+    );
+  });
+
   it("reports an export removed from a tracked TypeScript declaration", async () => {
     const repository = await createRepository();
     await writeFile(join(repository, "api.ts"), "function deleteUser(): void {}\n");

@@ -107,7 +107,7 @@ function isRelativeSpecifier(specifier: string): boolean {
   return specifier.startsWith("./") || specifier.startsWith("../");
 }
 
-function resolveRelativeModule(
+export function resolveRelativeModule(
   importer: string,
   specifier: string,
   availablePaths: ReadonlySet<string>,

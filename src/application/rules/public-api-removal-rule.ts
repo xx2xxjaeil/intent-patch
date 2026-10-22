@@ -20,6 +20,7 @@ export class PublicApiRemovalRule implements AnalysisRule {
 }
 
 function toFinding(change: SymbolChange): Finding[] {
+  if (change.beforePubliclyReachable === false) return [];
   if (change.changeKind === "deleted" && change.beforeExported === true) {
     return [
       {

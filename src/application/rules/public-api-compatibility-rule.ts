@@ -26,6 +26,7 @@ function toFinding(
 ): Finding[] {
   if (
     change.changeKind !== "modified" ||
+    change.beforePubliclyReachable === false ||
     change.beforeExported !== true ||
     change.afterExported !== true ||
     change.beforePublicApi === undefined ||
@@ -153,16 +154,14 @@ function interfaceBreakingReasons(
     reasons.push("extended types changed");
   }
 
-  const currentMembers = new Set(after.members.map(memberContract));
   for (const member of before.members) {
-    if (!currentMembers.has(memberContract(member))) {
+    if (!after.members.some((current) => preservesMember(member, current))) {
       reasons.push(`member removed or changed: ${member.name}`);
     }
   }
 
-  const previousMembers = new Set(before.members.map(memberContract));
   for (const member of after.members) {
-    if (!member.optional && !previousMembers.has(memberContract(member))) {
+    if (!member.optional && !before.members.some((previous) => preservesMember(previous, member))) {
       reasons.push(`required member added or changed: ${member.name}`);
     }
   }
@@ -170,8 +169,82 @@ function interfaceBreakingReasons(
   return [...new Set(reasons)].sort();
 }
 
-function memberContract(member: PublicApiMember): string {
-  return [member.memberKind, member.name, member.optional, member.signature].join("\0");
+function preservesMember(previous: PublicApiMember, current: PublicApiMember): boolean {
+  if (
+    previous.name !== current.name ||
+    previous.memberKind !== current.memberKind ||
+    previous.optional !== current.optional
+  )
+    return false;
+  return (
+    previous.signature === current.signature ||
+    (previous.memberKind === "method" &&
+      preservesMethodCalls(previous.signature, current.signature))
+  );
+}
+
+/** 기존 인자·반환형을 그대로 두고 선택적 인자만 끝에 더한 메서드는 이전 호출을 수용한다. */
+function preservesMethodCalls(previous: string, current: string): boolean {
+  if (!previous.startsWith("(") || !current.startsWith("(")) return false;
+  const previousClose = closingParenthesis(previous);
+  const currentClose = closingParenthesis(current);
+  if (
+    previousClose === undefined ||
+    currentClose === undefined ||
+    previous.slice(previousClose + 1) !== current.slice(currentClose + 1)
+  )
+    return false;
+  const previousParameters = splitParameters(previous.slice(1, previousClose));
+  const currentParameters = splitParameters(current.slice(1, currentClose));
+  if (
+    previousParameters === undefined ||
+    currentParameters === undefined ||
+    currentParameters.length <= previousParameters.length
+  )
+    return false;
+  return (
+    previousParameters.every((parameter, index) => parameter === currentParameters[index]) &&
+    currentParameters
+      .slice(previousParameters.length)
+      .every((parameter) => parameter.endsWith("?") && !parameter.startsWith("..."))
+  );
+}
+
+function closingParenthesis(signature: string): number | undefined {
+  let depth = 0;
+  for (let index = 0; index < signature.length; index += 1) {
+    if (signature[index] === "(") depth += 1;
+    if (signature[index] === ")" && --depth === 0) return index;
+  }
+  return undefined;
+}
+
+function splitParameters(value: string): readonly string[] | undefined {
+  if (value.length === 0) return [];
+  const parameters: string[] = [];
+  const closing = new Map([
+    ["(", ")"],
+    ["[", "]"],
+    ["{", "}"],
+    ["<", ">"],
+  ]);
+  const stack: string[] = [];
+  let start = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === "," && stack.length === 0) {
+      parameters.push(value.slice(start, index).trim());
+      start = index + 1;
+    } else if (character !== undefined && closing.has(character)) {
+      stack.push(closing.get(character) ?? "");
+    } else if (character === ")" || character === "]" || character === "}" || character === ">") {
+      if (character === ">" && value[index - 1] === "=") continue;
+      if (stack.pop() !== character) return undefined;
+    }
+  }
+  if (stack.length > 0) return undefined;
+  parameters.push(value.slice(start).trim());
+  return parameters;
 }
 
 function memberIdentity(member: PublicApiMember): string {

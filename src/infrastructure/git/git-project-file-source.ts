@@ -2,6 +2,7 @@ import { lstat, readFile } from "node:fs/promises";
 import type {
   ProjectFileReadResult,
   ProjectFileSource,
+  ProjectSnapshot,
 } from "../../application/ports/project-file-source.js";
 import type { AnalysisTarget } from "../../domain/report.js";
 import { resolveRepositoryPath } from "../filesystem/repository-path.js";
@@ -18,10 +19,14 @@ export class GitProjectFileSource implements ProjectFileSource {
     private readonly commandRunner: CommandRunner = new NodeCommandRunner(),
   ) {}
 
-  public async listPaths(target: AnalysisTarget): Promise<readonly string[]> {
+  public async listPaths(
+    target: AnalysisTarget,
+    snapshot: ProjectSnapshot = "current",
+  ): Promise<readonly string[]> {
     const repositoryRoot = await this.repositoryRoot();
+    const revision = await this.revision(target, snapshot, repositoryRoot);
     const output =
-      target.headRef === undefined
+      revision === undefined
         ? await this.commandRunner.run({
             executable: "git",
             arguments: ["ls-files", "--cached", "--others", "--exclude-standard", "-z"],
@@ -29,7 +34,7 @@ export class GitProjectFileSource implements ProjectFileSource {
           })
         : await this.commandRunner.run({
             executable: "git",
-            arguments: ["ls-tree", "-r", "--name-only", "-z", target.headRef, "--"],
+            arguments: ["ls-tree", "-r", "--name-only", "-z", revision, "--"],
             cwd: repositoryRoot,
           });
 
@@ -38,20 +43,41 @@ export class GitProjectFileSource implements ProjectFileSource {
     );
   }
 
-  public async read(target: AnalysisTarget, path: string): Promise<ProjectFileReadResult> {
+  public async read(
+    target: AnalysisTarget,
+    path: string,
+    snapshot: ProjectSnapshot = "current",
+  ): Promise<ProjectFileReadResult> {
     const repositoryRoot = await this.repositoryRoot();
 
     try {
       resolveRepositoryPath(repositoryRoot, path);
-      return target.headRef === undefined
+      const revision = await this.revision(target, snapshot, repositoryRoot);
+      return revision === undefined
         ? await this.readWorkingTree(repositoryRoot, path)
-        : await this.readRevision(repositoryRoot, target.headRef, path);
+        : await this.readRevision(repositoryRoot, revision, path);
     } catch (error) {
       return {
         kind: "unavailable",
         reason: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  private async revision(
+    target: AnalysisTarget,
+    snapshot: ProjectSnapshot,
+    repositoryRoot: string,
+  ): Promise<string | undefined> {
+    if (snapshot === "current") return target.headRef;
+    if (target.headRef === undefined) return target.baseRef;
+    return (
+      await this.commandRunner.run({
+        executable: "git",
+        arguments: ["merge-base", target.baseRef, target.headRef],
+        cwd: repositoryRoot,
+      })
+    ).trim();
   }
 
   private repositoryRoot(): Promise<string> {

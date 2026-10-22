@@ -63,6 +63,8 @@ export interface SymbolChange {
   readonly afterExported?: boolean;
   readonly beforePublicApi?: PublicApi;
   readonly afterPublicApi?: PublicApi;
+  /** 패키지의 이전 공개 진입점에서 접근할 수 없음이 확인된 경우에만 false다. */
+  readonly beforePubliclyReachable?: false;
 }
 
 export interface SymbolAnalysisIssue {
