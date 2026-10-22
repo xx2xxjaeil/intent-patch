@@ -7,15 +7,23 @@ import type {
   TypeAliasPublicApi,
 } from "../../domain/symbol-change.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
+import type { FunctionSignatureCompatibility } from "../ports/function-signature-compatibility.js";
 
 /** 공개 함수·인터페이스 계약과 공개 객체 타입의 구성원 삭제를 찾는다. */
 export class PublicApiCompatibilityRule implements AnalysisRule {
+  public constructor(private readonly signatureCompatibility: FunctionSignatureCompatibility) {}
+
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
-    return (context.symbolChanges?.changes ?? []).flatMap(toFinding);
+    return (context.symbolChanges?.changes ?? []).flatMap((change) =>
+      toFinding(change, this.signatureCompatibility),
+    );
   }
 }
 
-function toFinding(change: SymbolChange): Finding[] {
+function toFinding(
+  change: SymbolChange,
+  signatureCompatibility: FunctionSignatureCompatibility,
+): Finding[] {
   if (
     change.changeKind !== "modified" ||
     change.beforeExported !== true ||
@@ -28,7 +36,12 @@ function toFinding(change: SymbolChange): Finding[] {
   }
 
   if (change.beforePublicApi.kind === "function" && change.afterPublicApi.kind === "function") {
-    return functionFinding(change, change.beforePublicApi, change.afterPublicApi);
+    return functionFinding(
+      change,
+      change.beforePublicApi,
+      change.afterPublicApi,
+      signatureCompatibility,
+    );
   }
   if (change.beforePublicApi.kind === "interface" && change.afterPublicApi.kind === "interface") {
     return interfaceFinding(change, change.beforePublicApi, change.afterPublicApi);
@@ -74,12 +87,16 @@ function functionFinding(
   change: SymbolChange,
   before: FunctionPublicApi,
   after: FunctionPublicApi,
+  signatureCompatibility: FunctionSignatureCompatibility,
 ): Finding[] {
   const currentSignatures = new Set(after.signatures);
   const removedSignatures = before.signatures.filter(
     (signature) => !currentSignatures.has(signature),
   );
-  if (removedSignatures.length === 0) {
+  if (
+    removedSignatures.length === 0 ||
+    signatureCompatibility.preservesPreviousCalls(before.signatures, after.signatures) === true
+  ) {
     return [];
   }
 

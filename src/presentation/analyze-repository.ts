@@ -30,6 +30,7 @@ import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
 import { JavaScriptSymbolExtractor } from "../infrastructure/typescript/javascript-symbol-extractor.js";
 import { SourceModuleReferenceExtractor } from "../infrastructure/typescript/source-module-reference-extractor.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
+import { TypeScriptFunctionSignatureCompatibility } from "../infrastructure/typescript/typescript-function-signature-compatibility.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
 import { TypeScriptSymbolExtractor } from "../infrastructure/typescript/typescript-symbol-extractor.js";
 
@@ -78,7 +79,7 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),
     new PublicApiRemovalRule(),
-    new PublicApiCompatibilityRule(),
+    new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
     new DuplicateImplementationRule(),
     new SingleImplementationAbstractionRule(),
   ]);
