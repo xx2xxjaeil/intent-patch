@@ -26,6 +26,7 @@ function toFinding(
 ): Finding[] {
   if (
     change.changeKind !== "modified" ||
+    change.beforePubliclyReachable === false ||
     change.beforeExported !== true ||
     change.afterExported !== true ||
     change.beforePublicApi === undefined ||

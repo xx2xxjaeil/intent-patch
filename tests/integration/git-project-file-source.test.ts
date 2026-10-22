@@ -55,6 +55,19 @@ describe("GitProjectFileSource integration", () => {
       kind: "missing",
     });
   });
+
+  it("reads the base snapshot even when the working tree differs", async () => {
+    const repository = await createRepository();
+    await writeFile(join(repository, "tracked.ts"), "export const version = 2;\n");
+    await writeFile(join(repository, "new.ts"), "export const fresh = true;\n");
+    const source = new GitProjectFileSource(repository);
+
+    assert.deepEqual(await source.listPaths({ baseRef: "HEAD" }, "base"), ["tracked.ts"]);
+    assert.deepEqual(await source.read({ baseRef: "HEAD" }, "tracked.ts", "base"), {
+      kind: "success",
+      content: "export const version = 1;\n",
+    });
+  });
 });
 
 async function createRepository(): Promise<string> {

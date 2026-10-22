@@ -28,6 +28,7 @@ import { PnpmYamlLockParser } from "../infrastructure/pnpm/pnpm-lock-parser.js";
 import { PnpmYamlWorkspaceParser } from "../infrastructure/pnpm/pnpm-workspace-parser.js";
 import { NodeCommandRunner } from "../infrastructure/process/command-runner.js";
 import { JavaScriptSymbolExtractor } from "../infrastructure/typescript/javascript-symbol-extractor.js";
+import { PackageExportsApiBoundary } from "../infrastructure/typescript/package-exports-api-boundary.js";
 import { SourceModuleReferenceExtractor } from "../infrastructure/typescript/source-module-reference-extractor.js";
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptFunctionSignatureCompatibility } from "../infrastructure/typescript/typescript-function-signature-compatibility.js";
@@ -83,10 +84,11 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     new DuplicateImplementationRule(),
     new SingleImplementationAbstractionRule(),
   ]);
-  const symbolChangeAnalyzer = new CompareSourceSymbols(snapshotSource, [
-    new TypeScriptSymbolExtractor(),
-    new JavaScriptSymbolExtractor(),
-  ]);
+  const symbolChangeAnalyzer = new CompareSourceSymbols(
+    snapshotSource,
+    [new TypeScriptSymbolExtractor(), new JavaScriptSymbolExtractor()],
+    new PackageExportsApiBoundary(projectFiles),
+  );
   const impactAnalyzer = new AnalyzeImportImpact(
     projectFiles,
     [moduleReferenceExtractor],

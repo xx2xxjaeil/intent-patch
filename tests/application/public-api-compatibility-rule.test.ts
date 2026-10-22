@@ -208,6 +208,22 @@ describe("PublicApiCompatibilityRule", () => {
 
     assert.deepEqual(internal, []);
   });
+
+  it("ignores a file confirmed outside the package public entrypoints", async () => {
+    const findings = await analyze({
+      path: "src/internal.ts",
+      name: "helper",
+      symbolKind: "function",
+      changeKind: "modified",
+      beforeExported: true,
+      afterExported: true,
+      beforePubliclyReachable: false,
+      beforePublicApi: { kind: "function", signatures: ["(string):void"] },
+      afterPublicApi: { kind: "function", signatures: ["(number):void"] },
+    });
+
+    assert.deepEqual(findings, []);
+  });
 });
 
 async function analyze(change: SymbolChange, compatible: boolean | undefined = undefined) {
