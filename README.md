@@ -126,7 +126,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
 [three-case self-repository study](./docs/real-world-evaluation.md), and the
-[external evaluation of 18 changes and 21 rule checks](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 20 changes and 23 rule checks](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -167,6 +167,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Preserve direct exports, local export lists, and external re-exports as public-symbol evidence.
 - Report removed public symbols and removed exports as high-severity compatibility risks.
 - Detect removed public function call signatures, incompatible public interface changes, and removed members of resolvable public object type aliases.
+- Suppress a public function signature warning when TypeScript confirms that the current callable type still accepts the previous calls.
 - Exclude overloads that only gain an implementation while reporting previously available overloads that disappear.
 - Find newly added functions whose normalized implementation matches an existing function.
 - Report a newly added interface when exactly one class explicitly implements it.
@@ -465,7 +466,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Working-tree `package-lock.json` and `pnpm-lock.yaml` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
 - TypeScript symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
 - TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal, but does not infer function signatures. Package `exports`, CommonJS `module.exports`, class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
-- Function compatibility compares explicitly written parameter and return-type text. It does not evaluate inferred return types or full TypeScript structural assignability.
+- Function compatibility first compares recorded signatures. For self-contained, explicitly typed declarations it then uses strict TypeScript assignability to avoid warning on compatible changes. Unresolved names, inferred types, malformed or unsupported signature shapes remain unverified and keep the review warning; this is not a whole-project type check or a runtime compatibility guarantee.
 - Duplicate candidates require a newly added top-level function and an existing top-level function to have exactly the same normalized tokens after comments and whitespace are removed, with at least 12 body tokens. Renamed identifiers, methods, and semantically equivalent implementations are not detected.
 - A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
 - Methods, TypeScript variable declarations, enums, and nested declarations are not included in symbol analysis.
