@@ -24,7 +24,18 @@ export interface VersionCommandOptions {
   readonly command: "version";
 }
 
-export type CliOptions = AnalyzeCommandOptions | HelpCommandOptions | VersionCommandOptions;
+export type ClaudeHookAction = "capture" | "analyze" | "clear";
+
+export interface ClaudeHookCommandOptions {
+  readonly command: "claude-hook";
+  readonly action: ClaudeHookAction;
+}
+
+export type CliOptions =
+  | AnalyzeCommandOptions
+  | ClaudeHookCommandOptions
+  | HelpCommandOptions
+  | VersionCommandOptions;
 
 export class CliUsageError extends Error {
   public constructor(message: string) {
@@ -45,6 +56,16 @@ export function parseArguments(
   }
 
   const [command, ...options] = arguments_;
+  if (command === "claude-hook") {
+    const [action] = options;
+    if (
+      options.length !== 1 ||
+      (action !== "capture" && action !== "analyze" && action !== "clear")
+    ) {
+      throw new CliUsageError("Usage: intentpatch claude-hook <capture|analyze|clear>");
+    }
+    return { command, action };
+  }
   if (command !== "analyze") {
     throw new CliUsageError(`Unknown command: ${command ?? ""}`);
   }
@@ -116,6 +137,7 @@ export function helpText(): string {
 
 Usage:
   intentpatch analyze [options]
+  intentpatch claude-hook <capture|analyze|clear>  Read Claude Code hook JSON from stdin
 
 Options:
   --base <ref>   Base Git reference (default: HEAD)

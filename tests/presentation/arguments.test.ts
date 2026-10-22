@@ -3,6 +3,13 @@ import { describe, it } from "node:test";
 import { CliUsageError, parseArguments } from "../../src/presentation/cli/arguments.js";
 
 describe("parseArguments", () => {
+  it("parses opt-in Claude Code hook commands", () => {
+    assert.deepEqual(parseArguments(["claude-hook", "capture"], "/repo"), {
+      command: "claude-hook",
+      action: "capture",
+    });
+    assert.throws(() => parseArguments(["claude-hook", "publish"], "/repo"), CliUsageError);
+  });
   it("parses the version flag as a top-level command", () => {
     assert.deepEqual(parseArguments(["--version"], "/repo"), { command: "version" });
     assert.deepEqual(parseArguments(["-v"], "/repo"), { command: "version" });
