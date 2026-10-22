@@ -194,6 +194,55 @@ describe("PublicApiCompatibilityRule", () => {
     assert.deepEqual(interfaceFindings, []);
   });
 
+  it("accepts appended optional method parameters but not required ones or changed return types", async () => {
+    const change = (currentSignature: string) => ({
+      path: "src/port.ts",
+      name: "ProjectFileSource",
+      symbolKind: "interface" as const,
+      changeKind: "modified" as const,
+      beforeExported: true,
+      afterExported: true,
+      beforePublicApi: {
+        kind: "interface" as const,
+        extendsTypes: [],
+        members: [
+          {
+            name: "read",
+            memberKind: "method" as const,
+            optional: false,
+            signature: "(AnalysisTarget,string):Promise<string>",
+          },
+        ],
+      },
+      afterPublicApi: {
+        kind: "interface" as const,
+        extendsTypes: [],
+        members: [
+          {
+            name: "read",
+            memberKind: "method" as const,
+            optional: false,
+            signature: currentSignature,
+          },
+        ],
+      },
+    });
+
+    assert.deepEqual(
+      await analyze(change("(AnalysisTarget,string,ProjectSnapshot?):Promise<string>")),
+      [],
+    );
+    assert.equal(
+      (await analyze(change("(AnalysisTarget,string,ProjectSnapshot):Promise<string>")))[0]?.ruleId,
+      "api/public-interface-changed",
+    );
+    assert.equal(
+      (await analyze(change("(AnalysisTarget,string,ProjectSnapshot?):Promise<number>")))[0]
+        ?.ruleId,
+      "api/public-interface-changed",
+    );
+  });
+
   it("ignores internal and newly exported symbols", async () => {
     const internal = await analyze({
       path: "src/internal.ts",
