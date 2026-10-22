@@ -2,9 +2,9 @@
 
 IntentPatch can analyze each completed Claude Code turn against the request that started it. This adapter is **opt-in** and runs locally; it does not call Claude, OpenAI, or another API.
 
-The integration is present in the current source tree but **not in the published v0.5.0 package**. Until the next release, build this repository (`npm ci && npm run build`) and replace the script path in the example below with the absolute path to its `dist/presentation/cli/main.js`.
+The integration is available in **v0.6.0 and later**. To test an unreleased source checkout instead, run `npm ci && npm run build` and replace the example's script path with the absolute path to its `dist/presentation/cli/main.js`.
 
-After a release containing this integration is installed in the repository being analyzed (`npm install --save-dev intentpatch`), copy [the example settings](./examples/claude-code-hooks.json) into that repository's `.claude/settings.json`. Merge it with existing settings rather than replacing unrelated hooks. The example calls `node` directly, so it also works on Windows where npm's `.cmd` shim cannot be launched in exec form. Verify the hooks in Claude Code with `/hooks`.
+Install IntentPatch in the repository being analyzed (`npm install --save-dev intentpatch@^0.6.0`), then copy [the example settings](./examples/claude-code-hooks.json) into that repository's `.claude/settings.json`. Merge it with existing settings rather than replacing unrelated hooks. The example calls `node` directly, so it also works on Windows where npm's `.cmd` shim cannot be launched in exec form. Verify the hooks in Claude Code with `/hooks`.
 
 The event names, stdin fields, exec-form `args`, and `systemMessage` output follow the [Claude Code Hook reference](https://code.claude.com/docs/en/hooks).
 

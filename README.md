@@ -18,7 +18,7 @@ IntentPatch combines **Git diff analysis, static analysis, and dependency analys
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Run the published v0.5.0 CLI without
+IntentPatch requires Node.js 20 or later and Git. Run the published v0.6.0 CLI without
 installing it globally:
 
 ```bash
@@ -62,7 +62,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.5.0
+        uses: xx2xxjaeil/intent-patch@v0.6.0
         with:
           fail-on: high
 
@@ -74,10 +74,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. The v0.5.0 release adds
-removed-member detection for resolvable public object type aliases and a focused evaluation of
-public-export removal on external changes. See [the evaluation report](./docs/external-repository-evaluation.md)
-for the results and limits. `@main` follows unreleased changes.
+Pin the action to a released version or an immutable commit SHA. v0.6.0 adds package-entrypoint-aware
+public API warnings, historical import impact for deleted modules, and the opt-in Claude Code Hook.
+See [the evaluation report](./docs/external-repository-evaluation.md) for the separately measured
+public-API rules and their limits. `@main` follows unreleased changes.
 
 The action detects the comparison range for pull request and push events and produces:
 
@@ -89,9 +89,9 @@ The action detects the comparison range for pull request and push events and pro
 
 See the [GitHub Action guide](./docs/github-action.md) for inputs, outputs, and event-specific comparison behavior.
 
-## Claude Code Hook (current source)
+## Claude Code Hook
 
-An opt-in Hook adapter captures a turn's original prompt and starting commit, then shows a small change/finding summary when Claude Code stops. It does not send the prompt to an external service. This adapter is not part of the published v0.5.0 package yet; see the [setup guide](./docs/claude-code.md) for the current-source workflow, installation example, and local-state security notes.
+An opt-in Hook adapter captures a turn's original prompt and starting commit, then shows a small change/finding summary when Claude Code stops. It does not send the prompt to an external service. See the [setup guide](https://github.com/xx2xxjaeil/intent-patch/blob/main/docs/claude-code.md) for installation, the Hook configuration example, and local-state security notes.
 
 ## What the report looks like
 
@@ -422,7 +422,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.5.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.6.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
@@ -454,7 +454,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 11. ✅ GitHub Action with PR/push comparison, Job Summary, annotations, and artifacts
 12. Request capture and agent adapters
     - ✅ CLI request file and opt-in GitHub PR body
-    - Codex, Claude Code, and Cursor-specific adapters
+    - ✅ Opt-in Claude Code Hook
+    - Codex and Cursor-specific adapters
 13. Optional LLM explanations grounded in deterministic evidence
 
 ## Current limitations
