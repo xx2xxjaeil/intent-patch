@@ -522,8 +522,10 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - 외부 패키지 설정을 참조하는 `extends`, project references, 임의 이름의 설정 파일,
   package `imports`·`exports`, 외부 package import, 계산된 모듈 경로는 아직 그래프에서
   해석하지 않습니다.
-- 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다. 따라서
-  삭제된 모듈을 가리키던 과거 import의 영향은 현재 단계에서 계산할 수 없습니다.
+- 기본 영향 그래프는 비교 결과점(working tree 또는 head ref)의 파일을 기준으로 만듭니다.
+  소스 모듈이 삭제되면 변경 전 Git snapshot과 당시의 tsconfig/jsconfig 별칭을 다시 읽어 살아 있는
+  직접·간접 의존자를 찾고, 텍스트·HTML 보고서에 `previous imports`로 표시합니다. 계산된 모듈
+  경로는 추론하지 않으며 함께 삭제된 importer를 현재 영향 파일로 집계하지 않습니다.
 - 영향 분석용 소스 파일은 파일당 1 MiB로 제한하며, symbolic link는 읽지 않습니다.
 - `dist`·`build`·`coverage`·`action-dist`·`node_modules` 같은 생성 디렉터리는 Git 변경량에는
   포함하지만 심볼·import graph·정적 package 참조 분석에서는 제외합니다.

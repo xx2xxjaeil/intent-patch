@@ -476,7 +476,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
   `jsconfig.json`, with relative `extends` support.
 - Package-based config `extends`, project references, arbitrary config filenames, package
   `imports`/`exports`, external package imports, and computed module loads are not resolved in the graph.
-- The graph is built from files at the comparison result point: the working tree or head ref. Impact from historical imports that referenced a deleted module cannot be calculated yet.
+- The main graph is built from files at the comparison result point: the working tree or head ref. For a deleted source module, IntentPatch also walks the previous Git snapshot to find surviving direct and transitive importers; these paths are marked `previous imports` in text and HTML reports. The historical walk uses the previous `tsconfig.json`/`jsconfig.json` for aliases, but does not infer dynamic module loads or report deleted importers as currently affected files.
 - Source files used for impact analysis are limited to 1 MiB per file, and symbolic links are not read.
 - Generated directories such as `dist`, `build`, `coverage`, `action-dist`, and `node_modules` remain visible in Git change counts but are excluded from symbol, import-graph, and static package-reference scans.
 - IntentPatch does not infer expected paths from natural-language intent. Scope decisions use the contract's explicit `include` and `allow` patterns.

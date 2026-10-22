@@ -125,7 +125,7 @@ Git 명령 실행, NUL 구분 출력 파싱, untracked 파일 측정, 기준·�
 TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree나 지정한 ref의 전체 파일
 목록을 제공하고, TypeScript Compiler API 기반 JS/TS 어댑터는 최상위 선언 또는 문자열 기반
 module specifier로 변환합니다. JS 공개 심볼은 ESM export 근거만 보존하며 타입 호환성을 추측하지 않습니다.
-별칭 어댑터는 선택한 Git 결과점의 가장 가까운 TypeScript 설정과 상대 경로 `extends`를 읽고
+별칭 어댑터는 선택한 Git 결과점 또는 삭제 파일의 이전 기준점에서 가장 가까운 TypeScript 설정과 상대 경로 `extends`를 읽고
 TypeScript 모듈 해석기를 통해 로컬 소스 파일만 그래프에 연결합니다.
 심볼 어댑터는 직접 export, 로컬 export 목록, 외부 re-export와 함수·인터페이스 공개 계약을 분석
 사실로 보존합니다. 구조 어댑터는 함수 본문을 공백·주석에 영향받지 않는 토큰 fingerprint로 바꾸고
@@ -201,11 +201,15 @@ TypeScript 어댑터는 선언 원문을 SHA-256 fingerprint로 바꾸고 applic
 전달하지 않습니다. 보고서 크기와 코드 노출을 줄이면서 동일 선언의 변경 여부를 결정적으로
 비교할 수 있습니다.
 
-### 11. 현재 그래프를 역방향으로 탐색
+### 11. 현재·이전 그래프를 역방향으로 탐색
 
 각 `importer → imported` 관계를 만든 뒤 역방향 인접 목록을 너비 우선 탐색합니다. 변경 모듈을
 직접 import하는 파일은 거리 1, 그 파일을 다시 import하는 파일은 거리 2 이상으로 기록합니다.
 여러 변경 모듈에서 같은 파일에 도달하면 최단 거리와 모든 변경 원인을 함께 보존합니다.
+삭제된 모듈은 현재 `git ls-files` 목록에 남아도 실제 파일이 없으므로 현재 그래프의 해석
+대상에서 제외합니다. 삭제가 있으면 변경 전 snapshot의 파일·별칭 설정으로 그래프를 한 번 더
+구성해 이전 import 경로에서 도달한 살아 있는 파일만 합칩니다. 보고서에는 이 경로를
+`viaPreviousImports`로 보존해 현재 관계와 혼동하지 않습니다.
 
 ### 12. 영향 사실과 위험 판단을 분리
 
