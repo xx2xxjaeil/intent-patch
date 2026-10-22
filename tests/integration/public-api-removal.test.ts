@@ -13,6 +13,7 @@ import { AnalyzeChanges } from "../../src/application/use-cases/analyze-changes.
 import { GitChangeSource } from "../../src/infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../../src/infrastructure/git/git-file-snapshot-source.js";
 import { JavaScriptSymbolExtractor } from "../../src/infrastructure/typescript/javascript-symbol-extractor.js";
+import { TypeScriptFunctionSignatureCompatibility } from "../../src/infrastructure/typescript/typescript-function-signature-compatibility.js";
 import { TypeScriptSymbolExtractor } from "../../src/infrastructure/typescript/typescript-symbol-extractor.js";
 
 const executeFile = promisify(execFile);
@@ -78,7 +79,9 @@ describe("public API removal integration", () => {
     const snapshots = new GitFileSnapshotSource(repository);
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
-      new RuleEngine([new PublicApiCompatibilityRule()]),
+      new RuleEngine([
+        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+      ]),
       new CompareSourceSymbols(snapshots, [new TypeScriptSymbolExtractor()]),
     ).execute();
 
@@ -101,6 +104,28 @@ describe("public API removal integration", () => {
     ]);
   });
 
+  it("does not report a function that still accepts the old calls", async () => {
+    const repository = await createRepository(
+      "export function customAlphabet(alphabet: string, size: number): () => string { return () => alphabet.slice(0, size); }\n",
+    );
+    await writeFile(
+      join(repository, "api.ts"),
+      "export function customAlphabet(alphabet: string, defaultSize?: number): (size?: number) => string { return (size = defaultSize) => alphabet.slice(0, size); }\n",
+    );
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([
+        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+      ]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.deepEqual(report.findings.items, []);
+  });
+
   it("reports a public type member removed through a local options alias", async () => {
     const repository = await createRepository(
       [
@@ -120,7 +145,9 @@ describe("public API removal integration", () => {
 
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
-      new RuleEngine([new PublicApiCompatibilityRule()]),
+      new RuleEngine([
+        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+      ]),
       new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
         new TypeScriptSymbolExtractor(),
       ]),
@@ -153,7 +180,9 @@ describe("public API removal integration", () => {
 
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
-      new RuleEngine([new PublicApiCompatibilityRule()]),
+      new RuleEngine([
+        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+      ]),
       new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
         new TypeScriptSymbolExtractor(),
       ]),
@@ -231,7 +260,10 @@ describe("public API removal integration", () => {
     const snapshots = new GitFileSnapshotSource(repository);
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
-      new RuleEngine([new PublicApiRemovalRule(), new PublicApiCompatibilityRule()]),
+      new RuleEngine([
+        new PublicApiRemovalRule(),
+        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+      ]),
       new CompareSourceSymbols(snapshots, [new JavaScriptSymbolExtractor()]),
     ).execute();
 

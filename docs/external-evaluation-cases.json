@@ -155,16 +155,33 @@
       "expected": []
     },
     {
-      "id": "nanoid-change-custom-alphabet-signature",
+      "id": "nanoid-compatible-custom-alphabet-signature",
       "ruleId": "api/public-signature-changed",
       "repository": "nanoid",
       "head": "38f188832d01e02e6c02f21ad357b607a1b59533",
-      "reason": "Changes customAlphabet declarations in the secure, async, and non-secure entry points from a required size argument to an optional defaultSize argument and a size-accepting returned function.",
+      "reason": "Makes customAlphabet's size argument optional and widens the returned function; all old declared calls remain assignable.",
+      "expected": []
+    },
+    {
+      "id": "nanoid-breaking-argument-reorder",
+      "ruleId": "api/public-signature-changed",
+      "repository": "nanoid",
+      "head": "b488b4823a8b527d7fa71d94a502278e0649bbc2",
+      "reason": "Reorders the nanoid2 and nanoid3 arguments, so the new declarations cannot satisfy their previous call signatures.",
       "expected": [
-        { "file": "async/index.d.ts", "symbolName": "customAlphabet" },
-        { "file": "index.d.ts", "symbolName": "customAlphabet" },
-        { "file": "non-secure/index.d.ts", "symbolName": "customAlphabet" }
+        { "file": "async/index.d.ts", "symbolName": "nanoid2" },
+        { "file": "index.d.ts", "symbolName": "nanoid2" },
+        { "file": "index.d.ts", "symbolName": "nanoid3" },
+        { "file": "non-secure/index.d.ts", "symbolName": "nanoid2" }
       ]
+    },
+    {
+      "id": "nanoid-compatible-generic-return",
+      "ruleId": "api/public-signature-changed",
+      "repository": "nanoid",
+      "head": "ea64dc7cfb7b12ac244fefe0dfa1f61570a8669e",
+      "reason": "Adds a bounded generic return type to the published functions while preserving their previous string-returning call types.",
+      "expected": []
     },
     {
       "id": "nanoid-implementation-without-signature-change",

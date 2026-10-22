@@ -37,6 +37,24 @@ describe("PublicApiCompatibilityRule", () => {
     ]);
   });
 
+  it("suppresses a textual signature change when compatibility is established", async () => {
+    const findings = await analyze(
+      {
+        path: "src/api.ts",
+        name: "createId",
+        symbolKind: "function",
+        changeKind: "modified",
+        beforeExported: true,
+        afterExported: true,
+        beforePublicApi: { kind: "function", signatures: ["(string,number):string"] },
+        afterPublicApi: { kind: "function", signatures: ["(string,number?):string"] },
+      },
+      true,
+    );
+
+    assert.deepEqual(findings, []);
+  });
+
   it("reports removed, changed, and newly required interface members", async () => {
     const findings = await analyze({
       path: "src/user.ts",
@@ -192,8 +210,8 @@ describe("PublicApiCompatibilityRule", () => {
   });
 });
 
-async function analyze(change: SymbolChange) {
-  return new PublicApiCompatibilityRule().analyze({
+async function analyze(change: SymbolChange, compatible: boolean | undefined = undefined) {
+  return new PublicApiCompatibilityRule({ preservesPreviousCalls: () => compatible }).analyze({
     target: { baseRef: "HEAD" },
     changes: createChangeSet([]),
     symbolChanges: createSymbolChangeSet([change]),

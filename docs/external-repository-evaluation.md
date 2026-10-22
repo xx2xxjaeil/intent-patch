@@ -1,12 +1,12 @@
 # External repository evaluation
 
 The first exploratory run compared six merged changes from two independent open-source projects.
-The reviewed-label evaluation below extends that set to 18 distinct changes and 21 rule checks.
-Together they show
-what IntentPatch can and cannot establish outside its own repository. Only Git snapshots were
+The reviewed-label evaluation below extends that set to 20 distinct changes and 23 rule checks.
+Together they show what IntentPatch can and cannot establish outside its own repository. Only Git snapshots were
 read; the external projects' install, build, and test scripts were not run. The six-case results
 were measured on 2026-10-18; the export-removal evaluation was measured on 2026-10-19 and the
-multi-rule extension on 2026-10-21. Neither is a general precision or recall benchmark.
+multi-rule extension on 2026-10-21. The signature-compatibility revision was measured on
+2026-10-22. None is a general precision or recall benchmark.
 
 ## Reproduce
 
@@ -48,12 +48,12 @@ report rather than silently treated as a complete alias graph.
 
 ## Curated multi-rule evaluation
 
-A versioned [case manifest](./external-evaluation-cases.json) contains 21 independently reviewed
-rule checks over 18 distinct changes from these two repositories, including the six changes above.
+A versioned [case manifest](./external-evaluation-cases.json) contains 23 independently reviewed
+rule checks over 20 distinct changes from these two repositories, including the six changes above.
 Each case names **one rule** and its expected `(file, exported name)` labels, reviewed against the
 Git diff before running the evaluator. A commit is scored for another rule only when it has a
 separate reviewed case; an unchecked rule is neither a pass nor a failure. The original 15 checks
-still cover `api/exported-symbol-removed`; the six added checks cover three other public-API rules.
+still cover `api/exported-symbol-removed`; the other eight checks cover three more public-API rules.
 
 With full clones in a common parent directory, reproduce the evaluation without installing or
 running either external project's dependencies or scripts:
@@ -68,15 +68,15 @@ npm run evaluate:external -- --repositories ..
 The script checks every fixed commit and its parent, builds IntentPatch, runs the CLI against the
 Git snapshots once per unique change, and compares only the selected rule's findings with its
 reviewed labels. `--json` includes per-case, per-rule, and overall counts. A mismatch exits
-nonzero. On 2026-10-21, all 21 checks matched:
+nonzero. On 2026-10-22, all 23 checks matched:
 
 | Rule | Checks | Matched expected labels | Missing | Unexpected |
 | --- | ---: | ---: | ---: | ---: |
 | `api/exported-symbol-removed` | 15 | 10 | 0 | 0 |
 | `api/public-type-member-removed` | 2 | 2 | 0 | 0 |
-| `api/public-signature-changed` | 2 | 3 | 0 | 0 |
+| `api/public-signature-changed` | 4 | 4 | 0 | 0 |
 | `api/public-interface-changed` | 2 | 1 | 0 | 0 |
-| **Total** | **21** | **16** | **0** | **0** |
+| **Total** | **23** | **17** | **0** | **0** |
 
 These are finding-label agreements, not proven compatibility judgments. An empty expected set
 means the reviewed diff does not warrant a finding **for that one rule**, not that the change is
@@ -104,8 +104,15 @@ member moved between local type components without removal.
 
 The [Nano ID `customAlphabet` API change](https://github.com/ai/nanoid/commit/38f188832d01e02e6c02f21ad357b607a1b59533)
 changes three exported declaration-file signatures: secure, async, and non-secure entry points.
+Their required size parameter becomes optional and the returned function accepts an optional size;
+the strict TypeScript assignability check confirms that the old callable types remain accepted, so
+these are now negative cases. The
+[generic return-type change](https://github.com/ai/nanoid/commit/ea64dc7cfb7b12ac244fefe0dfa1f61570a8669e)
+is another compatible case. In contrast, the
+[Nano ID argument reorder](https://github.com/ai/nanoid/commit/b488b4823a8b527d7fa71d94a502278e0649bbc2)
+keeps four signature warnings because the new callable types no longer accept the old call shapes.
 The [implementation-only size fix](https://github.com/ai/nanoid/commit/0b2cec58ffd5ddc45978bf75a3bab46f53c76128)
-is a negative control for the signature rule. The
+is a separate negative control. The
 [p-queue `Queue` interface change](https://github.com/sindresorhus/p-queue/commit/a9f57787d80bfff93df621058d34be6212a91fd2)
 changes type parameters and member contracts; adding an unrelated exported type is its negative
 control. These labels record changed public contracts, not whether every consumer would break.
@@ -128,8 +135,10 @@ outside the member-removal rule.
   prove that an implementation satisfies a PR's request.
 - The changes were hand-selected to exercise TypeScript, JavaScript, tests, and documentation;
   they were not randomly sampled. No recall or false-positive rate is inferred.
-- The signature rule compares recorded call signatures syntactically. A changed signature can be
-  source-compatible for some callers, so a finding is a review prompt, not a proof of breakage.
+- The signature rule suppresses a textual change only when a strict TypeScript assignment check
+  on self-contained callable types succeeds. If the declaration uses unresolved external/local
+  types, inferred types, or an unsupported signature shape, the check cannot prove compatibility
+  and retains the warning. This does not prove runtime behavior or whole-project compatibility.
 - JS compatibility analysis records identifiable ESM export removal, not inferred parameter or
   return-type compatibility. CommonJS `module.exports` and nested exports remain outside this
   first JS symbol-analysis slice.
