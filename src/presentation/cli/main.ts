@@ -5,8 +5,10 @@ import process from "node:process";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { GitPrivateAgentIntentStore } from "../../infrastructure/git/git-private-agent-intent-store.js";
 import { CommandExecutionError } from "../../infrastructure/process/command-runner.js";
+import { readAgentHookInput } from "../agent-hook/input.js";
 import { analyzeRepository } from "../analyze-repository.js";
 import { readClaudeHookInput, runClaudeHook } from "../claude-code/hook.js";
+import { runCodexHook } from "../codex/hook.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
 import { writeReportFile } from "./report-file-writer.js";
@@ -26,6 +28,14 @@ async function main(): Promise<void> {
     }
     if (options.command === "claude-hook") {
       const output = await runClaudeHook(options.action, await readClaudeHookInput(process.stdin), {
+        store: new GitPrivateAgentIntentStore(),
+        analyze: analyzeRepository,
+      });
+      if (output !== undefined) process.stdout.write(output);
+      return;
+    }
+    if (options.command === "codex-hook") {
+      const output = await runCodexHook(options.action, await readAgentHookInput(process.stdin), {
         store: new GitPrivateAgentIntentStore(),
         analyze: analyzeRepository,
       });

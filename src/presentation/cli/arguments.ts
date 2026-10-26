@@ -31,9 +31,17 @@ export interface ClaudeHookCommandOptions {
   readonly action: ClaudeHookAction;
 }
 
+export type CodexHookAction = "capture" | "analyze" | "clear";
+
+export interface CodexHookCommandOptions {
+  readonly command: "codex-hook";
+  readonly action: CodexHookAction;
+}
+
 export type CliOptions =
   | AnalyzeCommandOptions
   | ClaudeHookCommandOptions
+  | CodexHookCommandOptions
   | HelpCommandOptions
   | VersionCommandOptions;
 
@@ -63,6 +71,16 @@ export function parseArguments(
       (action !== "capture" && action !== "analyze" && action !== "clear")
     ) {
       throw new CliUsageError("Usage: intentpatch claude-hook <capture|analyze|clear>");
+    }
+    return { command, action };
+  }
+  if (command === "codex-hook") {
+    const [action] = options;
+    if (
+      options.length !== 1 ||
+      (action !== "capture" && action !== "analyze" && action !== "clear")
+    ) {
+      throw new CliUsageError("Usage: intentpatch codex-hook <capture|analyze|clear>");
     }
     return { command, action };
   }
@@ -138,6 +156,7 @@ export function helpText(): string {
 Usage:
   intentpatch analyze [options]
   intentpatch claude-hook <capture|analyze|clear>  Read Claude Code hook JSON from stdin
+  intentpatch codex-hook <capture|analyze|clear>   Read Codex hook JSON from stdin
 
 Options:
   --base <ref>   Base Git reference (default: HEAD)
