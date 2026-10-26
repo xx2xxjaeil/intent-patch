@@ -1,0 +1,38 @@
+{
+  "description": "Opt-in IntentPatch analysis for local Codex turns",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" codex-hook capture",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" codex-hook analyze",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" codex-hook clear",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

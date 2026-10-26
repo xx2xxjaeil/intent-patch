@@ -98,6 +98,10 @@ Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다�
 
 선택적으로 Hook을 연결하면 한 턴의 원래 요청과 시작 commit을 보관하고, Claude Code가 응답을 마칠 때 변경 파일·finding 개수를 짧게 보여줍니다. 요청문을 외부 서비스로 보내지 않습니다. 설치 방법, 설정 예시, 로컬 임시 저장의 보안상 주의점은 [설정 문서](https://github.com/xx2xxjaeil/intent-patch/blob/main/docs/claude-code.md)를 참고하세요.
 
+## Codex·Cursor Hook (소스 빌드)
+
+현재 소스에는 선택형 [Codex](./docs/codex.md)·[Cursor](./docs/cursor.md) 턴 분석이 추가되었습니다. **npm에 배포된 v0.6.0에는 아직 포함되지 않았으므로** 설정 전에 이 소스를 빌드해야 합니다. 동일한 결정론적 분석기를 사용하며 API 키나 유료 모델은 필요하지 않습니다. Codex는 Hook에 개수만 요약하고, Cursor는 Git 메타데이터에 비공개 HTML 보고서를 저장한 뒤 경로를 로그로 남깁니다. Cursor에 새 AI 요청을 자동 제출하지 않습니다.
+
 ## 프로젝트가 지향하는 결과
 
 ```text
@@ -470,7 +474,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 12. 요청 입력과 에이전트 adapter
     - ✅ CLI 요청 문서와 선택적 GitHub PR 본문 입력
     - ✅ 선택적 Claude Code Hook
-    - Codex·Cursor 전용 adapter
+    - ✅ 선택적 Codex·Cursor 전용 adapter (소스 빌드; npm 배포 전)
 13. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
