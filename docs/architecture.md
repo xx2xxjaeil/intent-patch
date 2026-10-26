@@ -279,11 +279,18 @@ TypeScript Compiler를 `action-dist/index.cjs`에 번들하고, 원본 소스와
 
 ### 20. 에이전트 Hook은 분석 엔진 밖에서 턴 문맥을 전달
 
-Claude Code 어댑터는 `UserPromptSubmit`의 요청문과 시작 commit을 `AgentIntentSessionStore`
-포트에 기록하고, `Stop`에서 꺼내 기존 `analyzeRepository`를 호출합니다. Git 구현은 세션 ID를
-해시한 파일명을 사용하고 Git 메타데이터 아래 소유자 전용 디렉터리에 원자적으로 씁니다. 요청문은
-보고서 포맷이나 Hook 출력에 포함하지 않고, UI에는 finding 수만 보냅니다. `StopFailure`와
-`SessionEnd`에서 남은 상태를 정리하며, Hook 설정은 사용자가 명시적으로 활성화해야 합니다.
+`AnalyzeAgentTurn` 유스케이스는 `AgentIntentSessionStore` 포트에 요청문과 시작 commit을 저장하고,
+완료 시 상태를 소비해 기존 `analyzeRepository`를 호출합니다. Claude Code·Codex·Cursor의 이벤트
+이름과 입력 검증은 각각 presentation adapter에만 있습니다. Git 구현은 턴 키를 해시한 파일명을
+사용하고 Git 메타데이터 아래 소유자 전용 디렉터리에 원자적으로 씁니다. 따라서 일반적인 Git
+diff나 추적 파일에는 임시 요청문이 추가되지 않습니다.
+
+Claude Code는 세션 ID, Codex는 세션·턴 ID, Cursor는 대화·generation ID를 상태 키로 사용합니다.
+Claude Code와 Codex는 Hook 출력에 변경·finding 개수만 보냅니다. Cursor는 `stop` 출력에
+보고서 메시지를 삽입할 수 없으므로 추가 모델 턴을 만드는 `followup_message`를 사용하지 않습니다.
+대신 별도의 infrastructure writer가 전체 HTML을 Git 메타데이터에 저장합니다. 이 HTML에는 원래
+요청문이 포함되므로 로그의 개수 요약보다 민감하며, 사용자에게 로컬 보관과 삭제 방법을 알립니다.
+중단·실패 이벤트에서 가능한 상태를 정리하고, 모든 Hook은 사용자가 명시적으로 활성화해야 합니다.
 
 ## 확장 지점
 

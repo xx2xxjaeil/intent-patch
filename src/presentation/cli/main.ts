@@ -4,9 +4,13 @@ import { readFile } from "node:fs/promises";
 import process from "node:process";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { GitPrivateAgentIntentStore } from "../../infrastructure/git/git-private-agent-intent-store.js";
+import { GitPrivateAgentReportWriter } from "../../infrastructure/git/git-private-agent-report-writer.js";
 import { CommandExecutionError } from "../../infrastructure/process/command-runner.js";
+import { readAgentHookInput } from "../agent-hook/input.js";
 import { analyzeRepository } from "../analyze-repository.js";
 import { readClaudeHookInput, runClaudeHook } from "../claude-code/hook.js";
+import { runCodexHook } from "../codex/hook.js";
+import { runCursorHook } from "../cursor/hook.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
 import { writeReportFile } from "./report-file-writer.js";
@@ -30,6 +34,25 @@ async function main(): Promise<void> {
         analyze: analyzeRepository,
       });
       if (output !== undefined) process.stdout.write(output);
+      return;
+    }
+    if (options.command === "codex-hook") {
+      const output = await runCodexHook(options.action, await readAgentHookInput(process.stdin), {
+        store: new GitPrivateAgentIntentStore(),
+        analyze: analyzeRepository,
+      });
+      if (output !== undefined) process.stdout.write(output);
+      return;
+    }
+    if (options.command === "cursor-hook") {
+      const writer = new GitPrivateAgentReportWriter();
+      const result = await runCursorHook(options.action, await readAgentHookInput(process.stdin), {
+        store: new GitPrivateAgentIntentStore(),
+        analyze: analyzeRepository,
+        writeReport: (key, cwd, html) => writer.write(key, cwd, html),
+      });
+      process.stdout.write(result.output);
+      if (result.notice !== undefined) process.stderr.write(`${result.notice}\n`);
       return;
     }
 

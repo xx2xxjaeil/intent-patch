@@ -9,6 +9,16 @@ describe("parseArguments", () => {
       action: "capture",
     });
     assert.throws(() => parseArguments(["claude-hook", "publish"], "/repo"), CliUsageError);
+    assert.deepEqual(parseArguments(["codex-hook", "capture"], "/repo"), {
+      command: "codex-hook",
+      action: "capture",
+    });
+    assert.throws(() => parseArguments(["codex-hook", "publish"], "/repo"), CliUsageError);
+    assert.deepEqual(parseArguments(["cursor-hook", "analyze"], "/repo"), {
+      command: "cursor-hook",
+      action: "analyze",
+    });
+    assert.throws(() => parseArguments(["cursor-hook", "clear"], "/repo"), CliUsageError);
   });
   it("parses the version flag as a top-level command", () => {
     assert.deepEqual(parseArguments(["--version"], "/repo"), { command: "version" });

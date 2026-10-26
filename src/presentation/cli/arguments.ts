@@ -31,9 +31,25 @@ export interface ClaudeHookCommandOptions {
   readonly action: ClaudeHookAction;
 }
 
+export type CodexHookAction = "capture" | "analyze" | "clear";
+
+export interface CodexHookCommandOptions {
+  readonly command: "codex-hook";
+  readonly action: CodexHookAction;
+}
+
+export type CursorHookAction = "capture" | "analyze";
+
+export interface CursorHookCommandOptions {
+  readonly command: "cursor-hook";
+  readonly action: CursorHookAction;
+}
+
 export type CliOptions =
   | AnalyzeCommandOptions
   | ClaudeHookCommandOptions
+  | CodexHookCommandOptions
+  | CursorHookCommandOptions
   | HelpCommandOptions
   | VersionCommandOptions;
 
@@ -63,6 +79,23 @@ export function parseArguments(
       (action !== "capture" && action !== "analyze" && action !== "clear")
     ) {
       throw new CliUsageError("Usage: intentpatch claude-hook <capture|analyze|clear>");
+    }
+    return { command, action };
+  }
+  if (command === "codex-hook") {
+    const [action] = options;
+    if (
+      options.length !== 1 ||
+      (action !== "capture" && action !== "analyze" && action !== "clear")
+    ) {
+      throw new CliUsageError("Usage: intentpatch codex-hook <capture|analyze|clear>");
+    }
+    return { command, action };
+  }
+  if (command === "cursor-hook") {
+    const [action] = options;
+    if (options.length !== 1 || (action !== "capture" && action !== "analyze")) {
+      throw new CliUsageError("Usage: intentpatch cursor-hook <capture|analyze>");
     }
     return { command, action };
   }
@@ -138,6 +171,8 @@ export function helpText(): string {
 Usage:
   intentpatch analyze [options]
   intentpatch claude-hook <capture|analyze|clear>  Read Claude Code hook JSON from stdin
+  intentpatch codex-hook <capture|analyze|clear>   Read Codex hook JSON from stdin
+  intentpatch cursor-hook <capture|analyze>        Read Cursor hook JSON from stdin
 
 Options:
   --base <ref>   Base Git reference (default: HEAD)

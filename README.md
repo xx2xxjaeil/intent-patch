@@ -93,6 +93,10 @@ See the [GitHub Action guide](./docs/github-action.md) for inputs, outputs, and 
 
 An opt-in Hook adapter captures a turn's original prompt and starting commit, then shows a small change/finding summary when Claude Code stops. It does not send the prompt to an external service. See the [setup guide](https://github.com/xx2xxjaeil/intent-patch/blob/main/docs/claude-code.md) for installation, the Hook configuration example, and local-state security notes.
 
+## Codex and Cursor Hooks (source checkout)
+
+The current source adds opt-in turn analysis for [Codex](./docs/codex.md) and [Cursor](./docs/cursor.md). These adapters are **not yet in the published v0.6.0 package**; build this checkout before following their setup guides. They use the same deterministic analyzer and require no API key or paid model. Codex returns a count-only Hook message. Cursor writes a private HTML report under Git metadata and logs its path without auto-submitting another AI prompt.
+
 ## What the report looks like
 
 ```text
@@ -455,7 +459,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 12. Request capture and agent adapters
     - ✅ CLI request file and opt-in GitHub PR body
     - ✅ Opt-in Claude Code Hook
-    - Codex and Cursor-specific adapters
+    - ✅ Opt-in Codex and Cursor-specific adapters (source checkout; npm release pending)
 13. Optional LLM explanations grounded in deterministic evidence
 
 ## Current limitations

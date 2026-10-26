@@ -23,7 +23,7 @@ export class GitPrivateAgentIntentStore implements AgentIntentSessionStore {
       })
     ).trim();
     if (!/^[0-9a-f]{40,64}$/u.test(baseRef)) {
-      throw new Error("Claude Code hook requires a repository with an existing HEAD commit");
+      throw new Error("Agent hook requires a repository with an existing HEAD commit");
     }
 
     const temporaryPath = `${statePath}.${randomUUID()}.tmp`;
@@ -54,19 +54,19 @@ export class GitPrivateAgentIntentStore implements AgentIntentSessionStore {
 
     try {
       if (!metadata.isFile() || metadata.isSymbolicLink() || metadata.size > maximumSnapshotBytes) {
-        throw new Error("Claude Code hook state is not a bounded regular file");
+        throw new Error("Agent hook state is not a bounded regular file");
       }
       if (process.platform !== "win32" && (metadata.mode & 0o077) !== 0) {
-        throw new Error("Claude Code hook state is not private to its owner");
+        throw new Error("Agent hook state is not private to its owner");
       }
       let value: unknown;
       try {
         value = JSON.parse(await readFile(statePath, "utf8")) as unknown;
       } catch {
-        throw new Error("Claude Code hook state is invalid JSON");
+        throw new Error("Agent hook state is invalid JSON");
       }
       if (!isCapturedIntent(value) || value.repositoryRoot !== repositoryRoot) {
-        throw new Error("Claude Code hook state does not match this repository");
+        throw new Error("Agent hook state does not match this repository");
       }
       return { intent: value.intent, baseRef: value.baseRef };
     } finally {
@@ -101,10 +101,10 @@ export class GitPrivateAgentIntentStore implements AgentIntentSessionStore {
     await mkdir(privateDirectory, { mode: 0o700, recursive: true });
     const metadata = await lstat(privateDirectory);
     if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
-      throw new Error("Claude Code hook state directory is not a regular directory");
+      throw new Error("Agent hook state directory is not a regular directory");
     }
     if (process.platform !== "win32" && (metadata.mode & 0o077) !== 0) {
-      throw new Error("Claude Code hook state directory is not private to its owner");
+      throw new Error("Agent hook state directory is not private to its owner");
     }
 
     const name = createHash("sha256").update(sessionId).digest("hex");
