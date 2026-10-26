@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" codex-hook capture",
+            "command": "node \"/absolute/path/to/project/node_modules/intentpatch/dist/presentation/cli/main.js\" codex-hook capture",
             "timeout": 30
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" codex-hook analyze",
+            "command": "node \"/absolute/path/to/project/node_modules/intentpatch/dist/presentation/cli/main.js\" codex-hook analyze",
             "timeout": 30
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" codex-hook clear",
+            "command": "node \"/absolute/path/to/project/node_modules/intentpatch/dist/presentation/cli/main.js\" codex-hook clear",
             "timeout": 3
           }
         ]

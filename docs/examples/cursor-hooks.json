@@ -3,13 +3,13 @@
   "hooks": {
     "beforeSubmitPrompt": [
       {
-        "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" cursor-hook capture",
+        "command": "node \"/absolute/path/to/project/node_modules/intentpatch/dist/presentation/cli/main.js\" cursor-hook capture",
         "timeout": 30
       }
     ],
     "stop": [
       {
-        "command": "node \"/absolute/path/to/intent-patch/dist/presentation/cli/main.js\" cursor-hook analyze",
+        "command": "node \"/absolute/path/to/project/node_modules/intentpatch/dist/presentation/cli/main.js\" cursor-hook analyze",
         "timeout": 30
       }
     ]
