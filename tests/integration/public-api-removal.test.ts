@@ -170,6 +170,40 @@ describe("public API removal integration", () => {
     assert.deepEqual(report.findings.items, []);
   });
 
+  it("does not flag a public primitive parameter widened by a named union arm", async () => {
+    const declarations = [
+      "export type LimitFunction = (fn: () => Promise<void>) => Promise<void>;",
+      "export type Options = { concurrency: number };",
+    ];
+    const repository = await createRepository(
+      [
+        ...declarations,
+        "export declare function pLimit(concurrency: number): LimitFunction;",
+        "",
+      ].join("\n"),
+    );
+    await writeFile(
+      join(repository, "api.ts"),
+      [
+        ...declarations,
+        "export declare function pLimit(concurrency: number | Options): LimitFunction;",
+        "",
+      ].join("\n"),
+    );
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([
+        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+      ]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.deepEqual(report.findings.items, []);
+  });
+
   it("reports a public type member removed through a local options alias", async () => {
     const repository = await createRepository(
       [
