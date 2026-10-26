@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
@@ -50,8 +50,13 @@ describe("Codex CLI hook integration", () => {
     });
     assert.deepEqual(captured, { code: 0, stdout: "", stderr: "" });
     await writeFile(join(repo, "feature.ts"), "export const answer = 2;\n");
+    await mkdir(join(repo, "nested"));
 
-    const analyzed = await runHook("analyze", { ...event, hook_event_name: "Stop" });
+    const analyzed = await runHook("analyze", {
+      ...event,
+      cwd: join(repo, "nested"),
+      hook_event_name: "Stop",
+    });
     assert.equal(analyzed.code, 0, analyzed.stderr);
     assert.match(JSON.parse(analyzed.stdout).systemMessage, /IntentPatch: 1 files changed/);
     assert.equal(analyzed.stdout.includes("SECRET_SENTINEL"), false);

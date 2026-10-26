@@ -56,6 +56,24 @@ describe("Cursor CLI hook integration", () => {
       assert.equal((await stat(reportDirectory)).mode & 0o077, 0);
       assert.equal((await stat(path)).mode & 0o077, 0);
     }
+
+    const nextGeneration = { ...event, generation_id: "generation-2" };
+    await runHook("capture", {
+      ...nextGeneration,
+      hook_event_name: "beforeSubmitPrompt",
+      prompt: "SECOND_SENTINEL: change answer again",
+    });
+    await writeFile(join(repo, "feature.ts"), "export const answer = 3;\n");
+    const nextResult = await runHook("analyze", {
+      ...nextGeneration,
+      hook_event_name: "stop",
+      status: "completed",
+    });
+    assert.equal(nextResult.code, 0, nextResult.stderr);
+    assert.deepEqual(await readdir(reportDirectory), reports);
+    const latestHtml = await readFile(path, "utf8");
+    assert.match(latestHtml, /SECOND_SENTINEL/);
+    assert.doesNotMatch(latestHtml, /SECRET_SENTINEL/);
   });
 
   it("discards a stopped generation that did not complete", async () => {
