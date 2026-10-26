@@ -2,6 +2,7 @@
   "schemaVersion": 2,
   "repositories": {
     "nanoid": "https://github.com/ai/nanoid.git",
+    "p-limit": "https://github.com/sindresorhus/p-limit.git",
     "p-queue": "https://github.com/sindresorhus/p-queue.git"
   },
   "cases": [
@@ -205,6 +206,54 @@
       "repository": "p-queue",
       "head": "a20e1f34b5c82e4e91e5d2e0c8b663e831dc16ab",
       "reason": "Adds an exported type declaration without changing an existing exported interface contract.",
+      "expected": []
+    },
+    {
+      "id": "p-limit-add-limit-function-export",
+      "ruleId": "api/exported-symbol-removed",
+      "repository": "p-limit",
+      "head": "ef48184a8f9c3d61867d25bebaa8837f23485646",
+      "reason": "Adds the public limitFunction export without removing existing exported names.",
+      "expected": []
+    },
+    {
+      "id": "p-limit-widen-options-parameter",
+      "ruleId": "api/public-signature-changed",
+      "repository": "p-limit",
+      "head": "870db0f54785cc6ae6444be421df98cc48932e58",
+      "reason": "Widens the default pLimit parameter from number to number or Options; previous number calls remain accepted.",
+      "expected": []
+    },
+    {
+      "id": "p-limit-narrow-limit-function-input",
+      "ruleId": "api/public-signature-changed",
+      "repository": "p-limit",
+      "head": "ccb80b2721a6a4a27ce5ad7721fe939162a35b31",
+      "reason": "Narrows limitFunction's callback from a synchronous or PromiseLike result to PromiseLike only, rejecting previously valid synchronous callbacks.",
+      "expected": [{ "file": "index.d.ts", "symbolName": "limitFunction" }]
+    },
+    {
+      "id": "p-limit-add-map-index",
+      "ruleId": "api/public-type-member-removed",
+      "repository": "p-limit",
+      "head": "2aeffd477ba007be1b74b9ad8425ef112cb97f9f",
+      "reason": "Adds an index argument to the map callback while keeping the LimitFunction.map member.",
+      "expected": []
+    },
+    {
+      "id": "p-limit-widen-map-iterable",
+      "ruleId": "api/public-type-member-removed",
+      "repository": "p-limit",
+      "head": "d76231b44ec6693212bcf245e57b7b95cfc93297",
+      "reason": "Widens LimitFunction.map's input from a readonly array to an iterable without removing a member.",
+      "expected": []
+    },
+    {
+      "id": "p-limit-add-reject-on-clear",
+      "ruleId": "api/public-type-member-removed",
+      "repository": "p-limit",
+      "head": "8907801ffa0252b51490a2c9efbb388d0c83391f",
+      "reason": "Adds an optional rejectOnClear option while retaining all existing Options members.",
       "expected": []
     }
   ]

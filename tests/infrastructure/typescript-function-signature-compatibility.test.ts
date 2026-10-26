@@ -65,6 +65,37 @@ describe("TypeScriptFunctionSignatureCompatibility", () => {
     );
   });
 
+  it("accepts a primitive parameter widened by an unresolved union arm", () => {
+    assert.equal(
+      compatibility.preservesPreviousCalls(
+        ["(number):LimitFunction"],
+        ["(number | Options):LimitFunction"],
+      ),
+      true,
+    );
+    assert.equal(
+      compatibility.preservesPreviousCalls(
+        ["(number):LimitFunction", "(string):LimitFunction"],
+        ["(number | Options):LimitFunction", "(string):LimitFunction"],
+      ),
+      true,
+    );
+  });
+
+  it("does not infer compatibility for changed returns or unresolved old inputs", () => {
+    assert.equal(
+      compatibility.preservesPreviousCalls(
+        ["(number):LimitFunction"],
+        ["(number | Options):DifferentLimitFunction"],
+      ),
+      undefined,
+    );
+    assert.equal(
+      compatibility.preservesPreviousCalls(["(User):User"], ["(User | Admin):User"]),
+      undefined,
+    );
+  });
+
   it("leaves unknown or malformed types unverified", () => {
     assert.equal(
       compatibility.preservesPreviousCalls(["(User):User"], ["(User,number?):User"]),

@@ -2,6 +2,13 @@ import ts from "typescript";
 import type { FunctionSignatureCompatibility } from "../../application/ports/function-signature-compatibility.js";
 
 const comparisonPath = "/__intentpatch_function_signatures__.ts";
+const primitiveParameterTypes = new Set<ts.SyntaxKind>([
+  ts.SyntaxKind.StringKeyword,
+  ts.SyntaxKind.NumberKeyword,
+  ts.SyntaxKind.BooleanKeyword,
+  ts.SyntaxKind.BigIntKeyword,
+  ts.SyntaxKind.SymbolKeyword,
+]);
 
 /** Uses TypeScript assignability only when both self-contained signature types can be checked. */
 export class TypeScriptFunctionSignatureCompatibility implements FunctionSignatureCompatibility {
@@ -39,12 +46,13 @@ export class TypeScriptFunctionSignatureCompatibility implements FunctionSignatu
         ? sourceFile
         : getSourceFile(path, languageVersion, onError, shouldCreateNewSourceFile);
     const program = ts.createProgram([comparisonPath], options, host);
-    if (
-      program.getSyntacticDiagnostics(sourceFile).length > 0 ||
-      program.getSemanticDiagnostics(sourceFile).length > 0
-    ) {
-      return undefined;
-    }
+    if (program.getSyntacticDiagnostics(sourceFile).length > 0) return undefined;
+
+    // A new union arm cannot invalidate calls that supplied the old primitive type.
+    // This narrow proof also works when unchanged return names or new union arms are
+    // declared outside the isolated comparison program.
+    if (preservesPrimitiveParameterCalls(sourceFile)) return true;
+    if (program.getSemanticDiagnostics(sourceFile).length > 0) return undefined;
 
     const checker = program.getTypeChecker();
     const declarations = sourceFile.statements.filter(ts.isInterfaceDeclaration);
@@ -57,6 +65,55 @@ export class TypeScriptFunctionSignatureCompatibility implements FunctionSignatu
       checker.getDeclaredTypeOfSymbol(previousSymbol),
     );
   }
+}
+
+function preservesPrimitiveParameterCalls(sourceFile: ts.SourceFile): boolean {
+  const declarations = sourceFile.statements.filter(ts.isInterfaceDeclaration);
+  const previousCalls = declarations[0]?.members.filter(ts.isCallSignatureDeclaration) ?? [];
+  const currentCalls = declarations[1]?.members.filter(ts.isCallSignatureDeclaration) ?? [];
+  return (
+    previousCalls.length > 0 &&
+    previousCalls.every((previous) =>
+      currentCalls.some((current) => preservesPrimitiveCall(previous, current, sourceFile)),
+    )
+  );
+}
+
+function preservesPrimitiveCall(
+  previous: ts.CallSignatureDeclaration,
+  current: ts.CallSignatureDeclaration,
+  sourceFile: ts.SourceFile,
+): boolean {
+  if (
+    previous.typeParameters?.length ||
+    current.typeParameters?.length ||
+    previous.parameters.length !== current.parameters.length ||
+    previous.parameters.length === 0 ||
+    previous.type?.getText(sourceFile) !== current.type?.getText(sourceFile)
+  ) {
+    return false;
+  }
+
+  return previous.parameters.every((parameter, index) => {
+    const currentParameter = current.parameters[index];
+    const previousType = parameter.type;
+    const currentType = currentParameter?.type;
+    if (
+      currentParameter === undefined ||
+      previousType === undefined ||
+      currentType === undefined ||
+      !primitiveParameterTypes.has(previousType.kind) ||
+      Boolean(parameter.questionToken) !== Boolean(currentParameter.questionToken) ||
+      Boolean(parameter.dotDotDotToken) !== Boolean(currentParameter.dotDotDotToken)
+    ) {
+      return false;
+    }
+    return (
+      currentType.kind === previousType.kind ||
+      (ts.isUnionTypeNode(currentType) &&
+        currentType.types.some((type) => type.kind === previousType.kind))
+    );
+  });
 }
 
 /** Convert the extractor's name-free display signature into a call signature for the checker. */
