@@ -4,7 +4,7 @@ IntentPatch can analyze each completed Claude Code turn against the request that
 
 The integration is available in **v0.6.0 and later**. To test an unreleased source checkout instead, run `npm ci && npm run build` and replace the example's script path with the absolute path to its `dist/presentation/cli/main.js`.
 
-Install IntentPatch in the repository being analyzed (`npm install --save-dev intentpatch@^0.6.0`), then copy [the example settings](./examples/claude-code-hooks.json) into that repository's `.claude/settings.json`. Merge it with existing settings rather than replacing unrelated hooks. The example calls `node` directly, so it also works on Windows where npm's `.cmd` shim cannot be launched in exec form. Verify the hooks in Claude Code with `/hooks`.
+Install IntentPatch in the repository being analyzed (`npm install --save-dev intentpatch@^0.7.0`), then copy [the example settings](./examples/claude-code-hooks.json) into that repository's `.claude/settings.json`. Merge it with existing settings rather than replacing unrelated hooks. The example calls `node` directly, so it also works on Windows where npm's `.cmd` shim cannot be launched in exec form. Verify the hooks in Claude Code with `/hooks`.
 
 The event names, stdin fields, exec-form `args`, and `systemMessage` output follow the [Claude Code Hook reference](https://code.claude.com/docs/en/hooks).
 

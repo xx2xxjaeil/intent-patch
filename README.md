@@ -18,7 +18,7 @@ IntentPatch combines **Git diff analysis, static analysis, and dependency analys
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Run the published v0.6.0 CLI without
+IntentPatch requires Node.js 20 or later and Git. Run the published v0.7.0 CLI without
 installing it globally:
 
 ```bash
@@ -62,7 +62,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.6.0
+        uses: xx2xxjaeil/intent-patch@v0.7.0
         with:
           fail-on: high
 
@@ -74,8 +74,9 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. v0.6.0 adds package-entrypoint-aware
-public API warnings, historical import impact for deleted modules, and the opt-in Claude Code Hook.
+Pin the action to a released version or an immutable commit SHA. v0.7.0 includes
+package-entrypoint-aware public API warnings, historical import impact for deleted modules,
+and opt-in Claude Code, Codex, and Cursor Hooks.
 See [the evaluation report](./docs/external-repository-evaluation.md) for the separately measured
 public-API rules and their limits. `@main` follows unreleased changes.
 
@@ -93,9 +94,9 @@ See the [GitHub Action guide](./docs/github-action.md) for inputs, outputs, and 
 
 An opt-in Hook adapter captures a turn's original prompt and starting commit, then shows a small change/finding summary when Claude Code stops. It does not send the prompt to an external service. See the [setup guide](https://github.com/xx2xxjaeil/intent-patch/blob/main/docs/claude-code.md) for installation, the Hook configuration example, and local-state security notes.
 
-## Codex and Cursor Hooks (source checkout)
+## Codex and Cursor Hooks
 
-The current source adds opt-in turn analysis for [Codex](./docs/codex.md) and [Cursor](./docs/cursor.md). These adapters are **not yet in the published v0.6.0 package**; build this checkout before following their setup guides. They use the same deterministic analyzer and require no API key or paid model. Codex returns a count-only Hook message. Cursor writes a private HTML report under Git metadata and logs its path without auto-submitting another AI prompt.
+Version 0.7.0 adds opt-in turn analysis for [Codex](./docs/codex.md) and [Cursor](./docs/cursor.md). These adapters use the same deterministic analyzer and require no API key or paid model. Codex returns a count-only Hook message. Cursor writes a private HTML report under Git metadata and logs its path without auto-submitting another AI prompt.
 
 ## What the report looks like
 
@@ -426,7 +427,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.6.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.7.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
@@ -459,7 +460,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 12. Request capture and agent adapters
     - ✅ CLI request file and opt-in GitHub PR body
     - ✅ Opt-in Claude Code Hook
-    - ✅ Opt-in Codex and Cursor-specific adapters (source checkout; npm release pending)
+    - ✅ Opt-in Codex and Cursor-specific adapters (v0.7.0)
 13. Optional LLM explanations grounded in deterministic evidence
 
 ## Current limitations

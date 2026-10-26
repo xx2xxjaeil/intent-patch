@@ -2,7 +2,7 @@
 
 IntentPatch can analyze a completed local Cursor Agent generation against its original prompt. The adapter is opt-in, deterministic, and does not call an AI API, require an API key, or add a paid service.
 
-This adapter is in the current source checkout, **not in the published v0.6.0 package**. Run `npm ci && npm run build` in an IntentPatch checkout. Copy [the example configuration](./examples/cursor-hooks.json) into the repository being analyzed as `.cursor/hooks.json`, replace both `/absolute/path/to/intent-patch` placeholders with the checkout's absolute path, and merge with any existing hooks. The example is POSIX-style; on Windows, quote/escape an absolute script path for PowerShell and JSON.
+Install IntentPatch in the repository being analyzed with `npm install --save-dev intentpatch@^0.7.0`. Copy [the example configuration](./examples/cursor-hooks.json) into that repository as `.cursor/hooks.json`, replace both `/absolute/path/to/project` placeholders with the repository's actual absolute path, and merge with any existing hooks. The example is POSIX-style; on Windows, quote/escape an absolute script path for PowerShell and JSON. To use a source checkout instead, run `npm ci && npm run build` there and point the example at its `dist/presentation/cli/main.js`.
 
 The event names, common input fields, and output behavior follow the [official Cursor Hooks guide](https://cursor.com/docs/hooks). This adapter targets one local Git repository; it does not claim support for a remote cloud workspace.
 
