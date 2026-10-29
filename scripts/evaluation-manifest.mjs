@@ -5,6 +5,11 @@ const supportedRules = new Set([
   "api/public-type-member-removed",
   "api/public-signature-changed",
   "api/public-interface-changed",
+  "dependency/new-production",
+  "dependency/removed",
+  "dependency/version-changed",
+  "scope/outside-expected-path",
+  "tests/missing-related-change",
 ]);
 
 /** A case scores exactly one reviewed rule on one fixed Git commit. */
@@ -37,6 +42,22 @@ export function validateEvaluationManifest(manifest) {
       throw new Error(`Invalid external evaluation case: ${evaluationCase.id ?? "unknown"}`);
     }
     compareEvaluationLabels(evaluationCase.expected, []);
+    const labelField = evaluationCase.ruleId.startsWith("dependency/")
+      ? "package"
+      : evaluationCase.ruleId.startsWith("api/")
+        ? "symbolName"
+        : "file";
+    if (evaluationCase.expected.some((label) => !Object.hasOwn(label, labelField))) {
+      throw new Error(`Invalid ${labelField} label in case: ${evaluationCase.id}`);
+    }
+    if (
+      (evaluationCase.ruleId.startsWith("scope/") || evaluationCase.ruleId.startsWith("tests/")) &&
+      (typeof evaluationCase.contract !== "object" ||
+        evaluationCase.contract === null ||
+        Array.isArray(evaluationCase.contract))
+    ) {
+      throw new Error(`Missing contract in case: ${evaluationCase.id}`);
+    }
     ids.add(evaluationCase.id);
   }
 }

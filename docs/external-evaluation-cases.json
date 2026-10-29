@@ -255,6 +255,99 @@
       "head": "8907801ffa0252b51490a2c9efbb388d0c83391f",
       "reason": "Adds an optional rejectOnClear option while retaining all existing Options members.",
       "expected": []
+    },
+    {
+      "id": "p-limit-add-yocto-queue-dependency",
+      "ruleId": "dependency/new-production",
+      "repository": "p-limit",
+      "head": "54c0ba85af33fef826f7d91dca57734141ad550c",
+      "reason": "Adds yocto-queue to production dependencies for the queue implementation.",
+      "expected": [{ "file": "package.json", "package": "yocto-queue" }]
+    },
+    {
+      "id": "p-limit-remove-p-try-dependency",
+      "ruleId": "dependency/removed",
+      "repository": "p-limit",
+      "head": "69b6017d180297c0eb0d229167bbfe0e832ebe91",
+      "reason": "Removes p-try after replacing its implementation; other dependency version changes are not removal labels.",
+      "expected": [{ "file": "package.json", "package": "p-try" }]
+    },
+    {
+      "id": "p-limit-remove-delay-test-dependency",
+      "ruleId": "dependency/removed",
+      "repository": "p-limit",
+      "head": "9da5934aaf15c22fceca470ad28ed5720b3c7340",
+      "reason": "Replaces the delay test dependency with native Node.js timers.",
+      "expected": [{ "file": "package.json", "package": "delay" }]
+    },
+    {
+      "id": "p-limit-version-only-release",
+      "ruleId": "dependency/new-production",
+      "repository": "p-limit",
+      "head": "4d4ec71803d8736567249c3dde06ea82795ae7c7",
+      "reason": "Changes only the package version, not its production dependencies.",
+      "expected": []
+    },
+    {
+      "id": "p-limit-node-20-dependency-updates",
+      "ruleId": "dependency/version-changed",
+      "repository": "p-limit",
+      "head": "78b81a536a2547777cbe2bf9e70eb541e5426a07",
+      "reason": "Raises the declared ranges for yocto-queue, ava, tsd, and xo while requiring Node.js 20.",
+      "expected": [
+        { "file": "package.json", "package": "ava" },
+        { "file": "package.json", "package": "tsd" },
+        { "file": "package.json", "package": "xo" },
+        { "file": "package.json", "package": "yocto-queue" }
+      ]
+    },
+    {
+      "id": "p-limit-native-timers-outside-request-scope",
+      "ruleId": "scope/outside-expected-path",
+      "repository": "p-limit",
+      "head": "9da5934aaf15c22fceca470ad28ed5720b3c7340",
+      "reason": "A test-only declared scope excludes the package manifest changed by this commit.",
+      "contract": { "scope": { "include": ["test.js"] } },
+      "expected": [{ "file": "package.json" }]
+    },
+    {
+      "id": "p-limit-detached-map-within-request-scope",
+      "ruleId": "scope/outside-expected-path",
+      "repository": "p-limit",
+      "head": "ef37eb2f372d385883d113803c98ba0bf3828ad1",
+      "reason": "The declared source and test paths cover all files changed by the fix.",
+      "contract": { "scope": { "include": ["index.js", "test.js"] } },
+      "expected": []
+    },
+    {
+      "id": "p-limit-detached-map-related-test-changed",
+      "ruleId": "tests/missing-related-change",
+      "repository": "p-limit",
+      "head": "ef37eb2f372d385883d113803c98ba0bf3828ad1",
+      "reason": "The explicit index.js to test.js mapping observes a test change in the same commit.",
+      "contract": {
+        "tests": {
+          "requireFor": ["index.js"],
+          "include": ["test.js"],
+          "related": { "index.js": ["test.js"] }
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "p-limit-remove-p-try-without-related-test",
+      "ruleId": "tests/missing-related-change",
+      "repository": "p-limit",
+      "head": "69b6017d180297c0eb0d229167bbfe0e832ebe91",
+      "reason": "The source changes but test.js does not change; the explicit mapping detects the missing test change.",
+      "contract": {
+        "tests": {
+          "requireFor": ["index.js"],
+          "include": ["test.js"],
+          "related": { "index.js": ["test.js"] }
+        }
+      },
+      "expected": [{ "file": "index.js" }]
     }
   ]
 }

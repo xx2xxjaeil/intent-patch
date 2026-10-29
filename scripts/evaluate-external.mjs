@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -26,14 +27,25 @@ async function main() {
   for (const evaluationCase of manifest.cases) {
     const repository = join(options.repositories, evaluationCase.repository);
     const commitKey = `${evaluationCase.repository}:${evaluationCase.head}`;
-    if (!reports.has(commitKey)) {
+    const reportKey = `${commitKey}:${JSON.stringify(evaluationCase.contract ?? null)}`;
+    if (!reports.has(reportKey)) {
       await verifyCommit(repository, evaluationCase.head);
-      reports.set(commitKey, await analyze(repository, evaluationCase.head));
+      reports.set(
+        reportKey,
+        await analyze(repository, evaluationCase.head, evaluationCase.contract),
+      );
     }
-    const report = reports.get(commitKey);
+    const report = reports.get(reportKey);
     const actual = report.findings.items
       .filter((finding) => finding.ruleId === evaluationCase.ruleId)
-      .map((finding) => ({ file: finding.file, symbolName: finding.evidence.symbolName }));
+      .map((finding) => ({
+        file: finding.file,
+        ...(evaluationCase.ruleId.startsWith("dependency/")
+          ? { package: finding.evidence.package }
+          : evaluationCase.ruleId.startsWith("api/")
+            ? { symbolName: finding.evidence.symbolName }
+            : {}),
+      }));
     results.push({
       id: evaluationCase.id,
       repository: evaluationCase.repository,
@@ -44,7 +56,7 @@ async function main() {
   }
 
   const output = {
-    uniqueChanges: reports.size,
+    uniqueChanges: new Set(manifest.cases.map((item) => `${item.repository}:${item.head}`)).size,
     cases: results,
     byRule: summarizeEvaluationByRule(results),
     totals: summarizeEvaluation(results),
@@ -90,13 +102,36 @@ async function verifyCommit(repository, head) {
   }
 }
 
-async function analyze(repository, head) {
-  const { stdout } = await executeFile(
-    process.execPath,
-    [cliPath, "analyze", "--cwd", repository, "--base", `${head}^`, "--head", head, "--json"],
-    { cwd: projectRoot, maxBuffer: 20 * 1024 * 1024 },
-  );
-  return JSON.parse(stdout);
+async function analyze(repository, head, contract) {
+  const directory =
+    contract === undefined
+      ? undefined
+      : await mkdtemp(join(tmpdir(), "intentpatch-eval-contract-"));
+  try {
+    const arguments_ = [
+      cliPath,
+      "analyze",
+      "--cwd",
+      repository,
+      "--base",
+      `${head}^`,
+      "--head",
+      head,
+      "--json",
+    ];
+    if (directory !== undefined) {
+      const config = join(directory, "contract.json");
+      await writeFile(config, JSON.stringify(contract));
+      arguments_.push("--config", config);
+    }
+    const { stdout } = await executeFile(process.execPath, arguments_, {
+      cwd: projectRoot,
+      maxBuffer: 20 * 1024 * 1024,
+    });
+    return JSON.parse(stdout);
+  } finally {
+    if (directory !== undefined) await rm(directory, { recursive: true, force: true });
+  }
 }
 
 function formatText(output) {
@@ -108,9 +143,10 @@ function formatText(output) {
     lines.push(
       `${status} ${result.id} [${result.ruleId}]: matched ${result.matched.length}, missing ${result.missing.length}, unexpected ${result.unexpected.length}`,
     );
-    for (const label of result.missing) lines.push(`  missing: ${label.file} ${label.symbolName}`);
+    for (const label of result.missing)
+      lines.push(`  missing: ${label.file} ${label.symbolName ?? label.package ?? ""}`);
     for (const label of result.unexpected) {
-      lines.push(`  unexpected: ${label.file} ${label.symbolName}`);
+      lines.push(`  unexpected: ${label.file} ${label.symbolName ?? label.package ?? ""}`);
     }
   }
   for (const [ruleId, totals] of Object.entries(output.byRule)) {

@@ -34,6 +34,16 @@ describe("external evaluation metrics", () => {
     assert.throws(() => compareEvaluationLabels([], [label, label]), /Duplicate actual label/);
   });
 
+  it("compares package and file-only labels without treating them as symbol names", () => {
+    const expected = [{ file: "package.json", package: "queue" }, { file: "src/x.ts" }];
+    const actual = [{ file: "src/x.ts" }, { file: "package.json", package: "queue" }];
+    assert.deepEqual(compareEvaluationLabels(expected, actual), {
+      matched: expected,
+      missing: [],
+      unexpected: [],
+    });
+  });
+
   it("summarizes checks independently for each rule", () => {
     const matching = {
       matched: [{ file: "api.ts", symbolName: "run" }],

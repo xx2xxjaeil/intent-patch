@@ -1,13 +1,16 @@
 function labelKey(label) {
+  const name = label?.symbolName ?? label?.package;
   if (
     typeof label?.file !== "string" ||
     label.file.length === 0 ||
-    typeof label.symbolName !== "string" ||
-    label.symbolName.length === 0
+    (name !== undefined && (typeof name !== "string" || name.length === 0)) ||
+    (label.symbolName !== undefined && label.package !== undefined)
   ) {
-    throw new Error("Evaluation labels require a file and symbolName");
+    throw new Error("Evaluation labels require a file and at most one symbolName or package");
   }
-  return `${label.file}\0${label.symbolName}`;
+  const kind =
+    label.symbolName === undefined ? (label.package === undefined ? "file" : "package") : "symbol";
+  return `${label.file}\0${kind}\0${name ?? ""}`;
 }
 
 function indexLabels(labels, description) {
@@ -15,7 +18,9 @@ function indexLabels(labels, description) {
   for (const label of labels) {
     const key = labelKey(label);
     if (indexed.has(key)) {
-      throw new Error(`Duplicate ${description} label: ${label.file} ${label.symbolName}`);
+      throw new Error(
+        `Duplicate ${description} label: ${label.file} ${label.symbolName ?? label.package}`,
+      );
     }
     indexed.set(key, label);
   }
