@@ -18,7 +18,7 @@ IntentPatch combines **Git diff analysis, static analysis, and dependency analys
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Run the published v0.7.0 CLI without
+IntentPatch requires Node.js 20 or later and Git. Run the published v0.8.0 CLI without
 installing it globally:
 
 ```bash
@@ -62,7 +62,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.7.0
+        uses: xx2xxjaeil/intent-patch@v0.8.0
         with:
           fail-on: high
 
@@ -74,9 +74,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. v0.7.0 includes
-package-entrypoint-aware public API warnings, historical import impact for deleted modules,
-and opt-in Claude Code, Codex, and Cursor Hooks.
+Pin the action to a released version or an immutable commit SHA. v0.8.0 adds Yarn 4
+lockfile analysis, explicit source-to-test mappings, report filters, and improved impact-graph
+navigation. It also includes package-entrypoint-aware public API warnings, historical import
+impact for deleted modules, and opt-in Claude Code, Codex, and Cursor Hooks.
 See [the evaluation report](./docs/external-repository-evaluation.md) for the separately measured
 public-API rules and their limits. `@main` follows unreleased changes.
 
@@ -421,8 +422,8 @@ This command runs:
 - architecture tests that enforce dependency direction;
 - a reproducibility check for the bundled GitHub Action.
 
-For a reproducible check of four public-API rules against 18 reviewed changes in
-external repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
+For a reproducible check of 38 rule decisions across 32 reviewed changes in external
+repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
 
 Run only the production build with:
 
@@ -438,7 +439,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.7.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.8.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
@@ -461,7 +462,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
    - ✅ npm workspace manifest dependency changes
    - ✅ pnpm `pnpm-lock.yaml` v9 resolved registry package changes
    - ✅ pnpm workspace manifest dependency changes
-   - ✅ Yarn 4 metadata-v8 `yarn.lock` resolved registry package changes (current source)
+   - ✅ Yarn 4 metadata-v8 `yarn.lock` resolved registry package changes
    - Yarn workspace manifest changes remain open
 7. ✅ Detection of removed public exports
    - ✅ Named and default ESM exports in JavaScript, without inferred type compatibility
@@ -494,6 +495,9 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - TypeScript symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
 - TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal, but does not infer function signatures. Previous root or nested package `exports` are followed through explicit source targets and relative re-exports. This is a file-level approximation: a named re-export may still expose only some symbols from its module. If an entrypoint is generated, unresolved, or unsupported, IntentPatch retains the earlier conservative warnings instead of claiming a file is private. CommonJS `module.exports`, class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
 - Function compatibility first compares recorded signatures. For self-contained, explicitly typed declarations it then uses strict TypeScript assignability to avoid warning on compatible changes. A narrow syntactic check also accepts primitive parameters widened by union arms when the return text is unchanged. Other unresolved names, inferred types, malformed or unsupported signature shapes remain unverified and keep the review warning; this is not a whole-project type check or a runtime compatibility guarantee.
+- Interface property compatibility recognizes unchanged types and optional fields added inside
+  supported object literals, including `Readonly` wrappers. Other nested type transformations
+  remain unverified rather than being treated as compatible.
 - Duplicate candidates require a newly added top-level function and an existing top-level function to have exactly the same normalized tokens after comments and whitespace are removed, with at least 12 body tokens. Renamed identifiers, methods, and semantically equivalent implementations are not detected.
 - A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
 - Methods, TypeScript variable declarations, enums, and nested declarations are not included in symbol analysis.

@@ -21,7 +21,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.7.0은 전역 설치 없이
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.8.0은 전역 설치 없이
 실행할 수 있습니다.
 
 ```bash
@@ -67,7 +67,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.7.0
+        uses: xx2xxjaeil/intent-patch@v0.8.0
         with:
           fail-on: high
 
@@ -79,9 +79,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.7.0에는
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.8.0에는 Yarn 4
+lockfile 분석, 소스와 테스트의 명시적 연결, 보고서 필터와 영향 그래프 탐색 개선이 포함됩니다.
 패키지 진입점 기준 공개 API 경고, 삭제된 모듈의 이전 import 영향 분석, 선택적 Claude Code·Codex·Cursor
-Hook이 포함됩니다. 공개 API 규칙의 별도 외부 평가 결과와 한계는
+Hook도 사용할 수 있습니다. 공개 API 규칙의 별도 외부 평가 결과와 한계는
 [평가 보고서](./docs/external-repository-evaluation.md)에 기록했습니다. `@main`은 미릴리스 변경을 따라갑니다.
 Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다음 결과를 남깁니다.
 
@@ -443,7 +444,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.7.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.8.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
@@ -470,7 +471,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
    - ✅ npm workspace manifest의 직접 dependency 변경
    - ✅ pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 변경
    - ✅ pnpm workspace manifest의 직접 dependency 변경
-   - ✅ Yarn 4 metadata-v8 `yarn.lock` 레지스트리 패키지 변경 (현재 소스)
+   - ✅ Yarn 4 metadata-v8 `yarn.lock` 레지스트리 패키지 변경
    - Yarn workspace manifest 변경은 미구현
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
    - ✅ JavaScript ESM의 이름 있는 export·default export 삭제 탐지
@@ -531,6 +532,9 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   그대로인 기본형 인자가 합집합 타입으로 확장된 경우는 제한적인 구문 검사로도 확인합니다.
   그 밖의 미해결 타입 이름, 추론된 타입, 파싱할 수 없는 시그니처는 확인 불가로 남겨 검토
   경고를 유지합니다. 전체 프로젝트의 타입 검사나 런타임 호환성 보증은 아닙니다.
+- 인터페이스 속성 타입은 기존 타입이 같거나 지원하는 객체 리터럴 안에 선택 필드만 추가된
+  경우(`Readonly` 포함)에만 호환된다고 판단합니다. 다른 중첩 타입 변경은 호환을 단정하지
+  않고 검토 경고를 유지합니다.
 - 중복 구현 후보는 새로 추가된 최상위 함수와 기존 최상위 함수의 토큰이 공백·주석을 제외하고
   완전히 같으며 본문이 12토큰 이상일 때만 보고합니다. 식별자 이름이 바뀐 유사 코드, 메서드,
   의미적으로만 같은 구현은 탐지하지 않습니다.
