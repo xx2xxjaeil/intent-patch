@@ -101,6 +101,7 @@ Action은 PR·push 이벤트의 commit 범위를 자동으로 선택하고 다�
 ## Codex·Cursor Hook
 
 v0.7.0부터 선택형 [Codex](./docs/codex.md)·[Cursor](./docs/cursor.md) 턴 분석을 사용할 수 있습니다. 동일한 결정론적 분석기를 사용하며 API 키나 유료 모델은 필요하지 않습니다. Codex는 Hook에 개수만 요약하고, Cursor는 Git 메타데이터에 비공개 HTML 보고서를 저장한 뒤 경로를 로그로 남깁니다. Cursor에 새 AI 요청을 자동 제출하지 않습니다.
+[Hook 스모크 테스트 체크리스트](./docs/hook-smoke-test.md)는 패키지 CLI 테스트와 실제 앱 테스트를 구분합니다.
 
 ## 프로젝트가 지향하는 결과
 
@@ -139,7 +140,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 실제 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
 [자체 저장소 변경 3건의 사례 연구](./docs/real-world-evaluation.md),
-[외부 저장소 변경 26건·규칙별 판정 29건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
+[외부 저장소 변경 32건·규칙별 판정 38건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
@@ -157,7 +158,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - working tree 분석 시 untracked 파일 포함
 - 터미널용 텍스트 보고서
 - 후속 도구 연동을 위한 JSON 보고서
-- 요약 카드, finding, 테스트 신호와 영향 그래프를 담은 단일 HTML 보고서
+- 요약 카드, 경로·심각도 필터, finding, 테스트 신호와 탐색 가능한 영향 그래프를 담은 단일 HTML 보고서
 - 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
 - production·development dependency 추가 탐지
 - dependency 삭제, 버전 변경, 섹션 이동 탐지
@@ -197,7 +198,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - CLI 요청 문서 또는 선택적으로 GitHub PR 본문에서 요청 의도를 입력
 - 예상·허용 패턴을 벗어난 변경 파일을 파일별 `medium` finding으로 탐지
 - 변경 파일 수와 측정 라인 예산 초과를 수치 근거가 있는 `low` finding으로 탐지
-- Contract가 지정한 소스·테스트 경로를 분류하고 파일명 기준으로 관련 변경 연결
+- Contract가 지정한 소스·테스트 경로를 분류하고 파일명 또는 명시적 매핑으로 관련 변경 연결
 - 테스트 변경 수와 추가·삭제 수를 별도의 분석 사실로 집계
 - 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
@@ -287,9 +288,14 @@ intentpatch analyze --intent-file request.md --format html --output report.html
 - `tests.requireFor`: 테스트 동반 변경을 확인할 소스 경로
 - `tests.include`: 테스트 파일로 분류할 경로
 - `tests.exclude`: 생성 파일이나 선언 파일처럼 검사에서 제외할 소스 경로
+- `tests.related`: 소스 파일의 정확한 경로와 관련 테스트 경로 패턴의 명시적 연결.
+  해당 소스에는 파일명 기반 자동 연결 대신 이 설정을 적용합니다.
 
-테스트 연결은 결정적인 결과를 위해 파일명을 사용합니다. 예를 들어 `src/user.ts`는
+명시적 연결이 없으면 테스트 연결은 결정적인 결과를 위해 파일명을 사용합니다. 예를 들어 `src/user.ts`는
 `tests/user.test.ts`, `user.spec.ts`, `user.integration.test.ts` 같은 변경과 연결됩니다.
+이름이 다른 통합 테스트는 `tests` 객체 안에
+`"related": { "src/user.ts": ["tests/account-deletion*.test.ts"] }`처럼 지정할 수 있습니다.
+`tests.include`에 속한 변경 테스트만 인정합니다.
 
 기본 파일 대신 별도 계약을 사용하려면 `--config`를 지정합니다. 상대 경로는 `--cwd`를 기준으로
 해석합니다.
@@ -420,7 +426,7 @@ npm run check
 - 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
 - 계층 간 의존 방향을 검증하는 아키텍처 테스트
 
-외부 저장소의 실제 변경 26건에서 공개 API 규칙 4개의 경고를 사람이 검토한 기대 결과와 비교하는
+외부 저장소의 실제 변경 32건에서 공개 API·의존성·범위·테스트 규칙의 경고를 사람이 검토한 기대 결과와 비교하는
 방법은 [외부 저장소 평가 문서](./docs/external-repository-evaluation.md)에 정리했습니다.
 
 프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
@@ -464,7 +470,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
    - ✅ npm workspace manifest의 직접 dependency 변경
    - ✅ pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 변경
    - ✅ pnpm workspace manifest의 직접 dependency 변경
-   - Yarn adapter
+   - ✅ Yarn 4 metadata-v8 `yarn.lock` 레지스트리 패키지 변경 (현재 소스)
+   - Yarn workspace manifest 변경은 미구현
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
    - ✅ JavaScript ESM의 이름 있는 export·default export 삭제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
@@ -498,8 +505,12 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - pnpm workspace는 `pnpm-workspace.yaml`의 `packages`에 명시한 `*`·`**`·`?`와 선행 `!`
   제외 패턴을 지원합니다. npm 설정이 함께 있으면 중복 보고를 막기 위해 pnpm 설정을
   우선합니다. 그 외 glob 문법과 catalog는 해석하지 않습니다.
-- Yarn lockfile과 런타임에서의 실제 dependency 사용 여부는 아직 분석하지 않습니다.
-- working tree의 `package-lock.json`·`pnpm-lock.yaml`은 10 MiB, 그 외 텍스트 snapshot은 1 MiB로 제한합니다.
+- Yarn 4 metadata-v8 `yarn.lock`의 레지스트리 패키지 해석 결과와 버전은 비교합니다.
+  Yarn Classic·다른 metadata 버전은 미지원으로 보고합니다. workspace·patch·file·Git·virtual
+  해석 결과, checksum만 바뀐 경우, 부모 dependency 귀속은 분석하지 않습니다. 런타임에서의 실제
+  dependency 사용 여부도 판정하지 않습니다.
+- working tree의 `package-lock.json`·`pnpm-lock.yaml`·`yarn.lock`은 10 MiB,
+  그 외 텍스트 snapshot은 1 MiB로 제한합니다.
 - TypeScript 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
 - JavaScript 심볼 분석은 `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수 및 식별 가능한
@@ -548,10 +559,12 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   0줄이라고 간주하지 않지만, 해당 파일의 크기를 라인 예산에 포함하지도 않습니다.
 - 테스트 분석은 실행 결과나 코드 커버리지를 측정하지 않고 Contract에 지정된 변경 파일만
   비교합니다.
-- 관련 테스트는 현재 소스와 테스트의 파일명이 같은지로 판단하므로 이름이 다른 통합 테스트나
-  하나의 테스트가 여러 소스를 검증하는 관계는 자동으로 연결하지 못합니다.
-- HTML 영향 그래프는 변경 모듈과 영향 파일을 결정적인 두 열 레이아웃으로 표시합니다. 노드 이동,
-  확대·축소와 필터링을 제공하는 대화형 웹 UI는 아직 구현하지 않았습니다.
+- 관련 테스트는 기본적으로 파일명으로 연결하지만 정확한 소스 경로에 `tests.related`를
+  선언하면 이름이 다른 테스트도 지정할 수 있습니다. 이는 테스트 실행이나 실제 커버리지 측정이
+  아니라 사용자가 선언한 연결입니다.
+- HTML 영향 그래프는 결정적인 두 열 레이아웃이며 노드를 누르면 보고서의 관련 행으로 이동합니다.
+  경로·심각도 필터는 보고서 행만 좁히고 그래프 자체를 필터링하지 않습니다. 노드 이동과 확대·축소는
+  아직 구현하지 않았습니다.
 
 ## 라이선스
 
