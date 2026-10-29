@@ -45,8 +45,9 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderIntent(report.contract)}
     ${renderSummary(report, newDependencies, riskyApiChanges)}
     ${renderSeverityBar(report)}
+    ${renderReportControls()}
     ${renderContract(report.contract)}
-    ${renderImpact(report.impact.changedModules, report.impact.impactedFiles)}
+    ${renderImpact(report.impact.changedModules, report.impact.impactedFiles, report.changes.files)}
     ${renderFindings(report.findings.items)}
     ${renderTestCoverage(report.testChanges.sourceCoverage)}
     ${renderFiles(report.changes.files)}
@@ -58,6 +59,7 @@ export function formatHtmlReport(report: ChangeReport): string {
       <span>Evidence over claims · LLM optional</span>
     </footer>
   </main>
+  <script>${reportScript}</script>
 </body>
 </html>
 `;
@@ -119,6 +121,20 @@ function renderSeverityBar(report: ChangeReport): string {
     </section>`;
 }
 
+function renderReportControls(): string {
+  return `<div class="report-controls" id="report-controls" hidden>
+      <label for="path-filter">Filter file path</label>
+      <input id="path-filter" type="search" placeholder="e.g. src/api" autocomplete="off">
+      <div class="severity-filters"><span>Severity</span>
+        <button type="button" data-severity-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-severity-filter="high" aria-pressed="false">High</button>
+        <button type="button" data-severity-filter="medium" aria-pressed="false">Medium</button>
+        <button type="button" data-severity-filter="low" aria-pressed="false">Low</button>
+      </div>
+      <span id="visible-count" role="status" aria-live="polite"></span>
+    </div>`;
+}
+
 function renderContract(contract: ChangeContract | undefined): string {
   if (contract === undefined) {
     return "";
@@ -139,6 +155,10 @@ function renderContract(contract: ChangeContract | undefined): string {
           ["Test sources", testPolicy.requireFor.join(", ")],
           ["Test files", testPolicy.include.join(", ")],
           ["Test excludes", testPolicy.exclude.join(", ") || "None"],
+          ...Object.entries(testPolicy.related).map(([source, tests]) => [
+            `Related · ${source}`,
+            tests.join(", "),
+          ]),
         ]),
   ];
 
@@ -160,7 +180,9 @@ function renderFindings(findings: readonly Finding[]): string {
       ? renderEmpty("No potential issues were detected by the enabled rules.")
       : `<div class="finding-list">${findings
           .map(
-            (finding) => `<article class="finding ${finding.severity}">
+            (
+              finding,
+            ) => `<article class="finding ${finding.severity}" data-report-path="${escapeHtml(finding.file)}" data-finding-severity="${finding.severity}">
           <div class="finding-heading">
             <span>${escapeHtml(finding.severity)}</span>
             <div><h3>${escapeHtml(finding.title)}</h3><code>${escapeHtml(finding.file)}</code></div>
@@ -181,14 +203,21 @@ function renderFindings(findings: readonly Finding[]): string {
   return renderSection("Potential issues", `${findings.length} findings`, body);
 }
 
-function renderImpact(changedModules: readonly string[], files: readonly ImpactedFile[]): string {
+function renderImpact(
+  changedModules: readonly string[],
+  files: readonly ImpactedFile[],
+  changes: readonly FileChange[],
+): string {
   const body =
     files.length === 0
       ? renderEmpty("No dependent files were reached from changed modules.")
-      : `${renderImpactGraph(changedModules, files)}
+      : `${renderImpactGraph(changedModules, files, changes)}
       <div class="impact-list">${files
         .map(
-          (file) => `<article>
+          (
+            file,
+            index,
+          ) => `<article id="impact-${index}" data-report-path="${escapeHtml(file.path)}">
           <span class="distance">${file.distance === 1 ? "DIRECT" : `${file.distance} HOPS`}</span>
           <code>${escapeHtml(file.path)}</code>
           <small>from ${escapeHtml(file.changedModules.join(", "))}${file.viaPreviousImports ? " · previous imports" : ""}</small>
@@ -202,6 +231,7 @@ function renderImpact(changedModules: readonly string[], files: readonly Impacte
 function renderImpactGraph(
   changedModules: readonly string[],
   impactedFiles: readonly ImpactedFile[],
+  changes: readonly FileChange[],
 ): string {
   const rowHeight = 64;
   const top = 54;
@@ -229,7 +259,16 @@ function renderImpactGraph(
         <text class="graph-column-label" x="610" y="24">AFFECTED FILES</text>
         ${edges.join("\n        ")}
         ${changedModules
-          .map((path, index) => renderGraphNode(path, 40, top + index * rowHeight, "changed"))
+          .map((path, index) => {
+            const fileIndex = changes.findIndex((file) => file.path === path);
+            return renderGraphNode(
+              path,
+              40,
+              top + index * rowHeight,
+              "changed",
+              fileIndex < 0 ? undefined : `file-${fileIndex}`,
+            );
+          })
           .join("\n        ")}
         ${impactedFiles
           .map((file, index) =>
@@ -238,6 +277,7 @@ function renderImpactGraph(
               610,
               top + index * rowHeight,
               file.distance === 1 ? "direct" : "transitive",
+              `impact-${index}`,
             ),
           )
           .join("\n        ")}
@@ -245,8 +285,17 @@ function renderImpactGraph(
     </div>`;
 }
 
-function renderGraphNode(path: string, x: number, y: number, kind: string): string {
-  return `<g class="graph-node ${kind}"><title>${escapeHtml(path)}</title><rect x="${x}" y="${y}" width="350" height="42" rx="9"></rect><text x="${x + 16}" y="${y + 26}">${escapeHtml(shortenPath(path))}</text></g>`;
+function renderGraphNode(
+  path: string,
+  x: number,
+  y: number,
+  kind: string,
+  target?: string,
+): string {
+  const node = `<g class="graph-node ${kind}"><title>${escapeHtml(path)}</title><rect x="${x}" y="${y}" width="350" height="42" rx="9"></rect><text x="${x + 16}" y="${y + 26}">${escapeHtml(shortenPath(path))}</text></g>`;
+  return target === undefined
+    ? node
+    : `<a href="#${target}" aria-label="Jump to ${escapeHtml(path)}">${node}</a>`;
 }
 
 function shortenPath(path: string): string {
@@ -292,7 +341,7 @@ function renderFiles(files: readonly FileChange[]): string {
       <thead><tr><th>File</th><th>Status</th><th>Line delta</th></tr></thead>
       <tbody>${files
         .map(
-          (file) => `<tr>
+          (file, index) => `<tr id="file-${index}" data-report-path="${escapeHtml(file.path)}">
           <td><code>${escapeHtml(file.previousPath === undefined ? file.path : `${file.previousPath} → ${file.path}`)}</code></td>
           <td>${renderTag(file.kind)}</td>
           <td>${escapeHtml(formatLineDelta(file.lines))}</td>
@@ -386,9 +435,45 @@ const htmlEntities: Readonly<Record<string, string>> = {
   "'": "&#39;",
 };
 
+// 사용자 입력을 실행 코드에 삽입하지 않는다. 필터는 HTML의 이스케이프된 data 속성만 읽는다.
+const reportScript = `(() => {
+  const controls = document.getElementById("report-controls");
+  const input = document.getElementById("path-filter");
+  const status = document.getElementById("visible-count");
+  if (!controls || !input || !status) return;
+  controls.hidden = false;
+  let severity = "all";
+  const entries = [...document.querySelectorAll("[data-report-path]")];
+  const buttons = [...document.querySelectorAll("[data-severity-filter]")];
+  function update() {
+    const path = input.value.trim().toLocaleLowerCase();
+    let findings = 0;
+    for (const entry of entries) {
+      const matchesPath = entry.getAttribute("data-report-path").toLocaleLowerCase().includes(path);
+      const findingSeverity = entry.getAttribute("data-finding-severity");
+      entry.hidden = !matchesPath || (findingSeverity !== null && severity !== "all" && severity !== findingSeverity);
+      if (!entry.hidden && findingSeverity !== null) findings++;
+    }
+    status.textContent = [findings, "findings shown"].join(" ");
+  }
+  input.addEventListener("input", update);
+  for (const button of buttons) {
+    button.addEventListener("click", () => {
+      severity = button.getAttribute("data-severity-filter");
+      for (const item of buttons) item.setAttribute("aria-pressed", String(item === button));
+      update();
+    });
+  }
+  for (const link of document.querySelectorAll(".impact-graph a[href^='#']")) {
+    link.addEventListener("click", () => { input.value = ""; update(); });
+  }
+  update();
+})();`;
+
 const styles = `
 :root { color-scheme: dark; --bg:#080a0f; --panel:#10141d; --panel-2:#151b26; --line:#252d3b; --text:#f4f6fb; --muted:#8d98aa; --cyan:#58e6d9; --violet:#a890ff; --high:#ff647c; --medium:#ffb45b; --low:#6d8cff; }
 * { box-sizing:border-box; }
+.report-controls[hidden], [data-report-path][hidden] { display:none; }
 body { margin:0; background:radial-gradient(circle at 15% 0%,#172535 0,transparent 32rem),var(--bg); color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
 .shell { width:min(1180px,calc(100% - 40px)); margin:0 auto; padding:64px 0 40px; }
 .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin-bottom:28px; }
@@ -413,11 +498,22 @@ h1 { margin:8px 0 10px; font-size:clamp(36px,7vw,72px); line-height:.98; letter-
 .severity i { width:7px; height:7px; border-radius:50%; background:currentColor; }
 .severity strong { color:var(--text); }
 .severity.high { color:var(--high); }.severity.medium { color:var(--medium); }.severity.low { color:var(--low); }
+.report-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; padding:12px 16px; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
+.report-controls label { color:var(--muted); font-size:12px; }
+.report-controls input { min-width:190px; flex:1; padding:8px 10px; border:1px solid #344052; border-radius:7px; background:#0c1017; color:var(--text); }
+.severity-filters { display:flex; gap:4px; }
+.severity-filters>span { align-self:center; margin-right:3px; color:var(--muted); font-size:11px; }
+.severity-filters button { padding:8px 10px; border:1px solid #344052; border-radius:7px; background:#151b26; color:var(--muted); cursor:pointer; }
+.severity-filters button[aria-pressed="true"] { border-color:var(--cyan); color:var(--cyan); }
+#visible-count { color:var(--muted); font-size:11px; white-space:nowrap; }
 .panel { margin-top:18px; padding:24px; border:1px solid var(--line); border-radius:18px; background:rgba(16,20,29,.88); box-shadow:0 18px 70px rgba(0,0,0,.12); }
 .section-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .section-heading span { color:var(--muted); font-size:10px; }
 h2 { margin:5px 0 0; font-size:23px; letter-spacing:-.025em; }
 h3 { margin:0; font-size:16px; }
+code { overflow-wrap:anywhere; color:#c8d2e2; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+details { color:var(--muted); font-size:12px; } summary { cursor:pointer; }
+details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:grid; grid-template-columns:150px 1fr; gap:12px; } details dt { color:#667287; } details dd { margin:0; overflow-wrap:anywhere; color:#aeb7c6; }
 .contract-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; overflow:hidden; padding:1px; border-radius:12px; background:var(--line); }
 .contract-grid div { padding:16px; background:var(--panel-2); }
 .contract-grid dt { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
@@ -429,8 +525,6 @@ h3 { margin:0; font-size:16px; }
 .finding-heading>span { min-width:64px; padding:5px 7px; border-radius:7px; background:#232b39; color:var(--muted); font-size:10px; font-weight:800; text-align:center; text-transform:uppercase; }
 .finding code { display:block; margin-top:5px; color:var(--muted); }
 .finding p { margin:14px 0; color:#c3cad6; line-height:1.55; }
-details { color:var(--muted); font-size:12px; } summary { cursor:pointer; }
-details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:grid; grid-template-columns:150px 1fr; gap:12px; } details dt { color:#667287; } details dd { margin:0; overflow-wrap:anywhere; color:#aeb7c6; }
 .impact-list { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
 .impact-list article { display:grid; grid-template-columns:70px 1fr; gap:5px 12px; padding:15px; border:1px solid var(--line); border-radius:11px; background:var(--panel-2); }
 .impact-list .distance { grid-row:1/3; color:var(--violet); font-size:10px; font-weight:800; letter-spacing:.08em; }
@@ -444,11 +538,12 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .graph-edge.previous { stroke:var(--medium); stroke-dasharray:3 4; }
 .graph-node rect { fill:#151b26; stroke:#303a4b; }.graph-node.changed rect { stroke:#537b7b; }.graph-node.direct rect { stroke:#3d716f; }.graph-node.transitive rect { stroke:#615787; }
 .graph-node text { fill:#cbd5e5; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.impact-graph a { cursor:pointer; }.impact-graph a:hover rect { stroke:var(--cyan); stroke-width:2; }
+.impact-list article:target,tbody tr:target { outline:2px solid var(--cyan); outline-offset:-2px; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 th { padding:10px 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:10px; letter-spacing:.1em; text-align:left; text-transform:uppercase; }
 td { padding:14px 12px; border-bottom:1px solid #202735; vertical-align:top; } tbody tr:last-child td { border-bottom:0; }
-code { overflow-wrap:anywhere; color:#c8d2e2; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
 .tag { display:inline-block; padding:4px 7px; border:1px solid #344052; border-radius:6px; color:#aeb9ca; font-size:10px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
 .missing { color:var(--medium); }.matched { color:var(--cyan); }
 .notes { display:grid; gap:8px; margin:0; padding-left:18px; color:#b9c2d0; }
