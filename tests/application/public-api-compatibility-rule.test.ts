@@ -276,7 +276,10 @@ describe("PublicApiCompatibilityRule", () => {
 });
 
 async function analyze(change: SymbolChange, compatible: boolean | undefined = undefined) {
-  return new PublicApiCompatibilityRule({ preservesPreviousCalls: () => compatible }).analyze({
+  return new PublicApiCompatibilityRule(
+    { preservesPreviousCalls: () => compatible },
+    { preservesOptionalObjectExtensions: () => false },
+  ).analyze({
     target: { baseRef: "HEAD" },
     changes: createChangeSet([]),
     symbolChanges: createSymbolChangeSet([change]),

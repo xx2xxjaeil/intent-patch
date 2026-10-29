@@ -16,6 +16,7 @@ import { GitProjectFileSource } from "../../src/infrastructure/git/git-project-f
 import { JavaScriptSymbolExtractor } from "../../src/infrastructure/typescript/javascript-symbol-extractor.js";
 import { PackageExportsApiBoundary } from "../../src/infrastructure/typescript/package-exports-api-boundary.js";
 import { TypeScriptFunctionSignatureCompatibility } from "../../src/infrastructure/typescript/typescript-function-signature-compatibility.js";
+import { TypeScriptPropertyTypeCompatibility } from "../../src/infrastructure/typescript/typescript-property-type-compatibility.js";
 import { TypeScriptSymbolExtractor } from "../../src/infrastructure/typescript/typescript-symbol-extractor.js";
 
 const executeFile = promisify(execFile);
@@ -124,7 +125,10 @@ describe("public API removal integration", () => {
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
       new RuleEngine([
-        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
       ]),
       new CompareSourceSymbols(snapshots, [new TypeScriptSymbolExtractor()]),
     ).execute();
@@ -160,7 +164,10 @@ describe("public API removal integration", () => {
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
       new RuleEngine([
-        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
       ]),
       new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
         new TypeScriptSymbolExtractor(),
@@ -194,7 +201,10 @@ describe("public API removal integration", () => {
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
       new RuleEngine([
-        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
       ]),
       new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
         new TypeScriptSymbolExtractor(),
@@ -224,7 +234,10 @@ describe("public API removal integration", () => {
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
       new RuleEngine([
-        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
       ]),
       new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
         new TypeScriptSymbolExtractor(),
@@ -259,7 +272,10 @@ describe("public API removal integration", () => {
     const report = await new AnalyzeChanges(
       new GitChangeSource(repository),
       new RuleEngine([
-        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
       ]),
       new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
         new TypeScriptSymbolExtractor(),
@@ -340,7 +356,10 @@ describe("public API removal integration", () => {
       new GitChangeSource(repository),
       new RuleEngine([
         new PublicApiRemovalRule(),
-        new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
       ]),
       new CompareSourceSymbols(snapshots, [new JavaScriptSymbolExtractor()]),
     ).execute();

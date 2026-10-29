@@ -9,7 +9,8 @@ export interface TestChangePolicy {
   readonly requireFor: readonly string[];
   readonly include: readonly string[];
   readonly exclude: readonly string[];
-  readonly related: Readonly<Record<string, readonly string[]>>;
+  /** 이전 버전의 공개 정책 객체도 계속 사용할 수 있도록 선택적으로 유지한다. */
+  readonly related?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface ChangeContract {

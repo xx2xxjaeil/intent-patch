@@ -155,7 +155,7 @@ function renderContract(contract: ChangeContract | undefined): string {
           ["Test sources", testPolicy.requireFor.join(", ")],
           ["Test files", testPolicy.include.join(", ")],
           ["Test excludes", testPolicy.exclude.join(", ") || "None"],
-          ...Object.entries(testPolicy.related).map(([source, tests]) => [
+          ...Object.entries(testPolicy.related ?? {}).map(([source, tests]) => [
             `Related · ${source}`,
             tests.join(", "),
           ]),

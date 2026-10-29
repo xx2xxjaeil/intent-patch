@@ -33,8 +33,8 @@ export class AnalyzeTestChanges implements TestChangeAnalyzer {
         matchingTests: testFiles
           .filter(
             (test) =>
-              (Object.hasOwn(policy.related, source.path)
-                ? (policy.related[source.path] ?? []).some((path) =>
+              (Object.hasOwn(policy.related ?? {}, source.path)
+                ? (policy.related?.[source.path] ?? []).some((path) =>
                     matchesPathPattern(test.path, path),
                   )
                 : testIdentity(test.path) === sourceIdentity(source.path)) &&

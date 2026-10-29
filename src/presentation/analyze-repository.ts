@@ -34,6 +34,7 @@ import { SourceModuleReferenceExtractor } from "../infrastructure/typescript/sou
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptFunctionSignatureCompatibility } from "../infrastructure/typescript/typescript-function-signature-compatibility.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
+import { TypeScriptPropertyTypeCompatibility } from "../infrastructure/typescript/typescript-property-type-compatibility.js";
 import { TypeScriptSymbolExtractor } from "../infrastructure/typescript/typescript-symbol-extractor.js";
 import { YarnYamlLockParser } from "../infrastructure/yarn/yarn-lock-parser.js";
 
@@ -83,7 +84,10 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),
     new PublicApiRemovalRule(),
-    new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+    new PublicApiCompatibilityRule(
+      new TypeScriptFunctionSignatureCompatibility(),
+      new TypeScriptPropertyTypeCompatibility(),
+    ),
     new DuplicateImplementationRule(),
     new SingleImplementationAbstractionRule(),
   ]);

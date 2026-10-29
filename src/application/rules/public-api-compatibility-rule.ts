@@ -8,14 +8,18 @@ import type {
 } from "../../domain/symbol-change.js";
 import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FunctionSignatureCompatibility } from "../ports/function-signature-compatibility.js";
+import type { PropertyTypeCompatibility } from "../ports/property-type-compatibility.js";
 
 /** 공개 함수·인터페이스 계약과 공개 객체 타입의 구성원 삭제를 찾는다. */
 export class PublicApiCompatibilityRule implements AnalysisRule {
-  public constructor(private readonly signatureCompatibility: FunctionSignatureCompatibility) {}
+  public constructor(
+    private readonly signatureCompatibility: FunctionSignatureCompatibility,
+    private readonly propertyTypeCompatibility: PropertyTypeCompatibility,
+  ) {}
 
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
     return (context.symbolChanges?.changes ?? []).flatMap((change) =>
-      toFinding(change, this.signatureCompatibility),
+      toFinding(change, this.signatureCompatibility, this.propertyTypeCompatibility),
     );
   }
 }
@@ -23,6 +27,7 @@ export class PublicApiCompatibilityRule implements AnalysisRule {
 function toFinding(
   change: SymbolChange,
   signatureCompatibility: FunctionSignatureCompatibility,
+  propertyTypeCompatibility: PropertyTypeCompatibility,
 ): Finding[] {
   if (
     change.changeKind !== "modified" ||
@@ -45,7 +50,12 @@ function toFinding(
     );
   }
   if (change.beforePublicApi.kind === "interface" && change.afterPublicApi.kind === "interface") {
-    return interfaceFinding(change, change.beforePublicApi, change.afterPublicApi);
+    return interfaceFinding(
+      change,
+      change.beforePublicApi,
+      change.afterPublicApi,
+      propertyTypeCompatibility,
+    );
   }
   if (change.beforePublicApi.kind === "type-alias" && change.afterPublicApi.kind === "type-alias") {
     return typeAliasFinding(change, change.beforePublicApi, change.afterPublicApi);
@@ -123,8 +133,9 @@ function interfaceFinding(
   change: SymbolChange,
   before: InterfacePublicApi,
   after: InterfacePublicApi,
+  propertyTypeCompatibility: PropertyTypeCompatibility,
 ): Finding[] {
-  const reasons = interfaceBreakingReasons(before, after);
+  const reasons = interfaceBreakingReasons(before, after, propertyTypeCompatibility);
   if (reasons.length === 0) {
     return [];
   }
@@ -148,6 +159,7 @@ function interfaceFinding(
 function interfaceBreakingReasons(
   before: InterfacePublicApi,
   after: InterfacePublicApi,
+  propertyTypeCompatibility: PropertyTypeCompatibility,
 ): readonly string[] {
   const reasons: string[] = [];
   if (!sameValues(before.extendsTypes, after.extendsTypes)) {
@@ -155,13 +167,20 @@ function interfaceBreakingReasons(
   }
 
   for (const member of before.members) {
-    if (!after.members.some((current) => preservesMember(member, current))) {
+    if (
+      !after.members.some((current) => preservesMember(member, current, propertyTypeCompatibility))
+    ) {
       reasons.push(`member removed or changed: ${member.name}`);
     }
   }
 
   for (const member of after.members) {
-    if (!member.optional && !before.members.some((previous) => preservesMember(previous, member))) {
+    if (
+      !member.optional &&
+      !before.members.some((previous) =>
+        preservesMember(previous, member, propertyTypeCompatibility),
+      )
+    ) {
       reasons.push(`required member added or changed: ${member.name}`);
     }
   }
@@ -169,7 +188,11 @@ function interfaceBreakingReasons(
   return [...new Set(reasons)].sort();
 }
 
-function preservesMember(previous: PublicApiMember, current: PublicApiMember): boolean {
+function preservesMember(
+  previous: PublicApiMember,
+  current: PublicApiMember,
+  propertyTypeCompatibility: PropertyTypeCompatibility,
+): boolean {
   if (
     previous.name !== current.name ||
     previous.memberKind !== current.memberKind ||
@@ -179,7 +202,12 @@ function preservesMember(previous: PublicApiMember, current: PublicApiMember): b
   return (
     previous.signature === current.signature ||
     (previous.memberKind === "method" &&
-      preservesMethodCalls(previous.signature, current.signature))
+      preservesMethodCalls(previous.signature, current.signature)) ||
+    (previous.memberKind === "property" &&
+      propertyTypeCompatibility.preservesOptionalObjectExtensions(
+        previous.signature,
+        current.signature,
+      ))
   );
 }
 

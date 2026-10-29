@@ -155,7 +155,7 @@ function formatChangeContract(contract: ChangeContract): string[] {
       `Test files      ${contract.tests.include.join(", ")}`,
       `Test excludes   ${contract.tests.exclude.join(", ") || "(none)"}`,
     );
-    for (const [source, tests] of Object.entries(contract.tests.related)) {
+    for (const [source, tests] of Object.entries(contract.tests.related ?? {})) {
       lines.push(`Related tests   ${source} → ${tests.join(", ")}`);
     }
   }
