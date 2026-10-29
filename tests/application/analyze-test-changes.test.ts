@@ -108,6 +108,41 @@ describe("AnalyzeTestChanges", () => {
     assert.deepEqual(modifiedSource.sourceCoverage[0]?.matchingTests, []);
     assert.deepEqual(deletedSource.sourceCoverage[0]?.matchingTests, ["tests/user.test.ts"]);
   });
+
+  it("uses an explicit related-test mapping instead of basename when configured", async () => {
+    const result = await new AnalyzeTestChanges().analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([
+        changedFile("src/user.ts"),
+        changedFile("tests/user.test.ts"),
+        changedFile("tests/account-flow.test.ts"),
+      ]),
+      contract: createChangeContract({
+        tests: {
+          requireFor: ["src/**"],
+          include: ["tests/**"],
+          related: { "src/user.ts": ["tests/account-*.test.ts"] },
+        },
+      }),
+    });
+
+    assert.deepEqual(result.sourceCoverage[0]?.matchingTests, ["tests/account-flow.test.ts"]);
+  });
+
+  it("does not fall back to a matching basename when an explicit mapping has no changed test", async () => {
+    const result = await new AnalyzeTestChanges().analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([changedFile("src/user.ts"), changedFile("tests/user.test.ts")]),
+      contract: createChangeContract({
+        tests: {
+          requireFor: ["src/**"],
+          include: ["tests/**"],
+          related: { "src/user.ts": ["tests/account-flow.test.ts"] },
+        },
+      }),
+    });
+    assert.deepEqual(result.sourceCoverage[0]?.matchingTests, []);
+  });
 });
 
 function changedFile(path: string, kind: FileChange["kind"] = "modified"): FileChange {

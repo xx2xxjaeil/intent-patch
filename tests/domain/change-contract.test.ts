@@ -16,6 +16,7 @@ describe("createChangeContract", () => {
         requireFor: ["src/**/*.ts"],
         include: ["tests/**", "**/*.test.ts"],
         exclude: ["src/**/*.d.ts"],
+        related: { "src/user.ts": ["tests/account.test.ts"] },
       },
     });
 
@@ -31,11 +32,13 @@ describe("createChangeContract", () => {
         requireFor: ["src/**/*.ts"],
         include: ["**/*.test.ts", "tests/**"],
         exclude: ["src/**/*.d.ts"],
+        related: Object.assign(Object.create(null), { "src/user.ts": ["tests/account.test.ts"] }),
       },
     });
     assert.equal(Object.isFrozen(contract), true);
     assert.equal(Object.isFrozen(contract.scope), true);
     assert.equal(Object.isFrozen(contract.scope.include), true);
+    assert.equal(Object.isFrozen(contract.tests?.related), true);
   });
 
   it("uses an empty scope when optional fields are absent", () => {
@@ -59,6 +62,17 @@ describe("createChangeContract", () => {
     assert.throws(
       () => createChangeContract({ tests: { requireFor: ["src/**"] } }),
       /tests.include must contain/,
+    );
+    assert.throws(
+      () =>
+        createChangeContract({
+          tests: {
+            requireFor: ["src/**"],
+            include: ["tests/**"],
+            related: { "src/*.ts": ["tests/a.test.ts"] },
+          },
+        }),
+      /source paths must be exact/,
     );
   });
 });
