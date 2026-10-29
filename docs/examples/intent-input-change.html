@@ -8,6 +8,7 @@
   <style>
 :root { color-scheme: dark; --bg:#080a0f; --panel:#10141d; --panel-2:#151b26; --line:#252d3b; --text:#f4f6fb; --muted:#8d98aa; --cyan:#58e6d9; --violet:#a890ff; --high:#ff647c; --medium:#ffb45b; --low:#6d8cff; }
 * { box-sizing:border-box; }
+.report-controls[hidden], [data-report-path][hidden] { display:none; }
 body { margin:0; background:radial-gradient(circle at 15% 0%,#172535 0,transparent 32rem),var(--bg); color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
 .shell { width:min(1180px,calc(100% - 40px)); margin:0 auto; padding:64px 0 40px; }
 .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin-bottom:28px; }
@@ -32,11 +33,22 @@ h1 { margin:8px 0 10px; font-size:clamp(36px,7vw,72px); line-height:.98; letter-
 .severity i { width:7px; height:7px; border-radius:50%; background:currentColor; }
 .severity strong { color:var(--text); }
 .severity.high { color:var(--high); }.severity.medium { color:var(--medium); }.severity.low { color:var(--low); }
+.report-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; padding:12px 16px; border:1px solid var(--line); border-radius:14px; background:var(--panel); }
+.report-controls label { color:var(--muted); font-size:12px; }
+.report-controls input { min-width:190px; flex:1; padding:8px 10px; border:1px solid #344052; border-radius:7px; background:#0c1017; color:var(--text); }
+.severity-filters { display:flex; gap:4px; }
+.severity-filters>span { align-self:center; margin-right:3px; color:var(--muted); font-size:11px; }
+.severity-filters button { padding:8px 10px; border:1px solid #344052; border-radius:7px; background:#151b26; color:var(--muted); cursor:pointer; }
+.severity-filters button[aria-pressed="true"] { border-color:var(--cyan); color:var(--cyan); }
+#visible-count { color:var(--muted); font-size:11px; white-space:nowrap; }
 .panel { margin-top:18px; padding:24px; border:1px solid var(--line); border-radius:18px; background:rgba(16,20,29,.88); box-shadow:0 18px 70px rgba(0,0,0,.12); }
 .section-heading { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; }
 .section-heading span { color:var(--muted); font-size:10px; }
 h2 { margin:5px 0 0; font-size:23px; letter-spacing:-.025em; }
 h3 { margin:0; font-size:16px; }
+code { overflow-wrap:anywhere; color:#c8d2e2; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+details { color:var(--muted); font-size:12px; } summary { cursor:pointer; }
+details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:grid; grid-template-columns:150px 1fr; gap:12px; } details dt { color:#667287; } details dd { margin:0; overflow-wrap:anywhere; color:#aeb7c6; }
 .contract-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:1px; overflow:hidden; padding:1px; border-radius:12px; background:var(--line); }
 .contract-grid div { padding:16px; background:var(--panel-2); }
 .contract-grid dt { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
@@ -48,8 +60,6 @@ h3 { margin:0; font-size:16px; }
 .finding-heading>span { min-width:64px; padding:5px 7px; border-radius:7px; background:#232b39; color:var(--muted); font-size:10px; font-weight:800; text-align:center; text-transform:uppercase; }
 .finding code { display:block; margin-top:5px; color:var(--muted); }
 .finding p { margin:14px 0; color:#c3cad6; line-height:1.55; }
-details { color:var(--muted); font-size:12px; } summary { cursor:pointer; }
-details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:grid; grid-template-columns:150px 1fr; gap:12px; } details dt { color:#667287; } details dd { margin:0; overflow-wrap:anywhere; color:#aeb7c6; }
 .impact-list { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
 .impact-list article { display:grid; grid-template-columns:70px 1fr; gap:5px 12px; padding:15px; border:1px solid var(--line); border-radius:11px; background:var(--panel-2); }
 .impact-list .distance { grid-row:1/3; color:var(--violet); font-size:10px; font-weight:800; letter-spacing:.08em; }
@@ -60,13 +70,15 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .graph-edge { fill:none; stroke:#56627a; stroke-width:1.5; marker-end:url(#arrow); }
 #arrow path { fill:#7a879e; }
 .graph-edge.direct { stroke:var(--cyan); }.graph-edge.transitive { stroke:var(--violet); stroke-dasharray:5 5; }
+.graph-edge.previous { stroke:var(--medium); stroke-dasharray:3 4; }
 .graph-node rect { fill:#151b26; stroke:#303a4b; }.graph-node.changed rect { stroke:#537b7b; }.graph-node.direct rect { stroke:#3d716f; }.graph-node.transitive rect { stroke:#615787; }
 .graph-node text { fill:#cbd5e5; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.impact-graph a { cursor:pointer; }.impact-graph a:hover rect { stroke:var(--cyan); stroke-width:2; }
+.impact-list article:target,tbody tr:target { outline:2px solid var(--cyan); outline-offset:-2px; }
 .table-wrap { overflow-x:auto; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
 th { padding:10px 12px; border-bottom:1px solid var(--line); color:var(--muted); font-size:10px; letter-spacing:.1em; text-align:left; text-transform:uppercase; }
 td { padding:14px 12px; border-bottom:1px solid #202735; vertical-align:top; } tbody tr:last-child td { border-bottom:0; }
-code { overflow-wrap:anywhere; color:#c8d2e2; font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
 .tag { display:inline-block; padding:4px 7px; border:1px solid #344052; border-radius:6px; color:#aeb9ca; font-size:10px; font-weight:750; letter-spacing:.06em; text-transform:uppercase; }
 .missing { color:var(--medium); }.matched { color:var(--cyan); }
 .notes { display:grid; gap:8px; margin:0; padding-left:18px; color:#b9c2d0; }
@@ -147,6 +159,17 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
       <span class="severity medium"><i></i>Medium <strong>1</strong></span>
       <span class="severity low"><i></i>Low <strong>0</strong></span>
     </section>
+    <div class="report-controls" id="report-controls" hidden>
+      <label for="path-filter">Filter file path</label>
+      <input id="path-filter" type="search" placeholder="e.g. src/api" autocomplete="off">
+      <div class="severity-filters"><span>Severity</span>
+        <button type="button" data-severity-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-severity-filter="high" aria-pressed="false">High</button>
+        <button type="button" data-severity-filter="medium" aria-pressed="false">Medium</button>
+        <button type="button" data-severity-filter="low" aria-pressed="false">Low</button>
+      </div>
+      <span id="visible-count" role="status" aria-live="polite"></span>
+    </div>
     
     <section class="panel">
       <div class="section-heading"><div><span>9 affected files</span><h2>Impact reach</h2></div></div>
@@ -168,63 +191,63 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
         <path class="graph-edge direct" d="M 390 139 C 480 139, 520 459, 610 459" />
         <path class="graph-edge direct" d="M 390 139 C 480 139, 520 523, 610 523" />
         <path class="graph-edge transitive" d="M 390 331 C 480 331, 520 587, 610 587" />
-        <g class="graph-node changed"><title>src/infrastructure/config/text-intent-loader.ts</title><rect x="40" y="54" width="350" height="42" rx="9"></rect><text x="56" y="80">src/infrastructure/con…/text-intent-loader.ts</text></g>
-        <g class="graph-node changed"><title>src/presentation/analyze-repository.ts</title><rect x="40" y="118" width="350" height="42" rx="9"></rect><text x="56" y="144">src/presentation/analyze-repository.ts</text></g>
-        <g class="graph-node changed"><title>src/presentation/cli/arguments.ts</title><rect x="40" y="182" width="350" height="42" rx="9"></rect><text x="56" y="208">src/presentation/cli/arguments.ts</text></g>
-        <g class="graph-node changed"><title>src/presentation/cli/main.ts</title><rect x="40" y="246" width="350" height="42" rx="9"></rect><text x="56" y="272">src/presentation/cli/main.ts</text></g>
-        <g class="graph-node changed"><title>src/presentation/github/action-inputs.ts</title><rect x="40" y="310" width="350" height="42" rx="9"></rect><text x="56" y="336">src/presentation/github/action-inputs.ts</text></g>
-        <g class="graph-node changed"><title>src/presentation/github/pr-body-intent.ts</title><rect x="40" y="374" width="350" height="42" rx="9"></rect><text x="56" y="400">src/presentation/github/pr-body-intent.ts</text></g>
-        <g class="graph-node changed"><title>src/presentation/github/run-action.ts</title><rect x="40" y="438" width="350" height="42" rx="9"></rect><text x="56" y="464">src/presentation/github/run-action.ts</text></g>
-        <g class="graph-node changed"><title>tests/infrastructure/text-intent-loader.test.ts</title><rect x="40" y="502" width="350" height="42" rx="9"></rect><text x="56" y="528">tests/infrastructure/t…-intent-loader.test.ts</text></g>
-        <g class="graph-node changed"><title>tests/integration/cli-intent-file.test.ts</title><rect x="40" y="566" width="350" height="42" rx="9"></rect><text x="56" y="592">tests/integration/cli-intent-file.test.ts</text></g>
-        <g class="graph-node changed"><title>tests/integration/github-action.test.ts</title><rect x="40" y="630" width="350" height="42" rx="9"></rect><text x="56" y="656">tests/integration/github-action.test.ts</text></g>
-        <g class="graph-node changed"><title>tests/presentation/arguments.test.ts</title><rect x="40" y="694" width="350" height="42" rx="9"></rect><text x="56" y="720">tests/presentation/arguments.test.ts</text></g>
-        <g class="graph-node changed"><title>tests/presentation/github-action-inputs.test.ts</title><rect x="40" y="758" width="350" height="42" rx="9"></rect><text x="56" y="784">tests/presentation/git…-action-inputs.test.ts</text></g>
-        <g class="graph-node changed"><title>tests/presentation/pr-body-intent.test.ts</title><rect x="40" y="822" width="350" height="42" rx="9"></rect><text x="56" y="848">tests/presentation/pr-body-intent.test.ts</text></g>
-        <g class="graph-node direct"><title>src/presentation/cli/report-formatter.ts</title><rect x="610" y="54" width="350" height="42" rx="9"></rect><text x="626" y="80">src/presentation/cli/report-formatter.ts</text></g>
-        <g class="graph-node direct"><title>src/presentation/github/action-main.ts</title><rect x="610" y="118" width="350" height="42" rx="9"></rect><text x="626" y="144">src/presentation/github/action-main.ts</text></g>
-        <g class="graph-node direct"><title>src/presentation/github/action-runtime.ts</title><rect x="610" y="182" width="350" height="42" rx="9"></rect><text x="626" y="208">src/presentation/github/action-runtime.ts</text></g>
-        <g class="graph-node direct"><title>tests/integration/added-dependency-usage-analysis.test.ts</title><rect x="610" y="246" width="350" height="42" rx="9"></rect><text x="626" y="272">tests/integration/adde…usage-analysis.test.ts</text></g>
-        <g class="graph-node direct"><title>tests/integration/npm-lockfile-analysis.test.ts</title><rect x="610" y="310" width="350" height="42" rx="9"></rect><text x="626" y="336">tests/integration/npm-…kfile-analysis.test.ts</text></g>
-        <g class="graph-node direct"><title>tests/integration/npm-workspace-analysis.test.ts</title><rect x="610" y="374" width="350" height="42" rx="9"></rect><text x="626" y="400">tests/integration/npm-…space-analysis.test.ts</text></g>
-        <g class="graph-node direct"><title>tests/integration/pnpm-lockfile-analysis.test.ts</title><rect x="610" y="438" width="350" height="42" rx="9"></rect><text x="626" y="464">tests/integration/pnpm…kfile-analysis.test.ts</text></g>
-        <g class="graph-node direct"><title>tests/integration/pnpm-workspace-analysis.test.ts</title><rect x="610" y="502" width="350" height="42" rx="9"></rect><text x="626" y="528">tests/integration/pnpm…space-analysis.test.ts</text></g>
-        <g class="graph-node transitive"><title>tests/presentation/github-action-runtime.test.ts</title><rect x="610" y="566" width="350" height="42" rx="9"></rect><text x="626" y="592">tests/presentation/git…action-runtime.test.ts</text></g>
+        <a href="#file-2" aria-label="Jump to src/infrastructure/config/text-intent-loader.ts"><g class="graph-node changed"><title>src/infrastructure/config/text-intent-loader.ts</title><rect x="40" y="54" width="350" height="42" rx="9"></rect><text x="56" y="80">src/infrastructure/con…/text-intent-loader.ts</text></g></a>
+        <a href="#file-3" aria-label="Jump to src/presentation/analyze-repository.ts"><g class="graph-node changed"><title>src/presentation/analyze-repository.ts</title><rect x="40" y="118" width="350" height="42" rx="9"></rect><text x="56" y="144">src/presentation/analyze-repository.ts</text></g></a>
+        <a href="#file-4" aria-label="Jump to src/presentation/cli/arguments.ts"><g class="graph-node changed"><title>src/presentation/cli/arguments.ts</title><rect x="40" y="182" width="350" height="42" rx="9"></rect><text x="56" y="208">src/presentation/cli/arguments.ts</text></g></a>
+        <a href="#file-5" aria-label="Jump to src/presentation/cli/main.ts"><g class="graph-node changed"><title>src/presentation/cli/main.ts</title><rect x="40" y="246" width="350" height="42" rx="9"></rect><text x="56" y="272">src/presentation/cli/main.ts</text></g></a>
+        <a href="#file-6" aria-label="Jump to src/presentation/github/action-inputs.ts"><g class="graph-node changed"><title>src/presentation/github/action-inputs.ts</title><rect x="40" y="310" width="350" height="42" rx="9"></rect><text x="56" y="336">src/presentation/github/action-inputs.ts</text></g></a>
+        <a href="#file-7" aria-label="Jump to src/presentation/github/pr-body-intent.ts"><g class="graph-node changed"><title>src/presentation/github/pr-body-intent.ts</title><rect x="40" y="374" width="350" height="42" rx="9"></rect><text x="56" y="400">src/presentation/github/pr-body-intent.ts</text></g></a>
+        <a href="#file-8" aria-label="Jump to src/presentation/github/run-action.ts"><g class="graph-node changed"><title>src/presentation/github/run-action.ts</title><rect x="40" y="438" width="350" height="42" rx="9"></rect><text x="56" y="464">src/presentation/github/run-action.ts</text></g></a>
+        <a href="#file-9" aria-label="Jump to tests/infrastructure/text-intent-loader.test.ts"><g class="graph-node changed"><title>tests/infrastructure/text-intent-loader.test.ts</title><rect x="40" y="502" width="350" height="42" rx="9"></rect><text x="56" y="528">tests/infrastructure/t…-intent-loader.test.ts</text></g></a>
+        <a href="#file-10" aria-label="Jump to tests/integration/cli-intent-file.test.ts"><g class="graph-node changed"><title>tests/integration/cli-intent-file.test.ts</title><rect x="40" y="566" width="350" height="42" rx="9"></rect><text x="56" y="592">tests/integration/cli-intent-file.test.ts</text></g></a>
+        <a href="#file-11" aria-label="Jump to tests/integration/github-action.test.ts"><g class="graph-node changed"><title>tests/integration/github-action.test.ts</title><rect x="40" y="630" width="350" height="42" rx="9"></rect><text x="56" y="656">tests/integration/github-action.test.ts</text></g></a>
+        <a href="#file-12" aria-label="Jump to tests/presentation/arguments.test.ts"><g class="graph-node changed"><title>tests/presentation/arguments.test.ts</title><rect x="40" y="694" width="350" height="42" rx="9"></rect><text x="56" y="720">tests/presentation/arguments.test.ts</text></g></a>
+        <a href="#file-13" aria-label="Jump to tests/presentation/github-action-inputs.test.ts"><g class="graph-node changed"><title>tests/presentation/github-action-inputs.test.ts</title><rect x="40" y="758" width="350" height="42" rx="9"></rect><text x="56" y="784">tests/presentation/git…-action-inputs.test.ts</text></g></a>
+        <a href="#file-14" aria-label="Jump to tests/presentation/pr-body-intent.test.ts"><g class="graph-node changed"><title>tests/presentation/pr-body-intent.test.ts</title><rect x="40" y="822" width="350" height="42" rx="9"></rect><text x="56" y="848">tests/presentation/pr-body-intent.test.ts</text></g></a>
+        <a href="#impact-0" aria-label="Jump to src/presentation/cli/report-formatter.ts"><g class="graph-node direct"><title>src/presentation/cli/report-formatter.ts</title><rect x="610" y="54" width="350" height="42" rx="9"></rect><text x="626" y="80">src/presentation/cli/report-formatter.ts</text></g></a>
+        <a href="#impact-1" aria-label="Jump to src/presentation/github/action-main.ts"><g class="graph-node direct"><title>src/presentation/github/action-main.ts</title><rect x="610" y="118" width="350" height="42" rx="9"></rect><text x="626" y="144">src/presentation/github/action-main.ts</text></g></a>
+        <a href="#impact-2" aria-label="Jump to src/presentation/github/action-runtime.ts"><g class="graph-node direct"><title>src/presentation/github/action-runtime.ts</title><rect x="610" y="182" width="350" height="42" rx="9"></rect><text x="626" y="208">src/presentation/github/action-runtime.ts</text></g></a>
+        <a href="#impact-3" aria-label="Jump to tests/integration/added-dependency-usage-analysis.test.ts"><g class="graph-node direct"><title>tests/integration/added-dependency-usage-analysis.test.ts</title><rect x="610" y="246" width="350" height="42" rx="9"></rect><text x="626" y="272">tests/integration/adde…usage-analysis.test.ts</text></g></a>
+        <a href="#impact-4" aria-label="Jump to tests/integration/npm-lockfile-analysis.test.ts"><g class="graph-node direct"><title>tests/integration/npm-lockfile-analysis.test.ts</title><rect x="610" y="310" width="350" height="42" rx="9"></rect><text x="626" y="336">tests/integration/npm-…kfile-analysis.test.ts</text></g></a>
+        <a href="#impact-5" aria-label="Jump to tests/integration/npm-workspace-analysis.test.ts"><g class="graph-node direct"><title>tests/integration/npm-workspace-analysis.test.ts</title><rect x="610" y="374" width="350" height="42" rx="9"></rect><text x="626" y="400">tests/integration/npm-…space-analysis.test.ts</text></g></a>
+        <a href="#impact-6" aria-label="Jump to tests/integration/pnpm-lockfile-analysis.test.ts"><g class="graph-node direct"><title>tests/integration/pnpm-lockfile-analysis.test.ts</title><rect x="610" y="438" width="350" height="42" rx="9"></rect><text x="626" y="464">tests/integration/pnpm…kfile-analysis.test.ts</text></g></a>
+        <a href="#impact-7" aria-label="Jump to tests/integration/pnpm-workspace-analysis.test.ts"><g class="graph-node direct"><title>tests/integration/pnpm-workspace-analysis.test.ts</title><rect x="610" y="502" width="350" height="42" rx="9"></rect><text x="626" y="528">tests/integration/pnpm…space-analysis.test.ts</text></g></a>
+        <a href="#impact-8" aria-label="Jump to tests/presentation/github-action-runtime.test.ts"><g class="graph-node transitive"><title>tests/presentation/github-action-runtime.test.ts</title><rect x="610" y="566" width="350" height="42" rx="9"></rect><text x="626" y="592">tests/presentation/git…action-runtime.test.ts</text></g></a>
       </svg>
     </div>
-      <div class="impact-list"><article>
+      <div class="impact-list"><article id="impact-0" data-report-path="src/presentation/cli/report-formatter.ts">
           <span class="distance">DIRECT</span>
           <code>src/presentation/cli/report-formatter.ts</code>
           <small>from src/presentation/cli/arguments.ts</small>
-        </article><article>
+        </article><article id="impact-1" data-report-path="src/presentation/github/action-main.ts">
           <span class="distance">DIRECT</span>
           <code>src/presentation/github/action-main.ts</code>
           <small>from src/infrastructure/config/text-intent-loader.ts, src/presentation/analyze-repository.ts, src/presentation/github/action-inputs.ts, src/presentation/github/pr-body-intent.ts, src/presentation/github/run-action.ts</small>
-        </article><article>
+        </article><article id="impact-2" data-report-path="src/presentation/github/action-runtime.ts">
           <span class="distance">DIRECT</span>
           <code>src/presentation/github/action-runtime.ts</code>
           <small>from src/presentation/github/action-inputs.ts</small>
-        </article><article>
+        </article><article id="impact-3" data-report-path="tests/integration/added-dependency-usage-analysis.test.ts">
           <span class="distance">DIRECT</span>
           <code>tests/integration/added-dependency-usage-analysis.test.ts</code>
           <small>from src/presentation/analyze-repository.ts</small>
-        </article><article>
+        </article><article id="impact-4" data-report-path="tests/integration/npm-lockfile-analysis.test.ts">
           <span class="distance">DIRECT</span>
           <code>tests/integration/npm-lockfile-analysis.test.ts</code>
           <small>from src/presentation/analyze-repository.ts</small>
-        </article><article>
+        </article><article id="impact-5" data-report-path="tests/integration/npm-workspace-analysis.test.ts">
           <span class="distance">DIRECT</span>
           <code>tests/integration/npm-workspace-analysis.test.ts</code>
           <small>from src/presentation/analyze-repository.ts</small>
-        </article><article>
+        </article><article id="impact-6" data-report-path="tests/integration/pnpm-lockfile-analysis.test.ts">
           <span class="distance">DIRECT</span>
           <code>tests/integration/pnpm-lockfile-analysis.test.ts</code>
           <small>from src/presentation/analyze-repository.ts</small>
-        </article><article>
+        </article><article id="impact-7" data-report-path="tests/integration/pnpm-workspace-analysis.test.ts">
           <span class="distance">DIRECT</span>
           <code>tests/integration/pnpm-workspace-analysis.test.ts</code>
           <small>from src/presentation/analyze-repository.ts</small>
-        </article><article>
+        </article><article id="impact-8" data-report-path="tests/presentation/github-action-runtime.test.ts">
           <span class="distance">2 HOPS</span>
           <code>tests/presentation/github-action-runtime.test.ts</code>
           <small>from src/presentation/github/action-inputs.ts</small>
@@ -232,7 +255,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
     </section>
     <section class="panel">
       <div class="section-heading"><div><span>2 findings</span><h2>Potential issues</h2></div></div>
-      <div class="finding-list"><article class="finding high">
+      <div class="finding-list"><article class="finding high" data-report-path="src/presentation/github/action-inputs.ts" data-finding-severity="high">
           <div class="finding-heading">
             <span>high</span>
             <div><h3>Public interface contract changed</h3><code>src/presentation/github/action-inputs.ts</code></div>
@@ -241,7 +264,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
           <details><summary>api/public-interface-changed · evidence</summary>
             <dl><div><dt>symbolName</dt><dd>GitHubActionInputs</dd></div><div><dt>changes</dt><dd>required member added or changed: intentFromPrBody</dd></div><div><dt>currentLine</dt><dd>3</dd></div></dl>
           </details>
-        </article><article class="finding medium">
+        </article><article class="finding medium" data-report-path="src/presentation/github/pr-body-intent.ts" data-finding-severity="medium">
           <div class="finding-heading">
             <span>medium</span>
             <div><h3>New function duplicates existing implementation</h3><code>src/presentation/github/pr-body-intent.ts</code></div>
@@ -257,63 +280,63 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
       <div class="section-heading"><div><span>15 files</span><h2>Changed files</h2></div></div>
       <div class="table-wrap"><table>
       <thead><tr><th>File</th><th>Status</th><th>Line delta</th></tr></thead>
-      <tbody><tr>
+      <tbody><tr id="file-0" data-report-path="action-dist/index.cjs">
           <td><code>action-dist/index.cjs</code></td>
           <td><span class="tag">modified</span></td>
           <td>+215 / -215</td>
-        </tr><tr>
+        </tr><tr id="file-1" data-report-path="action.yml">
           <td><code>action.yml</code></td>
           <td><span class="tag">modified</span></td>
           <td>+7 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-2" data-report-path="src/infrastructure/config/text-intent-loader.ts">
           <td><code>src/infrastructure/config/text-intent-loader.ts</code></td>
           <td><span class="tag">added</span></td>
           <td>+30 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-3" data-report-path="src/presentation/analyze-repository.ts">
           <td><code>src/presentation/analyze-repository.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+13 / -1</td>
-        </tr><tr>
+        </tr><tr id="file-4" data-report-path="src/presentation/cli/arguments.ts">
           <td><code>src/presentation/cli/arguments.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+8 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-5" data-report-path="src/presentation/cli/main.ts">
           <td><code>src/presentation/cli/main.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+6 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-6" data-report-path="src/presentation/github/action-inputs.ts">
           <td><code>src/presentation/github/action-inputs.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+11 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-7" data-report-path="src/presentation/github/pr-body-intent.ts">
           <td><code>src/presentation/github/pr-body-intent.ts</code></td>
           <td><span class="tag">added</span></td>
           <td>+18 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-8" data-report-path="src/presentation/github/run-action.ts">
           <td><code>src/presentation/github/run-action.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+14 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-9" data-report-path="tests/infrastructure/text-intent-loader.test.ts">
           <td><code>tests/infrastructure/text-intent-loader.test.ts</code></td>
           <td><span class="tag">added</span></td>
           <td>+37 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-10" data-report-path="tests/integration/cli-intent-file.test.ts">
           <td><code>tests/integration/cli-intent-file.test.ts</code></td>
           <td><span class="tag">added</span></td>
           <td>+70 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-11" data-report-path="tests/integration/github-action.test.ts">
           <td><code>tests/integration/github-action.test.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+51 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-12" data-report-path="tests/presentation/arguments.test.ts">
           <td><code>tests/presentation/arguments.test.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+3 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-13" data-report-path="tests/presentation/github-action-inputs.test.ts">
           <td><code>tests/presentation/github-action-inputs.test.ts</code></td>
           <td><span class="tag">modified</span></td>
           <td>+9 / -0</td>
-        </tr><tr>
+        </tr><tr id="file-14" data-report-path="tests/presentation/pr-body-intent.test.ts">
           <td><code>tests/presentation/pr-body-intent.test.ts</code></td>
           <td><span class="tag">added</span></td>
           <td>+19 / -0</td>
@@ -399,5 +422,38 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
       <span>Evidence over claims · LLM optional</span>
     </footer>
   </main>
+  <script>(() => {
+  const controls = document.getElementById("report-controls");
+  const input = document.getElementById("path-filter");
+  const status = document.getElementById("visible-count");
+  if (!controls || !input || !status) return;
+  controls.hidden = false;
+  let severity = "all";
+  const entries = [...document.querySelectorAll("[data-report-path]")];
+  const buttons = [...document.querySelectorAll("[data-severity-filter]")];
+  function update() {
+    const path = input.value.trim().toLocaleLowerCase();
+    let findings = 0;
+    for (const entry of entries) {
+      const matchesPath = entry.getAttribute("data-report-path").toLocaleLowerCase().includes(path);
+      const findingSeverity = entry.getAttribute("data-finding-severity");
+      entry.hidden = !matchesPath || (findingSeverity !== null && severity !== "all" && severity !== findingSeverity);
+      if (!entry.hidden && findingSeverity !== null) findings++;
+    }
+    status.textContent = [findings, "findings shown"].join(" ");
+  }
+  input.addEventListener("input", update);
+  for (const button of buttons) {
+    button.addEventListener("click", () => {
+      severity = button.getAttribute("data-severity-filter");
+      for (const item of buttons) item.setAttribute("aria-pressed", String(item === button));
+      update();
+    });
+  }
+  for (const link of document.querySelectorAll(".impact-graph a[href^='#']")) {
+    link.addEventListener("click", () => { input.value = ""; update(); });
+  }
+  update();
+})();</script>
 </body>
 </html>

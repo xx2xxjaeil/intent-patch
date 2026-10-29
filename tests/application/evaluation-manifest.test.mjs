@@ -55,4 +55,34 @@ describe("external evaluation manifest", () => {
       /Evaluation labels require/,
     );
   });
+
+  it("requires reviewed package labels and explicit contracts for non-API cases", () => {
+    const dependency = {
+      ...validCase,
+      id: "new-package",
+      ruleId: "dependency/new-production",
+      expected: [{ file: "package.json", package: "queue" }],
+    };
+    assert.doesNotThrow(() => validateEvaluationManifest(manifest([dependency])));
+    assert.throws(
+      () =>
+        validateEvaluationManifest(
+          manifest([{ ...dependency, expected: [{ file: "package.json", symbolName: "queue" }] }]),
+        ),
+      /Invalid package label/,
+    );
+    assert.throws(
+      () =>
+        validateEvaluationManifest(
+          manifest([
+            {
+              ...validCase,
+              ruleId: "scope/outside-expected-path",
+              expected: [{ file: "src/x.ts" }],
+            },
+          ]),
+        ),
+      /Missing contract/,
+    );
+  });
 });

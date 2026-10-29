@@ -57,4 +57,27 @@ describe("MissingTestChangeRule", () => {
       },
     ]);
   });
+
+  it("identifies an explicit related-test mapping in the finding evidence", async () => {
+    const findings = await new MissingTestChangeRule().analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([]),
+      contract: createChangeContract({
+        tests: {
+          requireFor: ["src/**"],
+          include: ["tests/**"],
+          related: { "src/account.ts": ["tests/account-flow.test.ts"] },
+        },
+      }),
+      testChanges: createTestChangeAnalysis({
+        testFiles: [],
+        sourceCoverage: [
+          { sourcePath: "src/account.ts", sourceChangeKind: "modified", matchingTests: [] },
+        ],
+      }),
+    });
+
+    assert.equal(findings[0]?.evidence.matchingStrategy, "explicit");
+    assert.match(findings[0]?.description ?? "", /explicit related-test mapping/);
+  });
 });

@@ -10,7 +10,7 @@ import { isRecord } from "../../domain/value-guards.js";
 const defaultConfigurationFile = ".intentpatch.json";
 const rootFields = new Set(["intent", "scope", "tests"]);
 const scopeFields = new Set(["include", "allow", "maxFiles", "maxLines"]);
-const testFields = new Set(["requireFor", "include", "exclude"]);
+const testFields = new Set(["requireFor", "include", "exclude", "related"]);
 
 /** JSON 설정을 엄격하게 검증하고 ChangeContract 도메인 모델로 변환한다. */
 export class JsonChangeContractLoader {
@@ -98,9 +98,20 @@ function parseConfiguration(content: string): CreateChangeContractInput {
             requireFor: optionalStringArray(testsValue.requireFor, "tests.requireFor"),
             include: optionalStringArray(testsValue.include, "tests.include"),
             exclude: optionalStringArray(testsValue.exclude, "tests.exclude"),
+            related: optionalRelatedTests(testsValue.related),
           },
         }),
   };
+}
+
+function optionalRelatedTests(value: unknown): Readonly<Record<string, readonly string[]>> {
+  if (value === undefined) return {};
+  if (!isRecord(value)) throw new Error("tests.related must be a JSON object.");
+  const related: Record<string, readonly string[]> = Object.create(null);
+  for (const [source, paths] of Object.entries(value)) {
+    related[source] = optionalStringArray(paths, `tests.related[${source}]`);
+  }
+  return related;
 }
 
 function assertKnownFields(

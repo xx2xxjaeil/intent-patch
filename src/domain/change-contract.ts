@@ -9,6 +9,8 @@ export interface TestChangePolicy {
   readonly requireFor: readonly string[];
   readonly include: readonly string[];
   readonly exclude: readonly string[];
+  /** 이전 버전의 공개 정책 객체도 계속 사용할 수 있도록 선택적으로 유지한다. */
+  readonly related?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface ChangeContract {
@@ -29,6 +31,7 @@ export interface CreateChangeContractInput {
     requireFor?: readonly string[];
     include?: readonly string[];
     exclude?: readonly string[];
+    related?: Readonly<Record<string, readonly string[]>>;
   }>;
 }
 
@@ -64,6 +67,7 @@ function normalizeTestPolicy(
   const requireFor = normalizePatterns(input.requireFor ?? [], "tests.requireFor");
   const include = normalizePatterns(input.include ?? [], "tests.include");
   const exclude = normalizePatterns(input.exclude ?? [], "tests.exclude");
+  const related = normalizeRelatedTests(input.related ?? {});
   if (requireFor.length === 0) {
     throw new Error("Change contract tests.requireFor must contain at least one pattern.");
   }
@@ -75,7 +79,32 @@ function normalizeTestPolicy(
     requireFor: Object.freeze(requireFor),
     include: Object.freeze(include),
     exclude: Object.freeze(exclude),
+    related: Object.freeze(related),
   });
+}
+
+function normalizeRelatedTests(
+  values: Readonly<Record<string, readonly string[]>>,
+): Record<string, readonly string[]> {
+  const related: Record<string, readonly string[]> = Object.create(null);
+  for (const [source, tests] of Object.entries(values).sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
+    const path = normalizePattern(source, "tests.related");
+    if (path.includes("*")) {
+      throw new Error("Change contract tests.related source paths must be exact paths.");
+    }
+    if (Object.hasOwn(related, path)) {
+      throw new Error(`Change contract tests.related contains a duplicate source path: ${path}`);
+    }
+    if (!Array.isArray(tests) || tests.length === 0) {
+      throw new Error(
+        `Change contract tests.related[${JSON.stringify(source)}] must contain test paths.`,
+      );
+    }
+    related[path] = Object.freeze(normalizePatterns(tests, `tests.related[${source}]`));
+  }
+  return related;
 }
 
 function normalizeIntent(value: string | undefined): string | undefined {

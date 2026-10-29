@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { runInNewContext } from "node:vm";
 import { createChangeSet } from "../../src/domain/change.js";
 import { createChangeContract } from "../../src/domain/change-contract.js";
 import { createCodeStructureAnalysis } from "../../src/domain/code-structure.js";
@@ -30,6 +31,11 @@ describe("formatHtmlReport", () => {
     assert.match(output, /<svg[^>]+aria-label="Dependency impact graph"/);
     assert.match(output, /graph-edge direct/);
     assert.match(output, /graph-edge transitive/);
+    assert.match(output, /id="path-filter"/);
+    assert.match(output, /data-severity-filter="high"/);
+    assert.match(output, /data-report-path="src\/user\.ts"/);
+    assert.match(output, /href="#file-0"/);
+    assert.match(output, /href="#impact-0"/);
     assert.doesNotMatch(output, /https?:\/\//);
   });
 
@@ -62,6 +68,72 @@ describe("formatHtmlReport", () => {
 
     assert.match(output, /graph-edge direct previous/);
     assert.match(output, /previous imports/);
+  });
+
+  it("filters report rows by path and severity without a network resource", () => {
+    const html = formatHtmlReport(createReport());
+    const script = /<script>([\s\S]*?)<\/script>/u.exec(html)?.[1];
+    assert.ok(script);
+
+    const element = (attributes: Record<string, string> = {}) => {
+      const listeners = new Map<string, () => void>();
+      return {
+        hidden: false,
+        value: "",
+        textContent: "",
+        getAttribute: (key: string) => attributes[key] ?? null,
+        setAttribute: (key: string, value: string) => {
+          attributes[key] = value;
+        },
+        addEventListener: (event: string, callback: () => void) => {
+          listeners.set(event, callback);
+        },
+        fire: (event: string) => {
+          listeners.get(event)?.();
+        },
+      };
+    };
+    const controls = element();
+    controls.hidden = true;
+    const input = element();
+    const status = element();
+    const high = element({ "data-report-path": "src/user.ts", "data-finding-severity": "high" });
+    const medium = element({
+      "data-report-path": "src/account.ts",
+      "data-finding-severity": "medium",
+    });
+    const file = element({ "data-report-path": "src/user.ts" });
+    const buttons = ["all", "high", "medium", "low"].map((severity) =>
+      element({ "data-severity-filter": severity }),
+    );
+    const link = element();
+    const document = {
+      getElementById: (id: string) =>
+        ({ "report-controls": controls, "path-filter": input, "visible-count": status })[
+          id as "report-controls" | "path-filter" | "visible-count"
+        ],
+      querySelectorAll: (selector: string) =>
+        selector === "[data-report-path]"
+          ? [high, medium, file]
+          : selector === "[data-severity-filter]"
+            ? buttons
+            : [link],
+    };
+    runInNewContext(script, { document });
+    assert.equal(controls.hidden, false);
+    assert.equal(status.textContent, "2 findings shown");
+
+    input.value = "user";
+    input.fire("input");
+    assert.equal(high.hidden, false);
+    assert.equal(medium.hidden, true);
+    assert.equal(file.hidden, false);
+    buttons[2]?.fire("click");
+    assert.equal(high.hidden, true);
+    link.fire("click");
+    assert.equal(input.value, "");
+    assert.equal(medium.hidden, false);
+    assert.equal(status.textContent, "1 findings shown");
   });
 });
 

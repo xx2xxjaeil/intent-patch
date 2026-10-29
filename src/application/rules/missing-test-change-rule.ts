@@ -12,17 +12,22 @@ export class MissingTestChangeRule implements AnalysisRule {
     const testPatterns = context.contract?.tests?.include.join(", ") ?? "";
     return testChanges.sourceCoverage
       .filter((coverage) => coverage.matchingTests.length === 0)
-      .map((coverage) => ({
-        ruleId: "tests/missing-related-change",
-        severity: "medium",
-        title: "Source change without matching test change",
-        description: `${coverage.sourcePath} changed without a changed test sharing the same basename.`,
-        file: coverage.sourcePath,
-        evidence: {
-          sourceChangeKind: coverage.sourceChangeKind,
-          matchingStrategy: "basename",
-          testPatterns,
-        },
-      }));
+      .map((coverage) => {
+        const explicit = Object.hasOwn(context.contract?.tests?.related ?? {}, coverage.sourcePath);
+        return {
+          ruleId: "tests/missing-related-change",
+          severity: "medium",
+          title: "Source change without matching test change",
+          description: explicit
+            ? `${coverage.sourcePath} changed without a changed test from its explicit related-test mapping.`
+            : `${coverage.sourcePath} changed without a changed test sharing the same basename.`,
+          file: coverage.sourcePath,
+          evidence: {
+            sourceChangeKind: coverage.sourceChangeKind,
+            matchingStrategy: explicit ? "explicit" : "basename",
+            testPatterns,
+          },
+        };
+      });
   }
 }

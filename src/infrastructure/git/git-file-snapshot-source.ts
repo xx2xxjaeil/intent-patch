@@ -104,7 +104,7 @@ export class GitFileSnapshotSource implements FileSnapshotSource {
       throw new Error(`Expected a regular file: ${path}`);
     }
     const sizeLimit =
-      path === "package-lock.json" || path === "pnpm-lock.yaml"
+      path === "package-lock.json" || path === "pnpm-lock.yaml" || path === "yarn.lock"
         ? maximumLockfileSize
         : maximumTextFileSize;
     if (metadata.size > sizeLimit) {

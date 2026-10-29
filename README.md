@@ -97,6 +97,7 @@ An opt-in Hook adapter captures a turn's original prompt and starting commit, th
 ## Codex and Cursor Hooks
 
 Version 0.7.0 adds opt-in turn analysis for [Codex](./docs/codex.md) and [Cursor](./docs/cursor.md). These adapters use the same deterministic analyzer and require no API key or paid model. Codex returns a count-only Hook message. Cursor writes a private HTML report under Git metadata and logs its path without auto-submitting another AI prompt.
+The [Hook smoke-test checklist](./docs/hook-smoke-test.md) separates packaged CLI checks from live application checks.
 
 ## What the report looks like
 
@@ -135,7 +136,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
 [three-case self-repository study](./docs/real-world-evaluation.md), and the
-[external evaluation of 26 changes and 29 rule checks](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 32 changes and 38 rule checks](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -151,7 +152,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Distinguish binary files.
 - Include untracked files in working-tree analysis.
 - Render terminal-friendly text and machine-readable JSON reports.
-- Generate a standalone HTML report containing summary cards, findings, test signals, and an impact graph.
+- Generate a standalone HTML report containing summary cards, path/severity filters, findings, test signals, and a navigable impact graph.
 - Render the visualization with inline CSS and SVG, without a CDN or runtime JavaScript dependency.
 - Aggregate findings by `high`, `medium`, and `low` severity.
 - Return a CI-friendly exit code through `--fail-on`.
@@ -198,7 +199,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Accept a request text/Markdown file through the CLI, or opt in to using the PR body in the GitHub Action.
 - Report each file outside expected and allowed patterns as a medium-severity finding.
 - Report file-count and measurable-line budget overruns with numeric evidence.
-- Classify source and test paths declared by the contract and connect related changes by basename.
+- Classify source and test paths declared by the contract and connect related changes by basename or an explicit mapping.
 - Report test file counts and added or deleted tests as separate facts.
 - Report source files without a related test change as medium-severity findings.
 - Support repository-relative `*`, `**`, and `?` path patterns.
@@ -280,8 +281,18 @@ Create `.intentpatch.json` in the repository being analyzed and declare the expe
 - `tests.requireFor`: source paths that require a related test change;
 - `tests.include`: paths classified as tests;
 - `tests.exclude`: generated or declaration files excluded from the source check.
+- `tests.related`: optional exact source paths mapped to related test path patterns; an explicit
+  mapping overrides basename matching for that source.
 
-Test matching uses basenames for deterministic results. For example, `src/user.ts` can match changed files such as `tests/user.test.ts`, `user.spec.ts`, or `user.integration.test.ts`.
+Without an explicit mapping, test matching uses basenames for deterministic results. For example,
+`src/user.ts` can match changed files such as `tests/user.test.ts`, `user.spec.ts`, or
+`user.integration.test.ts`. For a differently named integration test, add a mapping:
+
+```json
+"related": { "src/user.ts": ["tests/account-deletion*.test.ts"] }
+```
+
+Place `related` inside the `tests` object. Only changed test files matching `tests.include` count.
 
 Use `--config` to select another contract. Relative paths are resolved from `--cwd`:
 
@@ -450,7 +461,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
    - ✅ npm workspace manifest dependency changes
    - ✅ pnpm `pnpm-lock.yaml` v9 resolved registry package changes
    - ✅ pnpm workspace manifest dependency changes
-   - Yarn adapter
+   - ✅ Yarn 4 metadata-v8 `yarn.lock` resolved registry package changes (current source)
+   - Yarn workspace manifest changes remain open
 7. ✅ Detection of removed public exports
    - ✅ Named and default ESM exports in JavaScript, without inferred type compatibility
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
@@ -474,8 +486,11 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - pnpm `pnpm-lock.yaml` v9 analysis compares registry package IDs and versions in the project document. It ignores integrity-only edits, local/Git packages, snapshot peer variants, and dependency provenance. Root-direct evidence comes from the root importer only.
 - Workspace detection supports the root npm `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported.
 - pnpm workspace detection reads `pnpm-workspace.yaml` `packages` patterns with `*`, `**`, `?`, and leading `!` exclusions. When both npm and pnpm workspace settings exist, pnpm settings take precedence to avoid duplicate findings. Other glob features and pnpm catalogs are not interpreted.
-- Yarn lockfiles and runtime dependency usage are not analyzed yet.
-- Working-tree `package-lock.json` and `pnpm-lock.yaml` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
+- Yarn 4 `yarn.lock` metadata-v8 analysis compares registry package resolutions and versions.
+  Yarn Classic and other metadata versions are reported as unsupported. Workspace, patch, file,
+  Git, and virtual resolutions, checksum-only changes, and dependency provenance are not analyzed.
+  Runtime dependency usage is not established.
+- Working-tree `package-lock.json`, `pnpm-lock.yaml`, and `yarn.lock` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
 - TypeScript symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
 - TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal, but does not infer function signatures. Previous root or nested package `exports` are followed through explicit source targets and relative re-exports. This is a file-level approximation: a named re-export may still expose only some symbols from its module. If an entrypoint is generated, unresolved, or unsupported, IntentPatch retains the earlier conservative warnings instead of claiming a file is private. CommonJS `module.exports`, class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
 - Function compatibility first compares recorded signatures. For self-contained, explicitly typed declarations it then uses strict TypeScript assignability to avoid warning on compatible changes. A narrow syntactic check also accepts primitive parameters widened by union arms when the return text is unchanged. Other unresolved names, inferred types, malformed or unsupported signature shapes remain unverified and keep the review warning; this is not a whole-project type check or a runtime compatibility guarantee.
@@ -494,8 +509,11 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Path patterns support only repository-relative `*`, `**`, and `?`; negation and brace expansion are not supported.
 - `maxLines` sums only measurable added and deleted lines in text files. Binary or unmeasurable files are not treated as zero lines, but their size is not included in the budget.
 - Test analysis compares only the changed paths declared in the contract; it does not execute tests or measure coverage.
-- Related tests are matched by basename. Integration tests with different names or one test covering several source files cannot be linked automatically yet.
-- The HTML impact graph uses a deterministic two-column layout. Interactive node movement, zooming, and filtering are not implemented yet.
+- Related tests are matched by basename unless an exact source path has a `tests.related`
+  mapping. This is a declared relationship, not inferred test coverage; tests are not executed.
+- The HTML impact graph uses a deterministic two-column layout. Nodes link to report rows; path
+  search and severity filters narrow report rows, not the graph itself. Node movement and zoom
+  are not implemented.
 
 ## License
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { execFile, spawn } from "node:child_process";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -21,13 +21,14 @@ describe("packaged CLI integration", () => {
     const workspace = await mkdtemp(join(tmpdir(), "intentpatch-package-test-"));
     temporaryDirectories.push(workspace);
     const repository = join(workspace, "consumer");
+    const npmEnvironment = { ...process.env, npm_config_cache: join(workspace, "npm-cache") };
     await mkdir(join(repository, "src"), { recursive: true });
     await createRepository(repository);
 
     const { stdout: packedFileName } = await executeFile(
       "npm",
       ["pack", "--silent", "--pack-destination", workspace],
-      { cwd: process.cwd() },
+      { cwd: process.cwd(), env: npmEnvironment },
     );
     const tarball = join(workspace, packedFileName.trim());
     await executeFile(
@@ -42,7 +43,7 @@ describe("packaged CLI integration", () => {
         "--prefer-offline",
         tarball,
       ],
-      { cwd: repository },
+      { cwd: repository, env: npmEnvironment },
     );
 
     const executable = join(
@@ -63,8 +64,104 @@ describe("packaged CLI integration", () => {
     assert.match(reportResult.stdout, /Risky API changes\s+1/);
     assert.match(reportResult.stdout, /HIGH\s+Public export removed/);
     assert.match(reportResult.stdout, /src\/api\.ts · api\/export-removed/);
+
+    const codexEvent = { session_id: "smoke", turn_id: "turn", cwd: repository };
+    assert.equal(
+      (
+        await runHook(
+          executable,
+          "codex-hook",
+          "capture",
+          { ...codexEvent, hook_event_name: "UserPromptSubmit", prompt: "Delete the export" },
+          repository,
+        )
+      ).code,
+      0,
+    );
+    const codex = await runHook(
+      executable,
+      "codex-hook",
+      "analyze",
+      { ...codexEvent, hook_event_name: "Stop" },
+      repository,
+    );
+    assert.match(JSON.parse(codex.stdout).systemMessage, /IntentPatch: 1 files changed/);
+
+    const claudeEvent = { session_id: "smoke-claude", cwd: repository };
+    assert.equal(
+      (
+        await runHook(
+          executable,
+          "claude-hook",
+          "capture",
+          { ...claudeEvent, hook_event_name: "UserPromptSubmit", prompt: "Delete the export" },
+          repository,
+        )
+      ).code,
+      0,
+    );
+    const claude = await runHook(
+      executable,
+      "claude-hook",
+      "analyze",
+      { ...claudeEvent, hook_event_name: "Stop" },
+      repository,
+    );
+    assert.match(JSON.parse(claude.stdout).systemMessage, /IntentPatch: 1 files changed/);
+
+    const cursorEvent = {
+      conversation_id: "smoke-cursor",
+      generation_id: "generation",
+      workspace_roots: [repository],
+    };
+    assert.equal(
+      (
+        await runHook(
+          executable,
+          "cursor-hook",
+          "capture",
+          { ...cursorEvent, hook_event_name: "beforeSubmitPrompt", prompt: "Delete the export" },
+          repository,
+        )
+      ).stdout,
+      '{"continue":true}\n',
+    );
+    const cursor = await runHook(
+      executable,
+      "cursor-hook",
+      "analyze",
+      { ...cursorEvent, hook_event_name: "stop", status: "completed" },
+      repository,
+    );
+    assert.equal(cursor.stdout, "{}\n");
+    assert.match(cursor.stderr, /IntentPatch: 1 files changed/);
+    assert.equal((await readdir(join(repository, ".git", "intentpatch-reports"))).length, 1);
+    assert.deepEqual(await readdir(join(repository, ".git", "intentpatch-hooks")), []);
   });
 });
+
+function runHook(
+  executable: string,
+  adapter: string,
+  action: string,
+  input: unknown,
+  cwd: string,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, [adapter, action], { cwd });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(JSON.stringify(input));
+  });
+}
 
 async function createRepository(repository: string): Promise<void> {
   await runGit(repository, ["init", "--quiet"]);

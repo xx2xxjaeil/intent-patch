@@ -11,6 +11,7 @@ import { PnpmWorkspaceDependencyRule } from "../application/rules/pnpm-workspace
 import { PublicApiCompatibilityRule } from "../application/rules/public-api-compatibility-rule.js";
 import { PublicApiRemovalRule } from "../application/rules/public-api-removal-rule.js";
 import { SingleImplementationAbstractionRule } from "../application/rules/single-implementation-abstraction-rule.js";
+import { YarnLockfileRule } from "../application/rules/yarn-lockfile-rule.js";
 import { AnalyzeCodeStructure } from "../application/services/analyze-code-structure.js";
 import { AnalyzeImportImpact } from "../application/services/analyze-import-impact.js";
 import { AnalyzeTestChanges } from "../application/services/analyze-test-changes.js";
@@ -33,7 +34,9 @@ import { SourceModuleReferenceExtractor } from "../infrastructure/typescript/sou
 import { TypeScriptCodeStructureExtractor } from "../infrastructure/typescript/typescript-code-structure-extractor.js";
 import { TypeScriptFunctionSignatureCompatibility } from "../infrastructure/typescript/typescript-function-signature-compatibility.js";
 import { TypeScriptModuleAliasResolver } from "../infrastructure/typescript/typescript-module-alias-resolver.js";
+import { TypeScriptPropertyTypeCompatibility } from "../infrastructure/typescript/typescript-property-type-compatibility.js";
 import { TypeScriptSymbolExtractor } from "../infrastructure/typescript/typescript-symbol-extractor.js";
+import { YarnYamlLockParser } from "../infrastructure/yarn/yarn-lock-parser.js";
 
 export interface RepositoryAnalysisOptions {
   readonly workingDirectory: string;
@@ -74,13 +77,17 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     ),
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
     new PnpmLockfileRule(snapshotSource, new PnpmYamlLockParser()),
+    new YarnLockfileRule(snapshotSource, new YarnYamlLockParser()),
     new NpmWorkspaceDependencyRule(snapshotSource),
     new PnpmWorkspaceDependencyRule(snapshotSource, pnpmWorkspaceParser),
     new ExpectedScopeRule(),
     new ChangeBudgetRule(),
     new MissingTestChangeRule(),
     new PublicApiRemovalRule(),
-    new PublicApiCompatibilityRule(new TypeScriptFunctionSignatureCompatibility()),
+    new PublicApiCompatibilityRule(
+      new TypeScriptFunctionSignatureCompatibility(),
+      new TypeScriptPropertyTypeCompatibility(),
+    ),
     new DuplicateImplementationRule(),
     new SingleImplementationAbstractionRule(),
   ]);

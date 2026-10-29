@@ -36,6 +36,7 @@ describe("JsonChangeContractLoader", () => {
           requireFor: ["src/**"],
           include: ["tests/**", "**/*.test.ts"],
           exclude: ["src/**/*.d.ts"],
+          related: { "src/user.ts": ["tests/account.test.ts"] },
         },
       }),
     );
@@ -52,6 +53,7 @@ describe("JsonChangeContractLoader", () => {
         requireFor: ["src/**"],
         include: ["**/*.test.ts", "tests/**"],
         exclude: ["src/**/*.d.ts"],
+        related: Object.assign(Object.create(null), { "src/user.ts": ["tests/account.test.ts"] }),
       },
     });
   });
