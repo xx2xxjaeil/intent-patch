@@ -2,7 +2,9 @@
 
 import { readFile } from "node:fs/promises";
 import process from "node:process";
+import { type ChangeContract, createChangeContract } from "../../domain/change-contract.js";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
+import { writeChangeContract } from "../../infrastructure/config/write-change-contract.js";
 import { GitPrivateAgentIntentStore } from "../../infrastructure/git/git-private-agent-intent-store.js";
 import { GitPrivateAgentReportWriter } from "../../infrastructure/git/git-private-agent-report-writer.js";
 import { CommandExecutionError } from "../../infrastructure/process/command-runner.js";
@@ -26,6 +28,37 @@ async function main(): Promise<void> {
     }
     if (options.command === "version") {
       process.stdout.write(`IntentPatch ${await readPackageVersion()}\n`);
+      return;
+    }
+    if (options.command === "init") {
+      let contract: ChangeContract;
+      try {
+        contract = createChangeContract({
+          ...(options.intent === undefined ? {} : { intent: options.intent }),
+          scope: {
+            include: options.include,
+            allow: options.allow,
+            ...(options.maxFiles === undefined ? {} : { maxFiles: options.maxFiles }),
+            ...(options.maxLines === undefined ? {} : { maxLines: options.maxLines }),
+          },
+          ...(options.testSources.length === 0
+            ? {}
+            : {
+                tests: {
+                  requireFor: options.testSources,
+                  include: options.testFiles,
+                  exclude: options.testExcludes,
+                },
+              }),
+        });
+      } catch (error) {
+        throw new CliUsageError(error instanceof Error ? error.message : String(error));
+      }
+      const path = await writeChangeContract(options.workingDirectory, contract);
+      process.stdout.write(`IntentPatch change contract created at ${path}\n`);
+      if (contract.scope.include.length === 0) {
+        process.stdout.write("Scope checks are off until scope.include has an expected path.\n");
+      }
       return;
     }
     if (options.command === "claude-hook") {
