@@ -23,7 +23,7 @@ Clone the repository, then run one analysis command against a real change in its
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.8.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.9.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 Open `intentpatch-report.html` locally. This case reports a public-API risk and a duplicate-code
@@ -33,7 +33,7 @@ same real-change example, not a mockup. GitHub may show the HTML source rather t
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Run the published v0.8.0 CLI without
+IntentPatch requires Node.js 20 or later and Git. Run the published v0.9.0 CLI without
 installing it globally:
 
 ```bash
@@ -77,7 +77,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.8.0
+        uses: xx2xxjaeil/intent-patch@v0.9.0
         with:
           fail-on: high
 
@@ -89,10 +89,11 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. v0.8.0 adds Yarn 4
-lockfile analysis, explicit source-to-test mappings, report filters, and improved impact-graph
-navigation. It also includes package-entrypoint-aware public API warnings, historical import
-impact for deleted modules, and opt-in Claude Code, Codex, and Cursor Hooks.
+Pin the action to a released version or an immutable commit SHA. v0.9.0 adds Yarn workspace
+dependency analysis and a safe `init` command for creating a Change Contract. It also includes
+Yarn 4 lockfile analysis, explicit source-to-test mappings, report filters, improved impact-graph
+navigation, package-entrypoint-aware public API warnings, historical import impact for deleted
+modules, and opt-in Claude Code, Codex, and Cursor Hooks.
 See [the evaluation report](./docs/external-repository-evaluation.md) for the separately measured
 public-API rules and their limits. `@main` follows unreleased changes.
 
@@ -157,7 +158,9 @@ open the HTML file locally in a browser; GitHub may show its source rather than 
 
 ## Implemented capabilities
 
-The current source tree analyzes Git changes, direct dependencies in the root `package.json`, top-level TypeScript and JavaScript symbols and public exports, possible duplicate implementations, single-implementation abstractions, import-graph impact, and related test changes.
+The CLI analyzes Git changes, direct dependencies in the root and npm/pnpm/Yarn workspace manifests,
+lockfile changes, top-level TypeScript and JavaScript symbols and public exports, possible duplicate
+implementations, single-implementation abstractions, import-graph impact, and related test changes.
 
 ### Git and reporting
 
@@ -272,12 +275,12 @@ intentpatch analyze --intent-file request.md --format html --output report.html
 
 ### Check request scope with a Change Contract
 
-In the current source checkout, `init` creates `.intentpatch.json` without overwriting an
+`intentpatch init` creates `.intentpatch.json` without overwriting an
 existing file. Supply actual paths for the requested change; it never guesses scope from the
 request text:
 
 ```bash
-node dist/presentation/cli/main.js init \
+intentpatch init \
   --intent "Implement account deletion" \
   --include 'src/user/**' --include 'tests/user/**' \
   --allow package.json \
@@ -286,8 +289,7 @@ node dist/presentation/cli/main.js init \
 
 `init` with no options creates a valid blank contract. Scope checks remain off until you add an
 expected `--include` path; test-change checks require both `--test-source` and `--test-file`.
-Use `--cwd` to target another directory. This command is in the current source, not the
-published v0.8.0 package.
+Use `--cwd` to target another directory. This command is included in v0.9.0 and later.
 
 Create `.intentpatch.json` in the repository being analyzed and declare the expected scope of the request:
 
@@ -472,7 +474,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.8.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.9.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
