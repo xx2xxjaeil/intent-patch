@@ -17,13 +17,29 @@ export function isNestedManifestChange(change: FileChange): boolean {
 }
 
 /** 패키지 매니저별 설정 해석 뒤에는 같은 manifest 비교·membership 규칙을 적용한다. */
-export async function analyzeWorkspaceManifests(
+export function analyzeWorkspaceManifests(
   context: AnalysisContext,
   snapshots: FileSnapshotSource,
   changes: readonly FileChange[],
   before: WorkspacePatterns,
   after: WorkspacePatterns,
   manager: "npm" | "pnpm",
+): Promise<Finding[]>;
+export function analyzeWorkspaceManifests(
+  context: AnalysisContext,
+  snapshots: FileSnapshotSource,
+  changes: readonly FileChange[],
+  before: WorkspacePatterns,
+  after: WorkspacePatterns,
+  manager: "npm" | "pnpm" | "yarn",
+): Promise<Finding[]>;
+export async function analyzeWorkspaceManifests(
+  context: AnalysisContext,
+  snapshots: FileSnapshotSource,
+  changes: readonly FileChange[],
+  before: WorkspacePatterns,
+  after: WorkspacePatterns,
+  manager: "npm" | "pnpm" | "yarn",
 ): Promise<Finding[]> {
   const results = await Promise.all(
     changes.map(async (change) => {
@@ -51,6 +67,7 @@ export async function analyzeWorkspaceManifests(
                   currentPath,
                   fromWorkspace: wasWorkspace,
                   toWorkspace: isCurrentWorkspace,
+                  ...(manager === "npm" ? {} : { packageManager: manager }),
                 },
               },
             ]
@@ -65,7 +82,7 @@ export async function analyzeWorkspaceManifests(
           evidence: {
             ...finding.evidence,
             workspace,
-            ...(manager === "pnpm" ? { packageManager: manager } : {}),
+            ...(manager === "npm" ? {} : { packageManager: manager }),
           },
         })),
       ];

@@ -3,6 +3,71 @@ import { describe, it } from "node:test";
 import { CliUsageError, parseArguments } from "../../src/presentation/cli/arguments.js";
 
 describe("parseArguments", () => {
+  it("parses a safe init template and explicit scope/test options", () => {
+    assert.deepEqual(parseArguments(["init"], "/repo"), {
+      command: "init",
+      workingDirectory: "/repo",
+      include: [],
+      allow: [],
+      testSources: [],
+      testFiles: [],
+      testExcludes: [],
+    });
+    assert.deepEqual(
+      parseArguments(
+        [
+          "init",
+          "--cwd",
+          "/other",
+          "--intent",
+          "Delete account",
+          "--include",
+          "src/user/**",
+          "--include",
+          "tests/user/**",
+          "--allow",
+          "package.json",
+          "--max-files",
+          "8",
+          "--max-lines",
+          "300",
+          "--test-source",
+          "src/**/*.ts",
+          "--test-file",
+          "tests/**/*.test.ts",
+          "--test-exclude",
+          "src/**/*.d.ts",
+        ],
+        "/repo",
+      ),
+      {
+        command: "init",
+        workingDirectory: "/other",
+        intent: "Delete account",
+        include: ["src/user/**", "tests/user/**"],
+        allow: ["package.json"],
+        maxFiles: 8,
+        maxLines: 300,
+        testSources: ["src/**/*.ts"],
+        testFiles: ["tests/**/*.test.ts"],
+        testExcludes: ["src/**/*.d.ts"],
+      },
+    );
+  });
+
+  it("rejects incomplete init policies and invalid budgets", () => {
+    assert.throws(
+      () => parseArguments(["init", "--test-source", "src/**"], "/repo"),
+      CliUsageError,
+    );
+    assert.throws(
+      () => parseArguments(["init", "--test-exclude", "src/**"], "/repo"),
+      CliUsageError,
+    );
+    assert.throws(() => parseArguments(["init", "--max-files", "-1"], "/repo"), CliUsageError);
+    assert.throws(() => parseArguments(["init", "--max-lines", "1.5"], "/repo"), CliUsageError);
+    assert.throws(() => parseArguments(["init", "--force"], "/repo"), CliUsageError);
+  });
   it("parses opt-in Claude Code hook commands", () => {
     assert.deepEqual(parseArguments(["claude-hook", "capture"], "/repo"), {
       command: "claude-hook",

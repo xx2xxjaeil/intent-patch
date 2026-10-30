@@ -16,6 +16,19 @@ export interface AnalyzeCommandOptions {
   readonly failOn?: Severity;
 }
 
+export interface InitCommandOptions {
+  readonly command: "init";
+  readonly workingDirectory: string;
+  readonly intent?: string;
+  readonly include: readonly string[];
+  readonly allow: readonly string[];
+  readonly maxFiles?: number;
+  readonly maxLines?: number;
+  readonly testSources: readonly string[];
+  readonly testFiles: readonly string[];
+  readonly testExcludes: readonly string[];
+}
+
 export interface HelpCommandOptions {
   readonly command: "help";
 }
@@ -47,6 +60,7 @@ export interface CursorHookCommandOptions {
 
 export type CliOptions =
   | AnalyzeCommandOptions
+  | InitCommandOptions
   | ClaudeHookCommandOptions
   | CodexHookCommandOptions
   | CursorHookCommandOptions
@@ -72,6 +86,9 @@ export function parseArguments(
   }
 
   const [command, ...options] = arguments_;
+  if (command === "init") {
+    return parseInitOptions(options, currentDirectory);
+  }
   if (command === "claude-hook") {
     const [action] = options;
     if (
@@ -170,6 +187,7 @@ export function helpText(): string {
 
 Usage:
   intentpatch analyze [options]
+  intentpatch init [options]                 Create .intentpatch.json without overwriting it
   intentpatch claude-hook <capture|analyze|clear>  Read Claude Code hook JSON from stdin
   intentpatch codex-hook <capture|analyze|clear>   Read Codex hook JSON from stdin
   intentpatch cursor-hook <capture|analyze>        Read Cursor hook JSON from stdin
@@ -188,9 +206,93 @@ Options:
                  Write the report to a file instead of standard output
   --fail-on <severity>
                  Exit with code 1 for findings at or above high, medium, or low
+  init --intent <text>       Requested change (optional)
+  init --include <pattern>   Expected path; repeatable (enables scope checks)
+  init --allow <pattern>     Allowed exception; repeatable
+  init --max-files <number>  Maximum changed files
+  init --max-lines <number>  Maximum changed lines
+  init --test-source <pattern>  Source path requiring a test change; repeatable
+  init --test-file <pattern>    Test file path; repeatable
+  init --test-exclude <pattern> Excluded source path; repeatable
   -v, --version  Show the installed IntentPatch version
   -h, --help     Show this help
 `;
+}
+
+function parseInitOptions(
+  options: readonly string[],
+  currentDirectory: string,
+): InitCommandOptions {
+  let workingDirectory = currentDirectory;
+  let intent: string | undefined;
+  const include: string[] = [];
+  const allow: string[] = [];
+  let maxFiles: number | undefined;
+  let maxLines: number | undefined;
+  const testSources: string[] = [];
+  const testFiles: string[] = [];
+  const testExcludes: string[] = [];
+
+  for (let index = 0; index < options.length; index += 1) {
+    const option = options[index];
+    switch (option) {
+      case "--cwd":
+        workingDirectory = requireOptionValue(options, ++index, option);
+        break;
+      case "--intent":
+        intent = requireOptionValue(options, ++index, option);
+        break;
+      case "--include":
+        include.push(requireOptionValue(options, ++index, option));
+        break;
+      case "--allow":
+        allow.push(requireOptionValue(options, ++index, option));
+        break;
+      case "--max-files":
+        maxFiles = parseBudget(requireOptionValue(options, ++index, option), option);
+        break;
+      case "--max-lines":
+        maxLines = parseBudget(requireOptionValue(options, ++index, option), option);
+        break;
+      case "--test-source":
+        testSources.push(requireOptionValue(options, ++index, option));
+        break;
+      case "--test-file":
+        testFiles.push(requireOptionValue(options, ++index, option));
+        break;
+      case "--test-exclude":
+        testExcludes.push(requireOptionValue(options, ++index, option));
+        break;
+      default:
+        throw new CliUsageError(`Unknown init option: ${option ?? ""}`);
+    }
+  }
+  if ((testSources.length === 0) !== (testFiles.length === 0)) {
+    throw new CliUsageError("--test-source and --test-file must be used together");
+  }
+  if (testExcludes.length > 0 && testSources.length === 0) {
+    throw new CliUsageError("--test-exclude requires --test-source and --test-file");
+  }
+  return {
+    command: "init",
+    workingDirectory,
+    ...(intent === undefined ? {} : { intent }),
+    include,
+    allow,
+    ...(maxFiles === undefined ? {} : { maxFiles }),
+    ...(maxLines === undefined ? {} : { maxLines }),
+    testSources,
+    testFiles,
+    testExcludes,
+  };
+}
+
+function parseBudget(value: string, option: string): number {
+  const number = Number(value);
+  if (!/^(0|[1-9]\d*)$/u.test(value) || !Number.isSafeInteger(number)) {
+    throw new CliUsageError(`${option} must be a non-negative integer`);
+  }
+  return number;
 }
 
 function parseOutputFormat(value: string): OutputFormat {

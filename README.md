@@ -16,6 +16,21 @@ AI coding agents such as Codex, Claude Code, and Cursor can change many files fr
 
 IntentPatch combines **Git diff analysis, static analysis, and dependency analysis** to answer those questions. Its core analysis is deterministic and works without an LLM. Optional AI explanations can be added later without making the core tool dependent on a model provider.
 
+## See a real report
+
+Clone the repository, then run one analysis command against a real change in its history:
+
+```bash
+git clone https://github.com/xx2xxjaeil/intent-patch.git
+cd intent-patch
+npx --yes intentpatch@0.8.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+```
+
+Open `intentpatch-report.html` locally. This case reports a public-API risk and a duplicate-code
+candidate that were later fixed; [the case study](./docs/real-world-evaluation.md) explains the
+review decisions. The [checked-in HTML report](./docs/examples/intent-input-change.html) is the
+same real-change example, not a mockup. GitHub may show the HTML source rather than render it.
+
 ## Quick start
 
 IntentPatch requires Node.js 20 or later and Git. Run the published v0.8.0 CLI without
@@ -170,6 +185,7 @@ The current source tree analyzes Git changes, direct dependencies in the root `p
 - Compare resolved registry package changes in pnpm `pnpm-lock.yaml` v9, including two-document lockfiles.
 - Report malformed or unsupported lockfiles as findings rather than silently skipping them.
 - Attribute direct dependency changes to changed npm workspace manifests selected by the root `workspaces` patterns.
+- Attribute changed Yarn workspace manifests using the same root `workspaces` patterns, with Yarn provenance when `packageManager` or `yarn.lock` identifies Yarn.
 - Analyze changed pnpm workspace manifests selected by `pnpm-workspace.yaml`, including exclusion patterns.
 - Report changes to workspace patterns and manifest moves into or out of a configured workspace.
 - Extract top-level named functions, classes, interfaces, and type aliases from `.ts` and `.tsx` files.
@@ -255,6 +271,23 @@ intentpatch analyze --intent-file request.md --format html --output report.html
 `--intent-file` overrides only the contract's `intent`; existing scope and test policies remain intact. The file must be a regular file inside the analyzed repository and at most 64 KiB. Request text alone does not infer expected paths or activate scope checks.
 
 ### Check request scope with a Change Contract
+
+In the current source checkout, `init` creates `.intentpatch.json` without overwriting an
+existing file. Supply actual paths for the requested change; it never guesses scope from the
+request text:
+
+```bash
+node dist/presentation/cli/main.js init \
+  --intent "Implement account deletion" \
+  --include 'src/user/**' --include 'tests/user/**' \
+  --allow package.json \
+  --test-source 'src/**/*.ts' --test-file 'tests/**/*.test.ts'
+```
+
+`init` with no options creates a valid blank contract. Scope checks remain off until you add an
+expected `--include` path; test-change checks require both `--test-source` and `--test-file`.
+Use `--cwd` to target another directory. This command is in the current source, not the
+published v0.8.0 package.
 
 Create `.intentpatch.json` in the repository being analyzed and declare the expected scope of the request:
 
@@ -463,7 +496,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
    - ✅ pnpm `pnpm-lock.yaml` v9 resolved registry package changes
    - ✅ pnpm workspace manifest dependency changes
    - ✅ Yarn 4 metadata-v8 `yarn.lock` resolved registry package changes
-   - Yarn workspace manifest changes remain open
+   - ✅ Yarn workspace manifest dependency changes
 7. ✅ Detection of removed public exports
    - ✅ Named and default ESM exports in JavaScript, without inferred type compatibility
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
@@ -481,11 +514,11 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - The target must be a Git repository with at least one commit.
 - Untracked symbolic links are not read for safety.
 - Line counts are skipped for untracked files larger than 10 MiB.
-- Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root `package.json` and changed npm/pnpm workspace manifests.
+- Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root `package.json` and changed npm/pnpm/Yarn workspace manifests.
 - The no-static-reference finding is a review candidate, not proof that a package is unused. It checks explicit JS/TS imports, re-exports, literal `require()` and `import()` across maintained source files; CLI-only/configuration usage may not appear. It does not emit a candidate if source reads or parsing are incomplete, a computed module load exists, no source was scanned, or more than 5,000 source files are present.
 - npm `package-lock.json` v2/v3 analysis compares installed package paths and versions, not dependency provenance, integrity hashes, or vulnerability data. It does not attribute transitive packages to their parents.
 - pnpm `pnpm-lock.yaml` v9 analysis compares registry package IDs and versions in the project document. It ignores integrity-only edits, local/Git packages, snapshot peer variants, and dependency provenance. Root-direct evidence comes from the root importer only.
-- Workspace detection supports the root npm `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported.
+- npm and Yarn workspace detection supports the root `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported. Yarn is identified by the root `packageManager` field or `yarn.lock`; when pnpm config also exists, pnpm takes precedence.
 - pnpm workspace detection reads `pnpm-workspace.yaml` `packages` patterns with `*`, `**`, `?`, and leading `!` exclusions. When both npm and pnpm workspace settings exist, pnpm settings take precedence to avoid duplicate findings. Other glob features and pnpm catalogs are not interpreted.
 - Yarn 4 `yarn.lock` metadata-v8 analysis compares registry package resolutions and versions.
   Yarn Classic and other metadata versions are reported as unsupported. Workspace, patch, file,

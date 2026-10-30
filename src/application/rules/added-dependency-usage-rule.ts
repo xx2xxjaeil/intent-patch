@@ -5,8 +5,8 @@ import type { ModuleReferenceExtractor } from "../ports/module-reference-extract
 import type { PnpmWorkspaceParser } from "../ports/pnpm-workspace-parser.js";
 import type { ProjectFileSource } from "../ports/project-file-source.js";
 import { isMaintainedSourcePath } from "../services/is-maintained-source-path.js";
-import { NpmWorkspaceDependencyRule } from "./npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "./package-dependency-rule.js";
+import { PackageJsonWorkspaceDependencyRule } from "./package-json-workspace-dependency-rule.js";
 import { PnpmWorkspaceDependencyRule } from "./pnpm-workspace-dependency-rule.js";
 
 const rootManifest = "package.json";
@@ -23,7 +23,7 @@ export class AddedDependencyUsageRule implements AnalysisRule {
     const manifestFindings = (
       await Promise.all([
         new PackageDependencyRule(this.snapshots, rootManifest).analyze(context),
-        new NpmWorkspaceDependencyRule(this.snapshots).analyze(context),
+        new PackageJsonWorkspaceDependencyRule(this.snapshots).analyze(context),
         new PnpmWorkspaceDependencyRule(this.snapshots, this.pnpmWorkspaceParser).analyze(context),
       ])
     ).flat();

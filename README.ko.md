@@ -19,6 +19,21 @@ IntentPatch는 이러한 질문에 답하기 위해 **Git diff, 정적 분석, �
 LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선택적으로 결합하는 것을 목표로
 합니다.
 
+## 실제 보고서 바로 보기
+
+저장소를 복제한 뒤 실제 커밋 하나를 분석하는 명령을 실행합니다.
+
+```bash
+git clone https://github.com/xx2xxjaeil/intent-patch.git
+cd intent-patch
+npx --yes intentpatch@0.8.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+```
+
+생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
+공개 API 위험과 중복 코드 후보가 보고됩니다. 판단 근거는 [실제 변경 사례](./docs/real-world-evaluation.md)에
+정리했고, [저장된 HTML 보고서](./docs/examples/intent-input-change.html)도 확인할 수 있습니다.
+GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
+
 ## 빠른 시작
 
 Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.8.0은 전역 설치 없이
@@ -170,6 +185,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 - pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 추가·삭제·버전 변경 비교(2개 문서 형식 포함)
 - 잘못되었거나 미지원인 lockfile을 누락하지 않고 finding으로 보고
 - 루트 `workspaces` 패턴에 속한 변경 manifest의 직접 dependency를 workspace별로 보고
+- 루트 `workspaces` 패턴에 속한 Yarn workspace manifest 변경도 분석하고 Yarn 근거를 표시
 - `pnpm-workspace.yaml`의 포함·제외 패턴에 속한 변경 manifest의 직접 dependency를 보고
 - workspace 설정 변경과 manifest의 workspace 안팎 이동을 탐지
 - finding 심각도(`high`, `medium`, `low`) 집계
@@ -262,6 +278,22 @@ intentpatch analyze --intent-file request.md --format html --output report.html
 예상 경로를 추측하거나 범위 검사를 활성화하지 않습니다.
 
 ### Change Contract로 요청 범위 검사
+
+현재 소스 빌드의 `init` 명령은 기존 파일을 덮어쓰지 않고 `.intentpatch.json`을 생성합니다.
+자연어 요청만으로 경로를 추측하지 않으므로 이번 작업의 실제 경로를 전달하세요.
+
+```bash
+node dist/presentation/cli/main.js init \
+  --intent "회원 탈퇴 기능 구현" \
+  --include 'src/user/**' --include 'tests/user/**' \
+  --allow package.json \
+  --test-source 'src/**/*.ts' --test-file 'tests/**/*.test.ts'
+```
+
+인자 없이 실행하면 비어 있지만 유효한 계약을 생성합니다. `scope.include` 경로를 지정하기
+전까지 범위 검사는 꺼져 있고, 테스트 변경 검사는 `--test-source`와 `--test-file`을 함께
+지정해야 켜집니다. 다른 디렉터리는 `--cwd`로 지정합니다. 이 명령은 현재 소스에만 있으며
+공개된 v0.8.0 패키지에는 아직 포함되지 않았습니다.
 
 분석할 저장소의 `.intentpatch.json`에 이번 요청의 기대 범위를 선언할 수 있습니다.
 
@@ -472,7 +504,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
    - ✅ pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 변경
    - ✅ pnpm workspace manifest의 직접 dependency 변경
    - ✅ Yarn 4 metadata-v8 `yarn.lock` 레지스트리 패키지 변경
-   - Yarn workspace manifest 변경은 미구현
+   - ✅ Yarn workspace manifest의 직접 dependency 변경
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
    - ✅ JavaScript ESM의 이름 있는 export·default export 삭제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
@@ -490,7 +522,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
 - untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
 - 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
-- 직접 dependency 선언 분석은 저장소 루트와 변경된 npm·pnpm workspace `package.json`의
+- 직접 dependency 선언 분석은 저장소 루트와 변경된 npm·pnpm·Yarn workspace `package.json`의
   `dependencies`와 `devDependencies`를 대상으로 합니다.
 - 정적 참조 없음 finding은 미사용 확정이 아닌 검토 후보입니다. 유지보수 대상 JS/TS
   소스의 명시적 import·re-export·문자열 `require()`·`import()`를 살펴봅니다. CLI나 설정
@@ -501,8 +533,10 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - pnpm `pnpm-lock.yaml` v9은 프로젝트 문서의 레지스트리 패키지 ID와 버전을 비교합니다.
   integrity만 바뀐 경우, 로컬·Git 패키지, snapshot의 peer 변형, 부모 dependency 귀속은 분석하지 않습니다.
   루트의 직접 dependency 여부는 루트 importer를 기준으로 표시합니다.
-- workspace 판별은 루트의 npm `workspaces` 배열과 명시 경로, `*`·`**`·`?` 패턴을 지원합니다.
+- npm·Yarn workspace 판별은 루트의 `workspaces` 배열과 명시 경로, `*`·`**`·`?` 패턴을 지원합니다.
   부정·중괄호·문자 클래스 패턴은 미지원 finding으로 보고합니다.
+- Yarn 여부는 루트 `packageManager` 또는 `yarn.lock`으로 구분합니다. pnpm 설정이 함께
+  있으면 중복 보고를 막기 위해 pnpm을 우선합니다.
 - pnpm workspace는 `pnpm-workspace.yaml`의 `packages`에 명시한 `*`·`**`·`?`와 선행 `!`
   제외 패턴을 지원합니다. npm 설정이 함께 있으면 중복 보고를 막기 위해 pnpm 설정을
   우선합니다. 그 외 glob 문법과 catalog는 해석하지 않습니다.
