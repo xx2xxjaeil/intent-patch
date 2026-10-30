@@ -4,6 +4,7 @@ import type {
   FileSnapshotSource,
   TextFileSnapshot,
 } from "../../src/application/ports/file-snapshot-source.js";
+import { NpmWorkspaceDependencyRule } from "../../src/application/rules/npm-workspace-dependency-rule.js";
 import { PackageJsonWorkspaceDependencyRule } from "../../src/application/rules/package-json-workspace-dependency-rule.js";
 import { createChangeSet, type FileChange } from "../../src/domain/change.js";
 
@@ -18,6 +19,29 @@ function snapshotsByPath(
 }
 
 describe("PackageJsonWorkspaceDependencyRule", () => {
+  it("keeps the previous NpmWorkspaceDependencyRule import usable", async () => {
+    const rule = new NpmWorkspaceDependencyRule(
+      snapshotsByPath({
+        "package.json": {
+          before: JSON.stringify({ workspaces: ["packages/*"] }),
+          after: JSON.stringify({ workspaces: ["packages/*"] }),
+        },
+        "packages/api/package.json": {
+          before: JSON.stringify({ dependencies: {} }),
+          after: JSON.stringify({ dependencies: { added: "^2.0.0" } }),
+        },
+      }),
+    );
+    const result = await rule.analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([changed("packages/api/package.json")]),
+    });
+    assert.deepEqual(
+      result.map(({ ruleId }) => ruleId),
+      ["dependency/new-production"],
+    );
+  });
+
   it("attributes Yarn workspace dependency changes without treating them as npm workspaces", async () => {
     const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
