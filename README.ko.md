@@ -26,7 +26,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.8.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.9.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
@@ -36,7 +36,7 @@ GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.8.0은 전역 설치 없이
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.9.0은 전역 설치 없이
 실행할 수 있습니다.
 
 ```bash
@@ -82,7 +82,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.8.0
+        uses: xx2xxjaeil/intent-patch@v0.9.0
         with:
           fail-on: high
 
@@ -94,8 +94,9 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.8.0에는 Yarn 4
-lockfile 분석, 소스와 테스트의 명시적 연결, 보고서 필터와 영향 그래프 탐색 개선이 포함됩니다.
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.9.0에는 Yarn
+workspace dependency 분석과 Change Contract를 안전하게 만드는 `init` 명령이 추가되었습니다.
+Yarn 4 lockfile 분석, 소스와 테스트의 명시적 연결, 보고서 필터와 영향 그래프 탐색 개선,
 패키지 진입점 기준 공개 API 경고, 삭제된 모듈의 이전 import 영향 분석, 선택적 Claude Code·Codex·Cursor
 Hook도 사용할 수 있습니다. 공개 API 규칙의 별도 외부 평가 결과와 한계는
 [평가 보고서](./docs/external-repository-evaluation.md)에 기록했습니다. `@main`은 미릴리스 변경을 따라갑니다.
@@ -162,9 +163,9 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 ## 현재 구현된 기능
 
-현재 소스는 Git 변경사항 수집, 루트·npm workspace `package.json`의 직접 dependency와 npm lockfile 분석, TypeScript
-최상위 TypeScript·JavaScript 심볼과 공개 export 변경 분석, 기존 구현 중복·단일 구현 추상화 신호, import graph 기반
-영향 범위와 테스트 동반 변경 분석을 제공합니다.
+CLI는 Git 변경사항, 루트 및 npm·pnpm·Yarn workspace manifest의 직접 dependency,
+lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기존 구현 중복·단일 구현
+추상화 신호, import graph 기반 영향 범위와 테스트 동반 변경을 분석합니다.
 
 - `HEAD`와 현재 working tree 비교
 - 두 Git reference 또는 브랜치 비교
@@ -279,11 +280,11 @@ intentpatch analyze --intent-file request.md --format html --output report.html
 
 ### Change Contract로 요청 범위 검사
 
-현재 소스 빌드의 `init` 명령은 기존 파일을 덮어쓰지 않고 `.intentpatch.json`을 생성합니다.
+`intentpatch init` 명령은 기존 파일을 덮어쓰지 않고 `.intentpatch.json`을 생성합니다.
 자연어 요청만으로 경로를 추측하지 않으므로 이번 작업의 실제 경로를 전달하세요.
 
 ```bash
-node dist/presentation/cli/main.js init \
+intentpatch init \
   --intent "회원 탈퇴 기능 구현" \
   --include 'src/user/**' --include 'tests/user/**' \
   --allow package.json \
@@ -292,8 +293,7 @@ node dist/presentation/cli/main.js init \
 
 인자 없이 실행하면 비어 있지만 유효한 계약을 생성합니다. `scope.include` 경로를 지정하기
 전까지 범위 검사는 꺼져 있고, 테스트 변경 검사는 `--test-source`와 `--test-file`을 함께
-지정해야 켜집니다. 다른 디렉터리는 `--cwd`로 지정합니다. 이 명령은 현재 소스에만 있으며
-공개된 v0.8.0 패키지에는 아직 포함되지 않았습니다.
+지정해야 켜집니다. 다른 디렉터리는 `--cwd`로 지정합니다. 이 명령은 v0.9.0부터 제공됩니다.
 
 분석할 저장소의 `.intentpatch.json`에 이번 요청의 기대 범위를 선언할 수 있습니다.
 
@@ -476,7 +476,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.8.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.9.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
