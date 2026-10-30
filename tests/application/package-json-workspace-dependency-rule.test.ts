@@ -4,7 +4,7 @@ import type {
   FileSnapshotSource,
   TextFileSnapshot,
 } from "../../src/application/ports/file-snapshot-source.js";
-import { NpmWorkspaceDependencyRule } from "../../src/application/rules/npm-workspace-dependency-rule.js";
+import { PackageJsonWorkspaceDependencyRule } from "../../src/application/rules/package-json-workspace-dependency-rule.js";
 import { createChangeSet, type FileChange } from "../../src/domain/change.js";
 
 function changed(path: string): FileChange {
@@ -17,9 +17,89 @@ function snapshotsByPath(
   return { read: async (_target, path) => snapshots[path] ?? {} };
 }
 
-describe("NpmWorkspaceDependencyRule", () => {
+describe("PackageJsonWorkspaceDependencyRule", () => {
+  it("attributes Yarn workspace dependency changes without treating them as npm workspaces", async () => {
+    const rule = new PackageJsonWorkspaceDependencyRule(
+      snapshotsByPath({
+        "package.json": {
+          before: JSON.stringify({ packageManager: "yarn@4.10.0", workspaces: ["packages/*"] }),
+          after: JSON.stringify({ packageManager: "yarn@4.10.0", workspaces: ["packages/*"] }),
+        },
+        "packages/api/package.json": {
+          before: JSON.stringify({ dependencies: { old: "^1.0.0" } }),
+          after: JSON.stringify({ dependencies: { old: "^1.0.0", added: "^2.0.0" } }),
+        },
+      }),
+    );
+    const result = await rule.analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([changed("packages/api/package.json")]),
+    });
+    assert.deepEqual(
+      result.map(({ ruleId, evidence }) => ({ ruleId, evidence })),
+      [
+        {
+          ruleId: "dependency/new-production",
+          evidence: {
+            package: "added",
+            version: "^2.0.0",
+            section: "dependencies",
+            workspace: "packages/api",
+            packageManager: "yarn",
+          },
+        },
+      ],
+    );
+  });
+
+  it("recognizes Yarn from the lockfile when packageManager is not declared", async () => {
+    const rule = new PackageJsonWorkspaceDependencyRule(
+      snapshotsByPath({
+        "package.json": {
+          before: JSON.stringify({ workspaces: ["packages/*"] }),
+          after: JSON.stringify({ workspaces: ["packages/*", "apps/*"] }),
+        },
+        "yarn.lock": { before: "lockfile", after: "lockfile" },
+      }),
+    );
+    const result = await rule.analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([changed("package.json")]),
+    });
+    assert.deepEqual(
+      result.map(({ ruleId, evidence }) => ({ ruleId, evidence })),
+      [
+        {
+          ruleId: "dependency/yarn-workspace-config-changed",
+          evidence: {
+            from: '["packages/*"]',
+            to: '["packages/*","apps/*"]',
+            packageManager: "yarn",
+          },
+        },
+      ],
+    );
+  });
+
+  it("does not duplicate pnpm workspace findings when both lockfiles exist", async () => {
+    const rule = new PackageJsonWorkspaceDependencyRule(
+      snapshotsByPath({
+        "package.json": {
+          before: '{"workspaces":["packages/*"]}',
+          after: '{"workspaces":["packages/*"]}',
+        },
+        "pnpm-workspace.yaml": { before: "packages:\n  - packages/*\n" },
+        "yarn.lock": { after: "lockfile" },
+      }),
+    );
+    const result = await rule.analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([changed("packages/api/package.json")]),
+    });
+    assert.deepEqual(result, []);
+  });
   it("attributes dependency changes only to configured workspace manifests", async () => {
-    const rule = new NpmWorkspaceDependencyRule(
+    const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
         "package.json": {
           before: JSON.stringify({ workspaces: ["./packages/*", "apps/**"] }),
@@ -71,7 +151,7 @@ describe("NpmWorkspaceDependencyRule", () => {
   });
 
   it("reports a changed workspace configuration even without nested manifest changes", async () => {
-    const rule = new NpmWorkspaceDependencyRule(
+    const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
         "package.json": {
           before: JSON.stringify({ workspaces: ["packages/*"] }),
@@ -90,7 +170,7 @@ describe("NpmWorkspaceDependencyRule", () => {
   });
 
   it("includes a newly added workspace when the root configuration changed", async () => {
-    const rule = new NpmWorkspaceDependencyRule(
+    const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
         "package.json": {
           before: JSON.stringify({}),
@@ -114,7 +194,7 @@ describe("NpmWorkspaceDependencyRule", () => {
   });
 
   it("reports invalid and unsupported workspace configurations", async () => {
-    const rule = new NpmWorkspaceDependencyRule(
+    const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
         "package.json": {
           before: JSON.stringify({ workspaces: ["packages/*", "!packages/legacy"] }),
@@ -137,7 +217,7 @@ describe("NpmWorkspaceDependencyRule", () => {
 
   it("reports a manifest moved out of a workspace even when dependencies stay the same", async () => {
     const unchanged = JSON.stringify({ dependencies: { existing: "^1.0.0" } });
-    const rule = new NpmWorkspaceDependencyRule(
+    const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
         "package.json": {
           before: JSON.stringify({ workspaces: ["packages/*"] }),
@@ -173,7 +253,7 @@ describe("NpmWorkspaceDependencyRule", () => {
   });
 
   it("does not attribute a copy outside the workspace to its source", async () => {
-    const rule = new NpmWorkspaceDependencyRule(
+    const rule = new PackageJsonWorkspaceDependencyRule(
       snapshotsByPath({
         "package.json": {
           before: JSON.stringify({ workspaces: ["packages/*"] }),
@@ -196,7 +276,7 @@ describe("NpmWorkspaceDependencyRule", () => {
 
   it("does not read snapshots when no package manifest changed", async () => {
     let readCount = 0;
-    const rule = new NpmWorkspaceDependencyRule({
+    const rule = new PackageJsonWorkspaceDependencyRule({
       read: async () => {
         readCount += 1;
         return {};

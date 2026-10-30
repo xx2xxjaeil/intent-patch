@@ -23,7 +23,7 @@ export async function analyzeWorkspaceManifests(
   changes: readonly FileChange[],
   before: WorkspacePatterns,
   after: WorkspacePatterns,
-  manager: "npm" | "pnpm",
+  manager: "npm" | "pnpm" | "yarn",
 ): Promise<Finding[]> {
   const results = await Promise.all(
     changes.map(async (change) => {
@@ -51,6 +51,7 @@ export async function analyzeWorkspaceManifests(
                   currentPath,
                   fromWorkspace: wasWorkspace,
                   toWorkspace: isCurrentWorkspace,
+                  ...(manager === "npm" ? {} : { packageManager: manager }),
                 },
               },
             ]
@@ -65,7 +66,7 @@ export async function analyzeWorkspaceManifests(
           evidence: {
             ...finding.evidence,
             workspace,
-            ...(manager === "pnpm" ? { packageManager: manager } : {}),
+            ...(manager === "npm" ? {} : { packageManager: manager }),
           },
         })),
       ];

@@ -4,8 +4,8 @@ import { DuplicateImplementationRule } from "../application/rules/duplicate-impl
 import { ExpectedScopeRule } from "../application/rules/expected-scope-rule.js";
 import { MissingTestChangeRule } from "../application/rules/missing-test-change-rule.js";
 import { NpmLockfileRule } from "../application/rules/npm-lockfile-rule.js";
-import { NpmWorkspaceDependencyRule } from "../application/rules/npm-workspace-dependency-rule.js";
 import { PackageDependencyRule } from "../application/rules/package-dependency-rule.js";
+import { PackageJsonWorkspaceDependencyRule } from "../application/rules/package-json-workspace-dependency-rule.js";
 import { PnpmLockfileRule } from "../application/rules/pnpm-lockfile-rule.js";
 import { PnpmWorkspaceDependencyRule } from "../application/rules/pnpm-workspace-dependency-rule.js";
 import { PublicApiCompatibilityRule } from "../application/rules/public-api-compatibility-rule.js";
@@ -78,7 +78,7 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     new NpmLockfileRule(snapshotSource, new NpmPackageLockParser()),
     new PnpmLockfileRule(snapshotSource, new PnpmYamlLockParser()),
     new YarnLockfileRule(snapshotSource, new YarnYamlLockParser()),
-    new NpmWorkspaceDependencyRule(snapshotSource),
+    new PackageJsonWorkspaceDependencyRule(snapshotSource),
     new PnpmWorkspaceDependencyRule(snapshotSource, pnpmWorkspaceParser),
     new ExpectedScopeRule(),
     new ChangeBudgetRule(),

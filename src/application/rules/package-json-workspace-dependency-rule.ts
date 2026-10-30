@@ -10,11 +10,11 @@ import {
 const rootManifestPath = "package.json";
 
 type WorkspaceConfigResult =
-  | Readonly<{ ok: true; patterns: readonly string[] }>
+  | Readonly<{ ok: true; patterns: readonly string[]; managerHint?: "npm" | "yarn" }>
   | Readonly<{ ok: false; kind: "invalid" | "unsupported"; reason: string }>;
 
-/** npm workspaces에 속한 변경 manifest를 찾아 기존 직접 dependency 규칙으로 분석한다. */
-export class NpmWorkspaceDependencyRule implements AnalysisRule {
+/** package.json workspaces를 npm 또는 Yarn 소유로 분류해 직접 dependency를 비교한다. */
+export class PackageJsonWorkspaceDependencyRule implements AnalysisRule {
   public constructor(private readonly snapshots: FileSnapshotSource) {}
 
   public async analyze(context: AnalysisContext): Promise<readonly Finding[]> {
@@ -26,16 +26,21 @@ export class NpmWorkspaceDependencyRule implements AnalysisRule {
       return [];
     }
 
-    // pnpm-workspace.yaml이 있으면 pnpm 설정이 우선한다. 동일 manifest의 finding 중복을 피한다.
+    // pnpm 설정이 있으면 별도 규칙이 담당한다. Yarn lockfile이 있으면 Yarn으로 귀속한다.
     const pnpmConfig = await this.snapshots.read(context.target, "pnpm-workspace.yaml");
     if (pnpmConfig.before !== undefined || pnpmConfig.after !== undefined) return [];
 
     const snapshot = await this.snapshots.read(context.target, rootManifestPath);
     const before = parseWorkspaceConfig(snapshot.before);
     const after = parseWorkspaceConfig(snapshot.after);
+    const yarnLock = await this.snapshots.read(context.target, "yarn.lock");
+    const manager =
+      (after.ok ? after.managerHint : undefined) ??
+      (before.ok ? before.managerHint : undefined) ??
+      (yarnLock.before !== undefined || yarnLock.after !== undefined ? "yarn" : "npm");
     const errors = [
-      ...(!before.ok ? [configFinding("base", before)] : []),
-      ...(!after.ok ? [configFinding("current", after)] : []),
+      ...(!before.ok ? [configFinding("base", before, manager)] : []),
+      ...(!after.ok ? [configFinding("current", after, manager)] : []),
     ];
     if (errors.length > 0) {
       return errors;
@@ -47,14 +52,18 @@ export class NpmWorkspaceDependencyRule implements AnalysisRule {
     const findings: Finding[] = [];
     if (rootChanged && JSON.stringify(before.patterns) !== JSON.stringify(after.patterns)) {
       findings.push({
-        ruleId: "dependency/workspace-config-changed",
+        ruleId:
+          manager === "yarn"
+            ? "dependency/yarn-workspace-config-changed"
+            : "dependency/workspace-config-changed",
         severity: "low",
-        title: "npm workspace configuration changed",
+        title: `${manager} workspace configuration changed`,
         description: "The root package.json workspace patterns changed.",
         file: rootManifestPath,
         evidence: {
           from: JSON.stringify(before.patterns),
           to: JSON.stringify(after.patterns),
+          ...(manager === "yarn" ? { packageManager: manager } : {}),
         },
       });
     }
@@ -67,7 +76,7 @@ export class NpmWorkspaceDependencyRule implements AnalysisRule {
         manifestChanges,
         { includes: before.patterns, excludes: [] },
         { includes: after.patterns, excludes: [] },
-        "npm",
+        manager,
       )),
     ];
   }
@@ -86,8 +95,14 @@ function parseWorkspaceConfig(content: string | undefined): WorkspaceConfigResul
   if (!isRecord(manifest)) {
     return { ok: false, kind: "invalid", reason: "The root package.json must be an object." };
   }
+  const managerHint =
+    typeof manifest.packageManager === "string" && manifest.packageManager.startsWith("yarn@")
+      ? "yarn"
+      : typeof manifest.packageManager === "string" && manifest.packageManager.startsWith("npm@")
+        ? "npm"
+        : undefined;
   if (manifest.workspaces === undefined) {
-    return { ok: true, patterns: [] };
+    return { ok: true, patterns: [], ...(managerHint === undefined ? {} : { managerHint }) };
   }
   if (!Array.isArray(manifest.workspaces)) {
     return { ok: false, kind: "invalid", reason: "workspaces must be an array of paths." };
@@ -111,12 +126,13 @@ function parseWorkspaceConfig(content: string | undefined): WorkspaceConfigResul
     }
     patterns.push(pattern);
   }
-  return { ok: true, patterns };
+  return { ok: true, patterns, ...(managerHint === undefined ? {} : { managerHint }) };
 }
 
 function configFinding(
   side: "base" | "current",
   result: Extract<WorkspaceConfigResult, { ok: false }>,
+  manager: "npm" | "yarn",
 ): Finding {
   return {
     ruleId:
@@ -126,10 +142,14 @@ function configFinding(
     severity: result.kind === "invalid" ? "high" : "low",
     title:
       result.kind === "invalid"
-        ? "Invalid npm workspace configuration"
-        : "Unsupported npm workspace pattern",
-    description: `Could not analyze the ${side} npm workspaces: ${result.reason}`,
+        ? `Invalid ${manager} workspace configuration`
+        : `Unsupported ${manager} workspace pattern`,
+    description: `Could not analyze the ${side} ${manager} workspaces: ${result.reason}`,
     file: rootManifestPath,
-    evidence: { side, reason: result.reason },
+    evidence: {
+      side,
+      reason: result.reason,
+      ...(manager === "yarn" ? { packageManager: manager } : {}),
+    },
   };
 }

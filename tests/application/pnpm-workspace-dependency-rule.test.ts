@@ -4,7 +4,7 @@ import type {
   FileSnapshotSource,
   TextFileSnapshot,
 } from "../../src/application/ports/file-snapshot-source.js";
-import { NpmWorkspaceDependencyRule } from "../../src/application/rules/npm-workspace-dependency-rule.js";
+import { PackageJsonWorkspaceDependencyRule } from "../../src/application/rules/package-json-workspace-dependency-rule.js";
 import { PnpmWorkspaceDependencyRule } from "../../src/application/rules/pnpm-workspace-dependency-rule.js";
 import { createChangeSet, type FileChange } from "../../src/domain/change.js";
 import { PnpmYamlWorkspaceParser } from "../../src/infrastructure/pnpm/pnpm-workspace-parser.js";
@@ -112,7 +112,7 @@ describe("PnpmWorkspaceDependencyRule", () => {
       target: { baseRef: "HEAD" },
       changes: createChangeSet([changed("packages/api/package.json")]),
     };
-    assert.deepEqual(await new NpmWorkspaceDependencyRule(source).analyze(context), []);
+    assert.deepEqual(await new PackageJsonWorkspaceDependencyRule(source).analyze(context), []);
     assert.equal(
       (await new PnpmWorkspaceDependencyRule(source, parser).analyze(context))[0]?.ruleId,
       "dependency/new-production",
