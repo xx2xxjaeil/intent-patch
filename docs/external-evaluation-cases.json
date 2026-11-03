@@ -3,7 +3,8 @@
   "repositories": {
     "nanoid": "https://github.com/ai/nanoid.git",
     "p-limit": "https://github.com/sindresorhus/p-limit.git",
-    "p-queue": "https://github.com/sindresorhus/p-queue.git"
+    "p-queue": "https://github.com/sindresorhus/p-queue.git",
+    "picocolors": "https://github.com/alexeyraspopov/picocolors.git"
   },
   "cases": [
     {
@@ -348,6 +349,67 @@
         }
       },
       "expected": [{ "file": "index.js" }]
+    },
+    {
+      "id": "picocolors-add-browser-commonjs-name",
+      "ruleId": "api/exported-symbol-removed",
+      "repository": "picocolors",
+      "head": "6d92e1a4813a3ec8010d88ebe9e112b0f391dc01",
+      "reason": "Adds the static CommonJS createColors name in the browser entry without removing an existing tracked named export.",
+      "expected": []
+    },
+    {
+      "id": "picocolors-rework-color-detection-keeps-commonjs-name",
+      "ruleId": "api/exported-symbol-removed",
+      "repository": "picocolors",
+      "head": "5b01210390006229a9c9f4622234d43124b9daeb",
+      "reason": "Reworks color detection but retains the module.exports.createColors assignment.",
+      "expected": []
+    },
+    {
+      "id": "picocolors-rework-color-detection-with-test",
+      "ruleId": "tests/missing-related-change",
+      "repository": "picocolors",
+      "head": "5b01210390006229a9c9f4622234d43124b9daeb",
+      "reason": "The source and its explicitly related environment test both change.",
+      "contract": {
+        "tests": {
+          "requireFor": ["picocolors.js"],
+          "include": ["tests/environments.js"],
+          "related": { "picocolors.js": ["tests/environments.js"] }
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "picocolors-bright-colors-with-test",
+      "ruleId": "tests/missing-related-change",
+      "repository": "picocolors",
+      "head": "1d7a86dc58209976bff7bc40307646136847aa70",
+      "reason": "New color functions in picocolors.js are accompanied by a related tests/test.js change.",
+      "contract": {
+        "tests": {
+          "requireFor": ["picocolors.js"],
+          "include": ["tests/test.js"],
+          "related": { "picocolors.js": ["tests/test.js"] }
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "picocolors-iterative-replace-without-test",
+      "ruleId": "tests/missing-related-change",
+      "repository": "picocolors",
+      "head": "a014200ab27c654a40072d671654b1a898a0940b",
+      "reason": "Changes picocolors.js alone without a corresponding tests/test.js change under the explicit policy.",
+      "contract": {
+        "tests": {
+          "requireFor": ["picocolors.js"],
+          "include": ["tests/test.js"],
+          "related": { "picocolors.js": ["tests/test.js"] }
+        }
+      },
+      "expected": [{ "file": "picocolors.js" }]
     }
   ]
 }

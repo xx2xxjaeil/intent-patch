@@ -12,6 +12,24 @@ import { createTestChangeAnalysis } from "../../src/domain/test-change.js";
 import { formatHtmlReport } from "../../src/presentation/html/html-report.js";
 
 describe("formatHtmlReport", () => {
+  it("links findings to escaped, bounded diff context", () => {
+    const output = formatHtmlReport({
+      ...createReport(),
+      patchPreviews: [
+        {
+          path: "src/user.ts",
+          lines: ["@@ -1 +1 @@", "-old", "+<script>alert(1)</script>"],
+          truncated: true,
+        },
+      ],
+    });
+    assert.match(output, /href="#diff-0">Review file diff/);
+    assert.match(output, /id="diff-0"/);
+    assert.match(output, /class="patch-add">\+&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(output, /Preview truncated/);
+    assert.doesNotMatch(output, /\+<script>alert/);
+  });
+
   it("renders a self-contained report with analysis evidence", () => {
     const output = formatHtmlReport(createReport());
 

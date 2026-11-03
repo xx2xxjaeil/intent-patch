@@ -33,13 +33,18 @@ same real-change example, not a mockup. GitHub may show the HTML source rather t
 
 ## Quick start
 
-IntentPatch requires Node.js 20 or later and Git. Run the published v0.9.0 CLI without
-installing it globally:
+IntentPatch requires Node.js 20 or later and Git. From the repository you want to review, run
+the published v0.9.0 CLI without installing it globally:
 
 ```bash
-npx intentpatch analyze --cwd /path/to/repository
-npx intentpatch analyze --format html --output intentpatch-report.html
+cd /path/to/repository
+npx intentpatch analyze
+npx intentpatch analyze --format html --output ../intentpatch-report.html
 ```
+
+For the complete `init → analyze → HTML` walkthrough and common errors, see the
+[first-run guide](./docs/first-run.md). In the current source build, HTML findings link to bounded
+local Git diff previews; the published v0.9.0 does not include those links yet.
 
 To run the current source version instead, build it from the repository:
 
@@ -153,7 +158,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
 [three-case self-repository study](./docs/real-world-evaluation.md), and the
-[external evaluation of 32 changes and 38 rule checks](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 36 changes and 43 rule checks](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -457,7 +462,7 @@ This command runs:
 - architecture tests that enforce dependency direction;
 - a reproducibility check for the bundled GitHub Action.
 
-For a reproducible check of 38 rule decisions across 32 reviewed changes in external
+For a reproducible check of 43 rule decisions across 36 reviewed changes in external
 repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
 
 Run only the production build with:
@@ -528,7 +533,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
   Runtime dependency usage is not established.
 - Working-tree `package-lock.json`, `pnpm-lock.yaml`, and `yarn.lock` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
 - TypeScript symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
-- TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal, but does not infer function signatures. Previous root or nested package `exports` are followed through explicit source targets and relative re-exports. This is a file-level approximation: a named re-export may still expose only some symbols from its module. If an entrypoint is generated, unresolved, or unsupported, IntentPatch retains the earlier conservative warnings instead of claiming a file is private. CommonJS `module.exports`, class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
+- TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal and static top-level `exports.name =` / `module.exports.name =` removal, but does not infer function signatures. Previous root or nested package `exports` are followed through explicit source targets and relative re-exports. This is a file-level approximation: a named re-export may still expose only some symbols from its module. If an entrypoint is generated, unresolved, or unsupported, IntentPatch retains the earlier conservative warnings instead of claiming a file is private. Whole-object CommonJS assignments, dynamic keys, nested assignments, class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
 - Function compatibility first compares recorded signatures. For self-contained, explicitly typed declarations it then uses strict TypeScript assignability to avoid warning on compatible changes. A narrow syntactic check also accepts primitive parameters widened by union arms when the return text is unchanged. Other unresolved names, inferred types, malformed or unsupported signature shapes remain unverified and keep the review warning; this is not a whole-project type check or a runtime compatibility guarantee.
 - Interface property compatibility recognizes unchanged types and optional fields added inside
   supported object literals, including `Readonly` wrappers. Other nested type transformations

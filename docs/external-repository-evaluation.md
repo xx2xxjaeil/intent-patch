@@ -1,14 +1,14 @@
 # External repository evaluation
 
 The first exploratory run compared six merged changes from two independent open-source projects.
-The reviewed-label evaluation below extends that set to 32 distinct changes and 38 rule checks
-from three repositories.
+The reviewed-label evaluation below extends that set to 36 distinct changes and 43 rule checks
+from four repositories.
 Together they show what IntentPatch can and cannot establish outside its own repository. Only Git snapshots were
 read; the external projects' install, build, and test scripts were not run. The six-case results
 were measured on 2026-10-18; the export-removal evaluation was measured on 2026-10-19 and the
 multi-rule extension on 2026-10-21. The signature-compatibility revision was measured on
-2026-10-22, the p-limit API extension on 2026-10-26, and the dependency/scope/test extension on
-2026-10-30. None is a general precision or recall
+2026-10-22, the p-limit API extension on 2026-10-26, the dependency/scope/test extension on
+2026-10-30, and the picocolors extension on 2026-11-03. None is a general precision or recall
 benchmark.
 
 ## Reproduce
@@ -21,6 +21,7 @@ npm run build
 git clone https://github.com/sindresorhus/p-queue.git ../p-queue
 git clone https://github.com/ai/nanoid.git ../nanoid
 git clone https://github.com/sindresorhus/p-limit.git ../p-limit
+git clone https://github.com/alexeyraspopov/picocolors.git ../picocolors
 node dist/presentation/cli/main.js analyze \
   --cwd ../nanoid \
   --base '0b2cec58ffd5ddc45978bf75a3bab46f53c76128^' \
@@ -52,14 +53,14 @@ report rather than silently treated as a complete alias graph.
 
 ## Curated multi-rule evaluation
 
-A versioned [case manifest](./external-evaluation-cases.json) contains 38 independently reviewed
-rule checks over 32 distinct changes from p-queue, nanoid, and p-limit, including the six
+A versioned [case manifest](./external-evaluation-cases.json) contains 43 independently reviewed
+rule checks over 36 distinct changes from p-queue, nanoid, p-limit, and picocolors, including the six
 exploratory changes above.
 Each case names **one rule** and its expected `(file, exported name)`, `(file, package)`, or
 `(file)` labels, reviewed against the
 Git diff before running the evaluator. A commit is scored for another rule only when it has a
-separate reviewed case; an unchecked rule is neither a pass nor a failure. Sixteen checks cover
-`api/exported-symbol-removed`; the other 21 checks cover three more public-API rules and
+separate reviewed case; an unchecked rule is neither a pass nor a failure. Eighteen checks cover
+`api/exported-symbol-removed`; the other 25 checks cover three more public-API rules and
 dependency, scope, and test-change rules. Scope and test cases carry explicit Change Contracts;
 the evaluator writes them only to a temporary file, not into an external checkout.
 
@@ -70,6 +71,7 @@ running any external project's dependencies or scripts:
 git clone https://github.com/ai/nanoid.git ../nanoid
 git clone https://github.com/sindresorhus/p-queue.git ../p-queue
 git clone https://github.com/sindresorhus/p-limit.git ../p-limit
+git clone https://github.com/alexeyraspopov/picocolors.git ../picocolors
 npm ci
 npm run evaluate:external -- --repositories ..
 ```
@@ -77,12 +79,12 @@ npm run evaluate:external -- --repositories ..
 The script checks every fixed commit and its parent, builds IntentPatch, runs the CLI against the
 Git snapshots once per unique change, and compares only the selected rule's findings with its
 reviewed labels. `--json` includes per-case, per-rule, and overall counts. A mismatch exits
-nonzero. On 2026-10-30, all 38 checks matched. Twelve cases expect findings and 26 expect none
+nonzero. On 2026-11-03, all 43 checks matched. Thirteen cases expect findings and 30 expect none
 for their selected rule:
 
 | Rule | Checks | Matched expected labels | Missing | Unexpected |
 | --- | ---: | ---: | ---: | ---: |
-| `api/exported-symbol-removed` | 16 | 10 | 0 | 0 |
+| `api/exported-symbol-removed` | 18 | 10 | 0 | 0 |
 | `api/public-type-member-removed` | 5 | 2 | 0 | 0 |
 | `api/public-signature-changed` | 6 | 5 | 0 | 0 |
 | `api/public-interface-changed` | 2 | 1 | 0 | 0 |
@@ -90,8 +92,15 @@ for their selected rule:
 | `dependency/removed` | 2 | 2 | 0 | 0 |
 | `dependency/version-changed` | 1 | 4 | 0 | 0 |
 | `scope/outside-expected-path` | 2 | 1 | 0 | 0 |
-| `tests/missing-related-change` | 2 | 1 | 0 | 0 |
-| **Total** | **38** | **27** | **0** | **0** |
+| `tests/missing-related-change` | 5 | 2 | 0 | 0 |
+| **Total** | **43** | **28** | **0** | **0** |
+
+The additional picocolors cases check that a browser entrypoint gaining a static CommonJS
+`createColors` name is not mistaken for an export removal and that the name remains visible after
+an implementation change. Three explicitly mapped source-to-test checks include two commits with
+their related tests and one source-only fix without a test change. The latter is a policy finding,
+not a claim that the fix itself is defective. This fourth repository broadens the sample but the
+hand-selected checks still cannot support a general error-rate estimate.
 
 The new p-limit dependency cases cover adding `yocto-queue`, removing `p-try`, replacing the
 `delay` test dependency with native timers, updating four declared ranges, and a version-only release that must not look like a
@@ -172,8 +181,8 @@ outside the member-removal rule.
   applies. Other unresolved external/local types, inferred types, and unsupported signature
   shapes retain the review warning. This does not prove runtime behavior or whole-project
   compatibility.
-- JS compatibility analysis records identifiable ESM export removal, not inferred parameter or
-  return-type compatibility. CommonJS `module.exports` and nested exports remain outside this
-  first JS symbol-analysis slice.
+- JS compatibility analysis records identifiable ESM and static, top-level CommonJS named export
+  removal, not inferred parameter or return-type compatibility. Whole-object `module.exports =`,
+  dynamic keys, and nested assignments remain outside this JS symbol-analysis slice.
 - The import graph contains resolvable string-literal loads at the selected head. Computed loads,
   deleted historical imports, and package-resolution behavior are not resolved.

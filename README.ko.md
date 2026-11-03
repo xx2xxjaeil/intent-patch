@@ -36,13 +36,18 @@ GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. npm에 공개된 v0.9.0은 전역 설치 없이
-실행할 수 있습니다.
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.9.0을
+전역 설치 없이 실행할 수 있습니다.
 
 ```bash
-npx intentpatch analyze --cwd /path/to/repository
-npx intentpatch analyze --format html --output intentpatch-report.html
+cd /path/to/repository
+npx intentpatch analyze
+npx intentpatch analyze --format html --output ../intentpatch-report.html
 ```
+
+처음 실행하는 경우 [첫 실행 안내](./docs/first-run.md)의 `init → analyze → HTML` 순서와
+오류별 확인 방법을 참고하세요. 현재 소스 빌드의 HTML에서는 finding에서 해당 파일의 제한된
+Git diff 미리보기로 이동할 수 있습니다. 공개된 v0.9.0에는 아직 이 링크가 없습니다.
 
 현재 소스 버전을 실행하려면 저장소를 빌드합니다.
 
@@ -157,7 +162,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 실제 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
 [자체 저장소 변경 3건의 사례 연구](./docs/real-world-evaluation.md),
-[외부 저장소 변경 32건·규칙별 판정 38건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
+[외부 저장소 변경 36건·규칙별 판정 43건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
@@ -549,16 +554,16 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - TypeScript 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
   별칭만 지원합니다.
 - JavaScript 심볼 분석은 `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수 및 식별 가능한
-  ESM export를 추적합니다. CommonJS `module.exports`는 아직 공개 API 분석 대상이 아닙니다.
+  ESM export와 최상위의 정적 `exports.name =`·`module.exports.name =` 할당을 추적합니다.
 - TypeScript 공개 API 분석은 이름이 있는 최상위 함수·인터페이스와 객체 리터럴, 같은 파일의
   비제네릭 별칭·교집합으로 구성된 공개 타입 별칭의 구성원 삭제를 지원합니다. 로컬
   `export { name }`, 외부 `export { name } from`, `export * from`은 export 근거로 추적합니다.
-  JavaScript는 이름 있는 ESM export와 default export 삭제를 탐지하지만 함수의 타입 호환성을
+  JavaScript는 이름 있는 ESM export·default export와 정적 CommonJS 이름 삭제를 탐지하지만 함수의 타입 호환성을
   추정하지 않습니다. 변경 전 루트·하위 패키지의 `exports`가 소스 파일을 직접 가리키면 공개
   진입점과 상대 경로 re-export가 도달하는 파일에만 공개 API 경고를 냅니다. 이는 파일 단위
   근사치로, 이름 있는 re-export가 파일의 일부 심볼만 노출하는 경우도 있습니다. 생성된
   진입점이나 해석 불가능한 경로에서는 비공개라고 단정하지 않고 기존 경고를 유지합니다.
-  CommonJS `module.exports`, 클래스 계약, 제네릭 별칭 인스턴스화, 합집합, 파일 간 타입 참조와
+  CommonJS 객체 전체 대입·동적 속성·중첩 대입, 클래스 계약, 제네릭 별칭 인스턴스화, 합집합, 파일 간 타입 참조와
   완전한 타입 할당 가능성은 해석하지 않습니다. 지원하지
   않는 타입 별칭 형태에서는 구성원 삭제 finding을 내지 않습니다.
 - 함수 호환성은 먼저 기록된 시그니처를 비교하고, 외부 참조 없이 해석할 수 있는 명시적 타입은

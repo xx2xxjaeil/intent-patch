@@ -23,6 +23,7 @@ import type { ChangeReport } from "../domain/report.js";
 import { JsonChangeContractLoader } from "../infrastructure/config/json-change-contract-loader.js";
 import { GitChangeSource } from "../infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-source.js";
+import { GitPatchPreviewSource } from "../infrastructure/git/git-patch-preview-source.js";
 import { GitProjectFileSource } from "../infrastructure/git/git-project-file-source.js";
 import { NpmPackageLockParser } from "../infrastructure/npm/npm-package-lock-parser.js";
 import { PnpmYamlLockParser } from "../infrastructure/pnpm/pnpm-lock-parser.js";
@@ -45,6 +46,7 @@ export interface RepositoryAnalysisOptions {
   readonly configurationPath?: string;
   readonly intentOverride?: string;
   readonly fallbackIntent?: string;
+  readonly includePatchPreviews?: boolean;
 }
 
 /** CLI와 자동화 어댑터가 동일한 분석 구성과 규칙 집합을 사용하도록 조립을 공유한다. */
@@ -113,9 +115,15 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     codeStructureAnalyzer,
   );
 
-  return useCase.execute({
+  const report = await useCase.execute({
     ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
     ...(options.headRef === undefined ? {} : { headRef: options.headRef }),
     ...(contract === undefined ? {} : { contract }),
   });
+  if (!options.includePatchPreviews) return report;
+  const patchPreviews = await new GitPatchPreviewSource(
+    options.workingDirectory,
+    commandRunner,
+  ).collect(report.target, report.changes.files);
+  return { ...report, patchPreviews };
 }

@@ -9,7 +9,7 @@ import { parseTypeScriptSource } from "./parse-typescript-source.js";
 
 const javaScriptExtension = /\.(?:[cm]?js|jsx)$/u;
 
-/** JS의 확인 가능한 최상위 ESM export만 수집한다. 타입 계약은 추정하지 않는다. */
+/** JS의 확인 가능한 최상위 ESM 및 이름 있는 CommonJS export를 수집한다. 타입 계약은 추정하지 않는다. */
 export class JavaScriptSymbolExtractor implements SourceSymbolExtractor {
   public supports(path: string): boolean {
     return javaScriptExtension.test(path);
@@ -45,6 +45,11 @@ export class JavaScriptSymbolExtractor implements SourceSymbolExtractor {
         ts.isExportAssignment(statement)
       ) {
         addSymbol(symbols, sourceFile, statement, "default", "re-export", true);
+      }
+
+      const commonJsName = commonJsExportName(statement);
+      if (commonJsName !== undefined) {
+        addSymbol(symbols, sourceFile, statement, commonJsName, "re-export", true);
       }
     }
 
@@ -97,6 +102,31 @@ export class JavaScriptSymbolExtractor implements SourceSymbolExtractor {
       ),
     };
   }
+}
+
+/** 최상위의 정적 `exports.name =` / `module.exports.name =`만 공개 이름으로 인정한다. */
+function commonJsExportName(statement: ts.Statement): string | undefined {
+  if (!ts.isExpressionStatement(statement)) return undefined;
+  const expression = statement.expression;
+  if (
+    !ts.isBinaryExpression(expression) ||
+    expression.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+  ) {
+    return undefined;
+  }
+  const target = expression.left;
+  if (!ts.isPropertyAccessExpression(target)) return undefined;
+  const owner = target.expression;
+  if (ts.isIdentifier(owner) && owner.text === "exports") return target.name.text;
+  if (
+    ts.isPropertyAccessExpression(owner) &&
+    ts.isIdentifier(owner.expression) &&
+    owner.expression.text === "module" &&
+    owner.name.text === "exports"
+  ) {
+    return target.name.text;
+  }
+  return undefined;
 }
 
 function collectLocalNamedExports(sourceFile: ts.SourceFile): ReadonlySet<string> {

@@ -380,6 +380,30 @@ describe("public API removal integration", () => {
     );
   });
 
+  it("reports a removed named CommonJS export while preserving another", async () => {
+    const repository = await createRepository(
+      "exports.keep = () => 1;\nmodule.exports.remove = () => 2;\n",
+      "api.cjs",
+    );
+    await writeFile(join(repository, "api.cjs"), "exports.keep = () => 1;\n");
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new PublicApiRemovalRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new JavaScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.deepEqual(
+      report.findings.items.map(({ ruleId, evidence }) => ({
+        ruleId,
+        symbolName: evidence.symbolName,
+      })),
+      [{ ruleId: "api/exported-symbol-removed", symbolName: "remove" }],
+    );
+  });
+
   it("reports a removed JavaScript default export even when its function remains", async () => {
     const repository = await createRepository(
       "export default function App() { return null; }\n",

@@ -2,7 +2,7 @@ import type { FileChange, LineDelta } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
-import type { ChangeReport } from "../../domain/report.js";
+import type { ChangeReport, PatchPreview } from "../../domain/report.js";
 import type { SymbolChange } from "../../domain/symbol-change.js";
 import type { SourceTestCoverage } from "../../domain/test-change.js";
 
@@ -48,7 +48,8 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderReportControls()}
     ${renderContract(report.contract)}
     ${renderImpact(report.impact.changedModules, report.impact.impactedFiles, report.changes.files)}
-    ${renderFindings(report.findings.items)}
+    ${renderFindings(report.findings.items, report.patchPreviews ?? [])}
+    ${renderPatchPreviews(report.patchPreviews ?? [], report.changes.files.length)}
     ${renderTestCoverage(report.testChanges.sourceCoverage)}
     ${renderFiles(report.changes.files)}
     ${renderSymbols(report.symbolChanges.changes)}
@@ -174,7 +175,7 @@ function renderContract(contract: ChangeContract | undefined): string {
   );
 }
 
-function renderFindings(findings: readonly Finding[]): string {
+function renderFindings(findings: readonly Finding[], previews: readonly PatchPreview[]): string {
   const body =
     findings.length === 0
       ? renderEmpty("No potential issues were detected by the enabled rules.")
@@ -188,6 +189,7 @@ function renderFindings(findings: readonly Finding[]): string {
             <div><h3>${escapeHtml(finding.title)}</h3><code>${escapeHtml(finding.file)}</code></div>
           </div>
           <p>${escapeHtml(finding.description)}</p>
+          ${renderPatchLink(finding.file, previews)}
           <details><summary>${escapeHtml(finding.ruleId)} · evidence</summary>
             <dl>${Object.entries(finding.evidence)
               .map(
@@ -201,6 +203,42 @@ function renderFindings(findings: readonly Finding[]): string {
           .join("")}</div>`;
 
   return renderSection("Potential issues", `${findings.length} findings`, body);
+}
+
+function renderPatchLink(path: string, previews: readonly PatchPreview[]): string {
+  const index = previews.findIndex((preview) => preview.path === path);
+  return index < 0 ? "" : `<a class="patch-link" href="#diff-${index}">Review file diff →</a>`;
+}
+
+function renderPatchPreviews(previews: readonly PatchPreview[], totalFiles: number): string {
+  if (previews.length === 0) return "";
+  const body = `<p class="patch-note">Only the first ${previews.length} of ${totalFiles} changed files and up to 160 lines per file are shown. These previews are review context, not rule evidence.</p>
+    <div class="patch-list">${previews
+      .map(
+        (
+          preview,
+          index,
+        ) => `<article id="diff-${index}" class="patch-card" data-report-path="${escapeHtml(preview.path)}">
+        <h3>${escapeHtml(preview.path)}</h3>
+        ${
+          preview.unavailableReason === undefined
+            ? `<pre aria-label="Git diff for ${escapeHtml(preview.path)}"><code>${preview.lines
+                .map((line) => `<span class="${patchLineKind(line)}">${escapeHtml(line)}</span>`)
+                .join("\n")}</code></pre>`
+            : `<p>${escapeHtml(preview.unavailableReason)}</p>`
+        }
+        ${preview.truncated ? "<p>Preview truncated; use Git for the complete diff.</p>" : ""}
+      </article>`,
+      )
+      .join("")}</div>`;
+  return renderSection("Diff context", `${previews.length} file previews`, body);
+}
+
+function patchLineKind(line: string): string {
+  if (line.startsWith("@@")) return "patch-hunk";
+  if (line.startsWith("+")) return "patch-add";
+  if (line.startsWith("-")) return "patch-remove";
+  return "patch-context";
 }
 
 function renderImpact(
@@ -525,6 +563,19 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .finding-heading>span { min-width:64px; padding:5px 7px; border-radius:7px; background:#232b39; color:var(--muted); font-size:10px; font-weight:800; text-align:center; text-transform:uppercase; }
 .finding code { display:block; margin-top:5px; color:var(--muted); }
 .finding p { margin:14px 0; color:#c3cad6; line-height:1.55; }
+.patch-link { display:inline-block; margin:0 0 12px; color:var(--cyan); font-size:12px; font-weight:700; text-decoration:none; }
+.patch-link:hover { text-decoration:underline; }
+.patch-note { color:var(--muted); font-size:12px; line-height:1.5; }
+.patch-list { display:grid; gap:12px; }
+.patch-card { overflow:hidden; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); scroll-margin-top:20px; }
+.patch-card:target { border-color:var(--cyan); }
+.patch-card h3 { margin:0; padding:12px 16px; font:600 13px ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; }
+.patch-card p { margin:0; padding:12px 16px; color:var(--muted); }
+.patch-card pre { overflow:auto; margin:0; padding:12px 16px; border-top:1px solid var(--line); font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+.patch-card pre span { display:block; white-space:pre; }
+.patch-add { color:#89d9a0; background:#143322; }
+.patch-remove { color:#ff9aa8; background:#3c1e28; }
+.patch-hunk { color:var(--cyan); }
 .impact-list { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
 .impact-list article { display:grid; grid-template-columns:70px 1fr; gap:5px 12px; padding:15px; border:1px solid var(--line); border-radius:11px; background:var(--panel-2); }
 .impact-list .distance { grid-row:1/3; color:var(--violet); font-size:10px; font-weight:800; letter-spacing:.08em; }

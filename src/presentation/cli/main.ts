@@ -59,6 +59,9 @@ async function main(): Promise<void> {
       if (contract.scope.include.length === 0) {
         process.stdout.write("Scope checks are off until scope.include has an expected path.\n");
       }
+      process.stdout.write(
+        "Next: review .intentpatch.json, then run intentpatch analyze --format html --output ../intentpatch-report.html in this repository.\n",
+      );
       return;
     }
     if (options.command === "claude-hook") {
@@ -81,7 +84,8 @@ async function main(): Promise<void> {
       const writer = new GitPrivateAgentReportWriter();
       const result = await runCursorHook(options.action, await readAgentHookInput(process.stdin), {
         store: new GitPrivateAgentIntentStore(),
-        analyze: analyzeRepository,
+        analyze: (analysisOptions) =>
+          analyzeRepository({ ...analysisOptions, includePatchPreviews: true }),
         writeReport: (key, cwd, html) => writer.write(key, cwd, html),
       });
       process.stdout.write(result.output);
@@ -95,6 +99,7 @@ async function main(): Promise<void> {
         : await new TextIntentLoader().load(options.workingDirectory, options.intentFilePath);
     const report = await analyzeRepository({
       workingDirectory: options.workingDirectory,
+      includePatchPreviews: options.outputFormat === "html",
       ...(intentOverride === undefined ? {} : { intentOverride }),
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
       ...(options.headRef === undefined ? {} : { headRef: options.headRef }),
