@@ -6,6 +6,7 @@ const supportedRules = new Set([
   "api/public-signature-changed",
   "api/public-interface-changed",
   "dependency/new-production",
+  "dependency/new-development",
   "dependency/removed",
   "dependency/version-changed",
   "scope/outside-expected-path",

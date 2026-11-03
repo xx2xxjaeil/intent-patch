@@ -410,6 +410,69 @@
         }
       },
       "expected": [{ "file": "picocolors.js" }]
+    },
+    {
+      "id": "picocolors-add-yoctocolors-benchmark",
+      "ruleId": "dependency/new-development",
+      "repository": "picocolors",
+      "head": "6f0a4638348ed20633d623ee973f9c9a96f65104",
+      "reason": "Adds yoctocolors as a benchmark-only development dependency.",
+      "expected": [{ "file": "package.json", "package": "yoctocolors" }]
+    },
+    {
+      "id": "picocolors-update-prettier-benchmark",
+      "ruleId": "dependency/version-changed",
+      "repository": "picocolors",
+      "head": "6f0a4638348ed20633d623ee973f9c9a96f65104",
+      "reason": "Updates the declared Prettier range while adding another benchmark dependency.",
+      "expected": [{ "file": "package.json", "package": "prettier" }]
+    },
+    {
+      "id": "picocolors-migrate-benchmark-runner",
+      "ruleId": "dependency/new-development",
+      "repository": "picocolors",
+      "head": "4c5e981af1f462dfda9817606978b0428f165ad4",
+      "reason": "Adds mitata as a development dependency for the benchmark rewrite.",
+      "expected": [{ "file": "package.json", "package": "mitata" }]
+    },
+    {
+      "id": "picocolors-remove-old-benchmark-runner",
+      "ruleId": "dependency/removed",
+      "repository": "picocolors",
+      "head": "4c5e981af1f462dfda9817606978b0428f165ad4",
+      "reason": "Removes the previous benchmark dependency from package.json.",
+      "expected": [{ "file": "package.json", "package": "benchmark" }]
+    },
+    {
+      "id": "picocolors-update-benchmark-ci-no-export-removal",
+      "ruleId": "api/exported-symbol-removed",
+      "repository": "picocolors",
+      "head": "0e7c4af2de299dd7bc5916f2bddd151fa2f66740",
+      "reason": "Changes only the benchmark workflow's Node.js setup, not the public source.",
+      "expected": []
+    },
+    {
+      "id": "picocolors-add-large-text-test-only",
+      "ruleId": "tests/missing-related-change",
+      "repository": "picocolors",
+      "head": "6f6011182c0f16cf119019ca9bef1fadbe86b913",
+      "reason": "Changes tests/test.js only, so the declared source-to-test policy has no source change to flag.",
+      "contract": {
+        "tests": {
+          "requireFor": ["picocolors.js"],
+          "include": ["tests/test.js"],
+          "related": { "picocolors.js": ["tests/test.js"] }
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "picocolors-version-only-release-no-production-dependency",
+      "ruleId": "dependency/new-production",
+      "repository": "picocolors",
+      "head": "7249f8c5d4825550f70bc1ea98652639933d3bbd",
+      "reason": "The release changes package version and changelog without adding production dependencies.",
+      "expected": []
     }
   ]
 }
