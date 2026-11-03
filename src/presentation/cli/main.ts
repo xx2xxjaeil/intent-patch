@@ -81,7 +81,8 @@ async function main(): Promise<void> {
       const writer = new GitPrivateAgentReportWriter();
       const result = await runCursorHook(options.action, await readAgentHookInput(process.stdin), {
         store: new GitPrivateAgentIntentStore(),
-        analyze: analyzeRepository,
+        analyze: (analysisOptions) =>
+          analyzeRepository({ ...analysisOptions, includePatchPreviews: true }),
         writeReport: (key, cwd, html) => writer.write(key, cwd, html),
       });
       process.stdout.write(result.output);
@@ -95,6 +96,7 @@ async function main(): Promise<void> {
         : await new TextIntentLoader().load(options.workingDirectory, options.intentFilePath);
     const report = await analyzeRepository({
       workingDirectory: options.workingDirectory,
+      includePatchPreviews: options.outputFormat === "html",
       ...(intentOverride === undefined ? {} : { intentOverride }),
       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
       ...(options.headRef === undefined ? {} : { headRef: options.headRef }),

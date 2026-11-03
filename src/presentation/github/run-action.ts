@@ -38,6 +38,7 @@ export async function runGitHubAction(runtime: GitHubActionRuntime): Promise<Git
   runtime.info(`IntentPatch analyzing ${comparison.baseRef}...${comparison.headRef}`);
   const report = await analyzeRepository({
     workingDirectory,
+    includePatchPreviews: true,
     baseRef: comparison.baseRef,
     headRef: comparison.headRef,
     ...(intentOverride === undefined ? {} : { intentOverride }),

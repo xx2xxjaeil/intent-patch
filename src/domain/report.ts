@@ -20,4 +20,13 @@ export interface ChangeReport {
   readonly codeStructure: CodeStructureAnalysis;
   readonly impact: ImpactAnalysis;
   readonly testChanges: TestChangeAnalysis;
+  /** 검토 편의를 위한 제한된 Git patch. 분석 규칙의 판단 근거로 사용하지 않는다. */
+  readonly patchPreviews?: readonly PatchPreview[];
+}
+
+export interface PatchPreview {
+  readonly path: string;
+  readonly lines: readonly string[];
+  readonly truncated: boolean;
+  readonly unavailableReason?: string;
 }
