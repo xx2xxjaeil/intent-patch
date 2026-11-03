@@ -58,6 +58,24 @@ describe("JavaScriptSymbolExtractor", () => {
     }
   });
 
+  it("tracks only static top-level CommonJS named assignments", () => {
+    const result = extractor.extract(
+      "src/api.cjs",
+      [
+        "exports.create = () => 1;",
+        "module.exports.remove = () => 2;",
+        "exports[dynamic] = 3;",
+        "function nested() { exports.hidden = 4; }",
+      ].join("\n"),
+    );
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    assert.deepEqual(
+      result.symbols.filter(({ exported }) => exported).map(({ name }) => name),
+      ["create", "remove"],
+    );
+  });
+
   it("rejects malformed JavaScript with positional evidence", () => {
     const result = extractor.extract("src/broken.js", "export function run( {");
     assert.equal(result.kind, "unavailable");
