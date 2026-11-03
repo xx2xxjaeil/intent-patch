@@ -29,6 +29,8 @@ const symbolStatusLabels: Readonly<Record<SymbolChangeKind, string>> = {
 const symbolKindLabels: Readonly<Record<SourceSymbolKind, string>> = {
   function: "Function",
   class: "Class",
+  method: "Method",
+  enum: "Enum",
   variable: "Variable",
   interface: "Interface",
   "type-alias": "Type",

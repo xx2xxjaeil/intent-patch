@@ -11,6 +11,33 @@ describe("TypeScriptSymbolExtractor", () => {
     assert.equal(extractor.supports("src/user.js"), false);
   });
 
+  it("tracks enum declarations and public class methods without exporting private methods", () => {
+    const result = extractor.extract(
+      "src/service.ts",
+      [
+        "export enum State { Ready, Done }",
+        "export class Service {",
+        "  run(value: string): string;",
+        "  run(value: string) { return value; }",
+        "  static create() { return new Service(); }",
+        "  private secret() { return 1; }",
+        "}",
+      ].join("\n"),
+    );
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    assert.deepEqual(
+      result.symbols.map(({ name, kind, exported }) => ({ name, kind, exported })),
+      [
+        { name: "State", kind: "enum", exported: true },
+        { name: "Service", kind: "class", exported: true },
+        { name: "Service.run", kind: "method", exported: true },
+        { name: "Service.static.create", kind: "method", exported: true },
+        { name: "Service.secret", kind: "method", exported: false },
+      ],
+    );
+  });
+
   it("extracts named top-level declarations and ignores variables and nested symbols", () => {
     const result = extractor.extract(
       "src/user.ts",
