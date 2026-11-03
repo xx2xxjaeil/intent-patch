@@ -82,6 +82,7 @@ function evidence(item: YarnLockedPackage): Finding["evidence"] {
     version: item.version,
     packageId: item.id,
     rootDirect: item.rootDirect,
+    ...(item.introducedBy === undefined ? {} : { introducedBy: item.introducedBy.join(", ") }),
     packageManager: "yarn",
   };
 }

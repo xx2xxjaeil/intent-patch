@@ -35,6 +35,7 @@ describe("NpmPackageLockParser", () => {
         name: "@scope/direct",
         version: "1.2.0",
         rootDirect: true,
+        introducedBy: ["@scope/direct"],
       });
       assert.equal(result.packages.get("node_modules/tooling")?.rootDirect, true);
       assert.equal(result.packages.get("node_modules/transitive")?.rootDirect, false);
@@ -44,6 +45,31 @@ describe("NpmPackageLockParser", () => {
       );
     });
   }
+
+  it("attributes hoisted, shared, and nested packages only through declared dependencies", () => {
+    const result = parser.parse(
+      JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          "": { dependencies: { alpha: "1", beta: "1" } },
+          "node_modules/alpha": { version: "1", dependencies: { shared: "1", nested: "1" } },
+          "node_modules/beta": { version: "1", dependencies: { shared: "1" } },
+          "node_modules/shared": { version: "1", dependencies: { leaf: "1" } },
+          "node_modules/leaf": { version: "1" },
+          "node_modules/alpha/node_modules/nested": { version: "1" },
+          "node_modules/unrelated": { version: "1" },
+        },
+      }),
+    );
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.packages.get("node_modules/shared")?.introducedBy, ["alpha", "beta"]);
+    assert.deepEqual(result.packages.get("node_modules/leaf")?.introducedBy, ["alpha", "beta"]);
+    assert.deepEqual(result.packages.get("node_modules/alpha/node_modules/nested")?.introducedBy, [
+      "alpha",
+    ]);
+    assert.equal(result.packages.get("node_modules/unrelated")?.introducedBy, undefined);
+  });
 
   it("rejects malformed package descriptors without silently dropping them", () => {
     const result = parser.parse(

@@ -98,6 +98,7 @@ function packageEvidence(item: LockedPackage): Finding["evidence"] {
     version: item.version,
     installPath: item.path,
     rootDirect: item.rootDirect,
+    ...(item.introducedBy === undefined ? {} : { introducedBy: item.introducedBy.join(", ") }),
   };
 }
 

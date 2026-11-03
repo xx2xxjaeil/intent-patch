@@ -13,8 +13,44 @@ describe("YarnYamlLockParser", () => {
     if (!result.ok) return;
     assert.deepEqual(
       [...result.packages.values()],
-      [{ id: "@scope/core@npm:1.2.0", name: "@scope/core", version: "1.2.0", rootDirect: true }],
+      [
+        {
+          id: "@scope/core@npm:1.2.0",
+          name: "@scope/core",
+          version: "1.2.0",
+          rootDirect: true,
+          introducedBy: ["@scope/core"],
+        },
+      ],
     );
+  });
+
+  it("traces a shared resolved package through exact Yarn descriptors", () => {
+    const result = parser.parse(`__metadata:
+  version: 8
+"alpha@npm:^1":
+  version: 1.0.0
+  resolution: "alpha@npm:1.0.0"
+  dependencies:
+    shared: "npm:^2"
+"beta@npm:^1":
+  version: 1.0.0
+  resolution: "beta@npm:1.0.0"
+  dependencies:
+    shared: "npm:^2"
+"shared@npm:^2":
+  version: 2.0.0
+  resolution: "shared@npm:2.0.0"
+"app@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "app@workspace:."
+  dependencies:
+    alpha: "npm:^1"
+    beta: "npm:^1"
+`);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.packages.get("shared@npm:2.0.0")?.introducedBy, ["alpha", "beta"]);
   });
 
   it("rejects Classic lockfiles, malformed YAML, and inconsistent versions", () => {

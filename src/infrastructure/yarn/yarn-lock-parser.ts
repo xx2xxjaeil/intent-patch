@@ -6,6 +6,7 @@ import type {
   YarnLockParser,
 } from "../../application/ports/yarn-lock-parser.js";
 import { isRecord } from "../../domain/value-guards.js";
+import { traceDirectOrigins } from "../dependencies/trace-direct-origins.js";
 
 const registryResolution =
   /^((?:@[^/@]+\/)?[^/@]+)@npm:(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)$/u;
@@ -36,6 +37,8 @@ export class YarnYamlLockParser implements YarnLockParser {
       const direct = rootDependencies(value);
       if (!direct.ok) return direct;
       const packages = new Map<string, YarnLockedPackage>();
+      const descriptorToResolution = new Map<string, string>();
+      const registryEntries = new Map<string, Record<string, unknown>>();
       for (const [descriptor, entry] of Object.entries(value)) {
         if (descriptor === "__metadata") continue;
         if (
@@ -61,6 +64,36 @@ export class YarnYamlLockParser implements YarnLockParser {
           version,
           rootDirect: direct.names.has(name),
         });
+        registryEntries.set(entry.resolution, entry);
+        for (const key of descriptor.split(/,\s*/u))
+          descriptorToResolution.set(key, entry.resolution);
+      }
+      const edges = new Map<string, string[]>();
+      for (const [id, entry] of registryEntries) {
+        edges.set(id, resolvedDependencies(entry, descriptorToResolution, packages));
+      }
+      const roots = new Map<string, string>();
+      for (const entry of Object.values(value)) {
+        if (
+          !isRecord(entry) ||
+          typeof entry.resolution !== "string" ||
+          !entry.resolution.endsWith("@workspace:.")
+        )
+          continue;
+        for (const section of directSections) {
+          const dependencies = entry[section];
+          if (!isRecord(dependencies)) continue;
+          for (const [name, reference] of Object.entries(dependencies)) {
+            if (typeof reference !== "string") continue;
+            const id = descriptorToResolution.get(`${name}@${reference}`);
+            if (id !== undefined && packages.has(id)) roots.set(id, name);
+          }
+        }
+      }
+      const origins = traceDirectOrigins(roots, edges);
+      for (const [id, item] of packages) {
+        const introducedBy = origins.get(id);
+        if (introducedBy !== undefined) packages.set(id, { ...item, introducedBy });
       }
       return { ok: true, packages };
     } catch (error) {
@@ -69,6 +102,24 @@ export class YarnYamlLockParser implements YarnLockParser {
       );
     }
   }
+}
+
+function resolvedDependencies(
+  entry: Record<string, unknown>,
+  descriptors: ReadonlyMap<string, string>,
+  packages: ReadonlyMap<string, YarnLockedPackage>,
+): string[] {
+  const result = new Set<string>();
+  for (const section of ["dependencies", "optionalDependencies"] as const) {
+    const dependencies = entry[section];
+    if (!isRecord(dependencies)) continue;
+    for (const [name, reference] of Object.entries(dependencies)) {
+      if (typeof reference !== "string") continue;
+      const id = descriptors.get(`${name}@${reference}`);
+      if (id !== undefined && packages.has(id)) result.add(id);
+    }
+  }
+  return [...result].sort();
 }
 
 function rootDependencies(

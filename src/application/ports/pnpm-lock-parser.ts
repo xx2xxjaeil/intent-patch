@@ -4,6 +4,7 @@ export interface PnpmLockedPackage {
   readonly name: string;
   readonly version: string;
   readonly rootDirect: boolean;
+  readonly introducedBy?: readonly string[];
 }
 
 export type PnpmLockParseResult =
