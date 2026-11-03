@@ -23,7 +23,7 @@ Clone the repository, then run one analysis command against a real change in its
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.9.1 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.9.2 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 Open `intentpatch-report.html` locally. This case reports a public-API risk and a duplicate-code
@@ -34,7 +34,7 @@ same real-change example, not a mockup. GitHub may show the HTML source rather t
 ## Quick start
 
 IntentPatch requires Node.js 20 or later and Git. From the repository you want to review, run
-the published v0.9.1 CLI without installing it globally:
+the published v0.9.2 CLI without installing it globally:
 
 ```bash
 cd /path/to/repository
@@ -81,7 +81,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.9.1
+        uses: xx2xxjaeil/intent-patch@v0.9.2
         with:
           fail-on: high
 
@@ -93,7 +93,9 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. v0.9.1 adds HTML diff previews,
+Pin the action to a released version or an immutable commit SHA. v0.9.2 adds root dependency
+attribution for resolvable lockfile entries, enum and class-method analysis, static CommonJS
+object exports, graph filtering and navigation, and more external evaluation cases. v0.9.1 added HTML diff previews,
 expanded external evaluation, and static CommonJS named-export removal checks. v0.9.0 added Yarn workspace
 dependency analysis and a safe `init` command for creating a Change Contract. It also includes
 Yarn 4 lockfile analysis, explicit source-to-test mappings, report filters, improved impact-graph
@@ -482,7 +484,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.9.1`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.9.2`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
