@@ -1,6 +1,8 @@
 export const sourceSymbolKinds = [
   "function",
   "class",
+  "method",
+  "enum",
   "variable",
   "interface",
   "type-alias",
@@ -65,6 +67,8 @@ export interface SymbolChange {
   readonly afterPublicApi?: PublicApi;
   /** 패키지의 이전 공개 진입점에서 접근할 수 없음이 확인된 경우에만 false다. */
   readonly beforePubliclyReachable?: false;
+  /** 현재 CommonJS 객체가 동적으로 계산되어 이름 유지 여부를 확인할 수 없다. */
+  readonly afterExportsUncertain?: true;
 }
 
 export interface SymbolAnalysisIssue {

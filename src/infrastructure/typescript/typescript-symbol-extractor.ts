@@ -66,7 +66,10 @@ export class TypeScriptSymbolExtractor implements SourceSymbolExtractor {
     collectExternalReExports(sourceFile, groups);
 
     const symbols = [...groups.values()]
-      .map((group) => toSourceSymbol(group, sourceFile, localTypeAliases))
+      .flatMap((group) => [
+        toSourceSymbol(group, sourceFile, localTypeAliases),
+        ...classMethodSymbols(group, sourceFile),
+      ])
       .sort(
         (left, right) =>
           left.line - right.line ||
@@ -167,6 +170,9 @@ function declarationIdentity(
   if (ts.isClassDeclaration(statement) && statement.name !== undefined) {
     return { name: statement.name.text, kind: "class" };
   }
+  if (ts.isEnumDeclaration(statement)) {
+    return { name: statement.name.text, kind: "enum" };
+  }
   if (ts.isInterfaceDeclaration(statement)) {
     return { name: statement.name.text, kind: "interface" };
   }
@@ -174,6 +180,50 @@ function declarationIdentity(
     return { name: statement.name.text, kind: "type-alias" };
   }
   return undefined;
+}
+
+/** 정적 이름을 가진 메서드만 별도 심볼로 기록한다. 공개 클래스의 private/protected 메서드는 공개 API가 아니다. */
+function classMethodSymbols(group: SymbolGroup, sourceFile: ts.SourceFile): SourceSymbol[] {
+  if (group.kind !== "class") return [];
+  const methods = new Map<string, { line: number; exported: boolean; declarations: string[] }>();
+  for (const declaration of group.statements.filter(ts.isClassDeclaration)) {
+    for (const member of declaration.members) {
+      if (!ts.isMethodDeclaration(member)) continue;
+      const name = staticClassMemberName(member.name);
+      if (name === undefined) continue;
+      const modifiers = ts.getModifiers(member) ?? [];
+      const isStatic = modifiers.some((item) => item.kind === ts.SyntaxKind.StaticKeyword);
+      const isPrivate = modifiers.some(
+        (item) =>
+          item.kind === ts.SyntaxKind.PrivateKeyword ||
+          item.kind === ts.SyntaxKind.ProtectedKeyword,
+      );
+      const symbolName = `${group.name}${isStatic ? ".static" : ""}.${name}`;
+      const existing = methods.get(symbolName);
+      if (existing === undefined) {
+        methods.set(symbolName, {
+          line: sourceFile.getLineAndCharacterOfPosition(member.getStart(sourceFile)).line + 1,
+          exported: group.exported && !isPrivate,
+          declarations: [member.getText(sourceFile)],
+        });
+      } else {
+        existing.declarations.push(member.getText(sourceFile));
+      }
+    }
+  }
+  return [...methods].map(([name, method]) => ({
+    name,
+    kind: "method",
+    line: method.line,
+    exported: method.exported,
+    fingerprint: createHash("sha256").update(method.declarations.join("\0")).digest("hex"),
+  }));
+}
+
+function staticClassMemberName(name: ts.PropertyName): string | undefined {
+  return ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+    ? name.text
+    : undefined;
 }
 
 function toSourceSymbol(

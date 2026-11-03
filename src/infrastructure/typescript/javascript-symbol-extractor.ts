@@ -47,9 +47,8 @@ export class JavaScriptSymbolExtractor implements SourceSymbolExtractor {
         addSymbol(symbols, sourceFile, statement, "default", "re-export", true);
       }
 
-      const commonJsName = commonJsExportName(statement);
-      if (commonJsName !== undefined) {
-        addSymbol(symbols, sourceFile, statement, commonJsName, "re-export", true);
+      for (const entry of commonJsExports(statement)) {
+        addSymbol(symbols, sourceFile, entry.node, entry.name, "re-export", true);
       }
     }
 
@@ -94,6 +93,7 @@ export class JavaScriptSymbolExtractor implements SourceSymbolExtractor {
 
     return {
       kind: "success",
+      uncertainNamedExports: sourceFile.statements.some(hasDynamicCommonJsObject),
       symbols: [...symbols.values()].sort(
         (left, right) =>
           left.line - right.line ||
@@ -104,29 +104,69 @@ export class JavaScriptSymbolExtractor implements SourceSymbolExtractor {
   }
 }
 
-/** 최상위의 정적 `exports.name =` / `module.exports.name =`만 공개 이름으로 인정한다. */
-function commonJsExportName(statement: ts.Statement): string | undefined {
-  if (!ts.isExpressionStatement(statement)) return undefined;
+function hasDynamicCommonJsObject(statement: ts.Statement): boolean {
+  if (!ts.isExpressionStatement(statement) || !ts.isBinaryExpression(statement.expression))
+    return false;
+  const assignment = statement.expression;
+  if (assignment.operatorToken.kind !== ts.SyntaxKind.EqualsToken) return false;
+  const target = assignment.left;
+  return (
+    ts.isPropertyAccessExpression(target) &&
+    ts.isIdentifier(target.expression) &&
+    target.expression.text === "module" &&
+    target.name.text === "exports" &&
+    !ts.isObjectLiteralExpression(assignment.right)
+  );
+}
+
+/** 최상위 정적 할당과 객체 리터럴에서 명시된 공개 이름만 추출한다. */
+function commonJsExports(statement: ts.Statement): readonly { name: string; node: ts.Node }[] {
+  if (!ts.isExpressionStatement(statement)) return [];
   const expression = statement.expression;
   if (
     !ts.isBinaryExpression(expression) ||
     expression.operatorToken.kind !== ts.SyntaxKind.EqualsToken
   ) {
-    return undefined;
+    return [];
   }
   const target = expression.left;
-  if (!ts.isPropertyAccessExpression(target)) return undefined;
+  if (
+    ts.isPropertyAccessExpression(target) &&
+    ts.isIdentifier(target.expression) &&
+    target.expression.text === "module" &&
+    target.name.text === "exports" &&
+    ts.isObjectLiteralExpression(expression.right)
+  ) {
+    return expression.right.properties.flatMap((property) => {
+      if (
+        !ts.isPropertyAssignment(property) &&
+        !ts.isShorthandPropertyAssignment(property) &&
+        !ts.isMethodDeclaration(property)
+      )
+        return [];
+      const name = staticExportName(property.name);
+      return name === undefined ? [] : [{ name, node: property }];
+    });
+  }
+  if (!ts.isPropertyAccessExpression(target)) return [];
   const owner = target.expression;
-  if (ts.isIdentifier(owner) && owner.text === "exports") return target.name.text;
+  if (ts.isIdentifier(owner) && owner.text === "exports")
+    return [{ name: target.name.text, node: statement }];
   if (
     ts.isPropertyAccessExpression(owner) &&
     ts.isIdentifier(owner.expression) &&
     owner.expression.text === "module" &&
     owner.name.text === "exports"
   ) {
-    return target.name.text;
+    return [{ name: target.name.text, node: statement }];
   }
-  return undefined;
+  return [];
+}
+
+function staticExportName(name: ts.PropertyName): string | undefined {
+  return ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+    ? name.text
+    : undefined;
 }
 
 function collectLocalNamedExports(sourceFile: ts.SourceFile): ReadonlySet<string> {

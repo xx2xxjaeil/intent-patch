@@ -74,6 +74,21 @@ describe("NpmLockfileRule", () => {
     );
   });
 
+  it("shows the confirmed direct cause of a transitive version update", async () => {
+    const packages = (version: string) => ({
+      "": { dependencies: { direct: "1" } },
+      "node_modules/direct": { version: "1", dependencies: { transitive: "^1" } },
+      "node_modules/transitive": { version },
+    });
+    const rule = createRule({
+      before: lockfile(packages("1.0.0")),
+      after: lockfile(packages("1.1.0")),
+    });
+    const findings = await rule.analyze({ target: { baseRef: "HEAD" }, changes: lockfileChange });
+    assert.equal(findings.length, 1);
+    assert.equal(findings[0]?.evidence.introducedBy, "direct");
+  });
+
   it("summarizes a whole lockfile addition instead of emitting one finding per package", async () => {
     const rule = createRule({
       after: lockfile({

@@ -76,6 +76,22 @@ describe("JavaScriptSymbolExtractor", () => {
     );
   });
 
+  it("tracks names from a static module.exports object without guessing dynamic exports", () => {
+    const result = extractor.extract(
+      "src/api.cjs",
+      [
+        "const run = () => 1;",
+        "module.exports = { run, stop: () => 2, 'status': true, [dynamic]: 3 };",
+      ].join("\n"),
+    );
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    assert.deepEqual(
+      result.symbols.filter(({ exported }) => exported).map(({ name }) => name),
+      ["run", "status", "stop"],
+    );
+  });
+
   it("rejects malformed JavaScript with positional evidence", () => {
     const result = extractor.extract("src/broken.js", "export function run( {");
     assert.equal(result.kind, "unavailable");

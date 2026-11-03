@@ -285,13 +285,20 @@ function renderImpactGraph(
       const startY = top + moduleIndex * rowHeight + nodeHeight / 2;
       const endY = top + fileIndex * rowHeight + nodeHeight / 2;
       return [
-        `<path class="graph-edge ${file.distance === 1 ? "direct" : "transitive"}${file.viaPreviousImports ? " previous" : ""}" d="M 390 ${startY} C 480 ${startY}, 520 ${endY}, 610 ${endY}" />`,
+        `<path class="graph-edge ${file.distance === 1 ? "direct" : "transitive"}${file.viaPreviousImports ? " previous" : ""}" data-graph-from="${escapeHtml(module)}" data-graph-to="${escapeHtml(file.path)}" d="M 390 ${startY} C 480 ${startY}, 520 ${endY}, 610 ${endY}" />`,
       ];
     }),
   );
 
-  return `<div class="impact-graph-wrap">
-      <svg class="impact-graph" viewBox="0 0 1000 ${height}" role="img" aria-label="Dependency impact graph">
+  return `<div class="impact-graph-controls" aria-label="Graph navigation">
+      <span>Drag to move · arrow keys to pan</span>
+      <button type="button" data-graph-action="in" aria-label="Zoom in">+</button>
+      <button type="button" data-graph-action="out" aria-label="Zoom out">−</button>
+      <button type="button" data-graph-action="reset">Reset view</button>
+      <span id="graph-visible-count" role="status" aria-live="polite"></span>
+    </div>
+    <div class="impact-graph-wrap">
+      <svg class="impact-graph" viewBox="0 0 1000 ${height}" data-graph-height="${height}" role="group" aria-label="Dependency impact graph" tabindex="0">
         <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z"></path></marker></defs>
         <text class="graph-column-label" x="40" y="24">CHANGED MODULES</text>
         <text class="graph-column-label" x="610" y="24">AFFECTED FILES</text>
@@ -332,8 +339,8 @@ function renderGraphNode(
 ): string {
   const node = `<g class="graph-node ${kind}"><title>${escapeHtml(path)}</title><rect x="${x}" y="${y}" width="350" height="42" rx="9"></rect><text x="${x + 16}" y="${y + 26}">${escapeHtml(shortenPath(path))}</text></g>`;
   return target === undefined
-    ? node
-    : `<a href="#${target}" aria-label="Jump to ${escapeHtml(path)}">${node}</a>`;
+    ? `<g data-graph-path="${escapeHtml(path)}">${node}</g>`
+    : `<a data-graph-path="${escapeHtml(path)}" href="#${target}" aria-label="Jump to ${escapeHtml(path)}">${node}</a>`;
 }
 
 function shortenPath(path: string): string {
@@ -483,16 +490,36 @@ const reportScript = `(() => {
   let severity = "all";
   const entries = [...document.querySelectorAll("[data-report-path]")];
   const buttons = [...document.querySelectorAll("[data-severity-filter]")];
+  const graph = document.querySelector(".impact-graph");
+  const graphNodes = [...document.querySelectorAll("[data-graph-path]")];
+  const graphEdges = [...document.querySelectorAll("[data-graph-from]")];
+  const graphStatus = document.getElementById("graph-visible-count");
   function update() {
     const path = input.value.trim().toLocaleLowerCase();
     let findings = 0;
+    const findingPaths = new Set();
     for (const entry of entries) {
       const matchesPath = entry.getAttribute("data-report-path").toLocaleLowerCase().includes(path);
       const findingSeverity = entry.getAttribute("data-finding-severity");
       entry.hidden = !matchesPath || (findingSeverity !== null && severity !== "all" && severity !== findingSeverity);
-      if (!entry.hidden && findingSeverity !== null) findings++;
+      if (!entry.hidden && findingSeverity !== null) {
+        findings++;
+        findingPaths.add(entry.getAttribute("data-report-path"));
+      }
     }
     status.textContent = [findings, "findings shown"].join(" ");
+    const visiblePaths = new Set();
+    for (const node of graphNodes) {
+      const name = node.getAttribute("data-graph-path");
+      node.hidden = !name.toLocaleLowerCase().includes(path) ||
+        (severity !== "all" && !findingPaths.has(name));
+      if (!node.hidden) visiblePaths.add(name);
+    }
+    for (const edge of graphEdges) {
+      edge.hidden = !visiblePaths.has(edge.getAttribute("data-graph-from")) ||
+        !visiblePaths.has(edge.getAttribute("data-graph-to"));
+    }
+    if (graphStatus) graphStatus.textContent = [visiblePaths.size, "graph files shown"].join(" ");
   }
   input.addEventListener("input", update);
   for (const button of buttons) {
@@ -505,13 +532,62 @@ const reportScript = `(() => {
   for (const link of document.querySelectorAll(".impact-graph a[href^='#']")) {
     link.addEventListener("click", () => { input.value = ""; update(); });
   }
+  if (graph) {
+    const fullHeight = Number(graph.getAttribute("data-graph-height"));
+    let view = { x: 0, y: 0, w: 1000, h: fullHeight };
+    let pointer = null;
+    function setView(x, y, width) {
+      const w = Math.max(250, Math.min(1000, width));
+      const h = fullHeight * w / 1000;
+      view = {
+        x: Math.max(0, Math.min(1000 - w, x)),
+        y: Math.max(0, Math.min(fullHeight - h, y)),
+        w, h,
+      };
+      graph.setAttribute("viewBox", [view.x, view.y, view.w, view.h].join(" "));
+    }
+    function zoom(factor) {
+      const nextWidth = view.w * factor;
+      setView(view.x + (view.w - nextWidth) / 2, view.y + (view.h - fullHeight * nextWidth / 1000) / 2, nextWidth);
+    }
+    for (const button of document.querySelectorAll("[data-graph-action]")) {
+      button.addEventListener("click", () => {
+        const action = button.getAttribute("data-graph-action");
+        if (action === "reset") setView(0, 0, 1000);
+        else zoom(action === "in" ? 0.75 : 1.25);
+      });
+    }
+    graph.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("a")) return;
+      pointer = { id: event.pointerId, x: event.clientX, y: event.clientY, viewX: view.x, viewY: view.y };
+      graph.setPointerCapture(event.pointerId);
+    });
+    graph.addEventListener("pointermove", (event) => {
+      if (!pointer || pointer.id !== event.pointerId) return;
+      setView(pointer.viewX - (event.clientX - pointer.x) * view.w / graph.clientWidth,
+        pointer.viewY - (event.clientY - pointer.y) * view.h / graph.clientHeight, view.w);
+    });
+    graph.addEventListener("pointerup", () => { pointer = null; });
+    graph.addEventListener("pointercancel", () => { pointer = null; });
+    graph.addEventListener("keydown", (event) => {
+      const step = Math.max(20, view.w / 8);
+      if (event.key === "+" || event.key === "=") zoom(0.75);
+      else if (event.key === "-") zoom(1.25);
+      else if (event.key === "ArrowLeft") setView(view.x - step, view.y, view.w);
+      else if (event.key === "ArrowRight") setView(view.x + step, view.y, view.w);
+      else if (event.key === "ArrowUp") setView(view.x, view.y - step, view.w);
+      else if (event.key === "ArrowDown") setView(view.x, view.y + step, view.w);
+      else return;
+      event.preventDefault();
+    });
+  }
   update();
 })();`;
 
 const styles = `
 :root { color-scheme: dark; --bg:#080a0f; --panel:#10141d; --panel-2:#151b26; --line:#252d3b; --text:#f4f6fb; --muted:#8d98aa; --cyan:#58e6d9; --violet:#a890ff; --high:#ff647c; --medium:#ffb45b; --low:#6d8cff; }
 * { box-sizing:border-box; }
-.report-controls[hidden], [data-report-path][hidden] { display:none; }
+.report-controls[hidden], [data-report-path][hidden], .impact-graph [hidden] { display:none; }
 body { margin:0; background:radial-gradient(circle at 15% 0%,#172535 0,transparent 32rem),var(--bg); color:var(--text); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
 .shell { width:min(1180px,calc(100% - 40px)); margin:0 auto; padding:64px 0 40px; }
 .hero { display:flex; align-items:flex-end; justify-content:space-between; gap:32px; margin-bottom:28px; }
@@ -580,8 +656,12 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .impact-list article { display:grid; grid-template-columns:70px 1fr; gap:5px 12px; padding:15px; border:1px solid var(--line); border-radius:11px; background:var(--panel-2); }
 .impact-list .distance { grid-row:1/3; color:var(--violet); font-size:10px; font-weight:800; letter-spacing:.08em; }
 .impact-list small { color:var(--muted); overflow-wrap:anywhere; }
+.impact-graph-controls { display:flex; align-items:center; gap:8px; margin-bottom:10px; color:var(--muted); font-size:12px; }
+.impact-graph-controls span:first-child { margin-right:auto; }
+.impact-graph-controls button { padding:5px 9px; border:1px solid var(--line); border-radius:6px; background:var(--panel-2); color:var(--text); cursor:pointer; }
 .impact-graph-wrap { overflow-x:auto; margin-bottom:14px; border:1px solid var(--line); border-radius:12px; background:#0c1017; }
-.impact-graph { display:block; width:100%; min-width:820px; height:auto; }
+.impact-graph { display:block; width:100%; min-width:820px; height:min(560px,65vh); min-height:260px; cursor:grab; }
+.impact-graph:active { cursor:grabbing; }
 .graph-column-label { fill:#68758a; font:700 10px ui-monospace,SFMono-Regular,Menlo,monospace; letter-spacing:.12em; }
 .graph-edge { fill:none; stroke:#56627a; stroke-width:1.5; marker-end:url(#arrow); }
 #arrow path { fill:#7a879e; }

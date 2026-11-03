@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { FileSnapshotSource } from "../../src/application/ports/file-snapshot-source.js";
 import type { SourceSymbolExtractor } from "../../src/application/ports/source-symbol-extractor.js";
+import { PublicApiRemovalRule } from "../../src/application/rules/public-api-removal-rule.js";
 import { CompareSourceSymbols } from "../../src/application/services/compare-source-symbols.js";
 import { createChangeSet } from "../../src/domain/change.js";
 import type { SourceSymbol } from "../../src/domain/symbol-change.js";
+import { JavaScriptSymbolExtractor } from "../../src/infrastructure/typescript/javascript-symbol-extractor.js";
+import { TypeScriptSymbolExtractor } from "../../src/infrastructure/typescript/typescript-symbol-extractor.js";
 
 describe("CompareSourceSymbols", () => {
   it("detects added, modified, and deleted symbols while ignoring unsupported files", async () => {
@@ -93,6 +96,62 @@ describe("CompareSourceSymbols", () => {
       { path: "src/broken.ts", reason: "current: Unexpected token" },
     ]);
     assert.equal(result.summary.filesUnavailable, 1);
+  });
+
+  it("does not claim a CommonJS name was removed when a dynamic object replaces a literal", async () => {
+    const changes = createChangeSet([changedFile("src/api.cjs")]);
+    const analyzer = new CompareSourceSymbols(
+      snapshotSource({
+        before: "module.exports = { run: () => 1 }",
+        after: "module.exports = createApi()",
+      }),
+      [new JavaScriptSymbolExtractor()],
+    );
+    const symbolChanges = await analyzer.analyze({ target: { baseRef: "HEAD" }, changes });
+    assert.equal(
+      symbolChanges.changes.find((item) => item.name === "run")?.afterExportsUncertain,
+      true,
+    );
+    const findings = await new PublicApiRemovalRule().analyze({
+      target: { baseRef: "HEAD" },
+      changes,
+      symbolChanges,
+    });
+    assert.deepEqual(findings, []);
+  });
+
+  it("reports removed static CommonJS names and public class methods", async () => {
+    for (const scenario of [
+      {
+        path: "src/api.cjs",
+        before: "module.exports = { run: () => 1, stop: () => 2 }",
+        after: "module.exports = { run: () => 1 }",
+        name: "stop",
+        extractor: new JavaScriptSymbolExtractor(),
+      },
+      {
+        path: "src/service.ts",
+        before: "export class Service { run() {} stop() {} }",
+        after: "export class Service { run() {} }",
+        name: "Service.stop",
+        extractor: new TypeScriptSymbolExtractor(),
+      },
+    ]) {
+      const changes = createChangeSet([changedFile(scenario.path)]);
+      const symbolChanges = await new CompareSourceSymbols(
+        snapshotSource({ before: scenario.before, after: scenario.after }),
+        [scenario.extractor],
+      ).analyze({ target: { baseRef: "HEAD" }, changes });
+      const findings = await new PublicApiRemovalRule().analyze({
+        target: { baseRef: "HEAD" },
+        changes,
+        symbolChanges,
+      });
+      assert.deepEqual(
+        findings.map((finding) => finding.evidence.symbolName),
+        [scenario.name],
+      );
+    }
   });
 });
 

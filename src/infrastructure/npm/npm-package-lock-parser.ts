@@ -61,6 +61,7 @@ export class NpmPackageLockParser implements PackageLockParser {
     }
 
     const packages = new Map<string, LockedPackage>();
+    const dependencyNames = new Map<string, readonly string[]>();
     for (const [path, descriptor] of Object.entries(value.packages)) {
       const name = packageNameAt(path);
       if (name === undefined) {
@@ -82,9 +83,67 @@ export class NpmPackageLockParser implements PackageLockParser {
         version: descriptor.version,
         rootDirect: path === `node_modules/${name}` && rootDirect.has(name),
       });
+      dependencyNames.set(path, readDependencyNames(descriptor));
     }
 
-    return { ok: true, packages };
+    return { ok: true, packages: attributeRootDependencies(packages, dependencyNames, rootDirect) };
+  }
+}
+
+/** npm의 설치 위치 탐색 순서로 확인 가능한 상위 직접 의존성만 전파한다. */
+function attributeRootDependencies(
+  packages: ReadonlyMap<string, LockedPackage>,
+  dependencyNames: ReadonlyMap<string, readonly string[]>,
+  rootDirect: ReadonlySet<string>,
+): ReadonlyMap<string, LockedPackage> {
+  const origins = new Map<string, Set<string>>();
+  const queue: { path: string; origin: string }[] = [];
+  for (const name of [...rootDirect].sort()) {
+    const path = `node_modules/${name}`;
+    if (packages.has(path)) queue.push({ path, origin: name });
+  }
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    if (current === undefined) continue;
+    const known = origins.get(current.path) ?? new Set<string>();
+    if (known.has(current.origin)) continue;
+    known.add(current.origin);
+    origins.set(current.path, known);
+    for (const name of dependencyNames.get(current.path) ?? []) {
+      const path = resolveInstalledPath(current.path, name, packages);
+      if (path !== undefined) queue.push({ path, origin: current.origin });
+    }
+  }
+  return new Map(
+    [...packages].map(([path, item]) => {
+      const introducedBy = [...(origins.get(path) ?? [])].sort();
+      return [path, introducedBy.length === 0 ? item : { ...item, introducedBy }] as const;
+    }),
+  );
+}
+
+function readDependencyNames(descriptor: Record<string, unknown>): readonly string[] {
+  const names = new Set<string>();
+  for (const section of ["dependencies", "optionalDependencies"] as const) {
+    const dependencies = descriptor[section];
+    if (!isRecord(dependencies)) continue;
+    for (const name of Object.keys(dependencies)) names.add(name);
+  }
+  return [...names].sort();
+}
+
+function resolveInstalledPath(
+  importer: string,
+  name: string,
+  packages: ReadonlyMap<string, LockedPackage>,
+): string | undefined {
+  let directory = importer;
+  while (true) {
+    const candidate = `${directory === "" ? "" : `${directory}/`}node_modules/${name}`;
+    if (packages.has(candidate)) return candidate;
+    if (directory === "") return undefined;
+    const marker = directory.lastIndexOf("node_modules/");
+    directory = marker <= 0 ? "" : directory.slice(0, marker - 1);
   }
 }
 

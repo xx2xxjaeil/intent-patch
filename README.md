@@ -158,7 +158,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
 [three-case self-repository study](./docs/real-world-evaluation.md), and the
-[external evaluation of 36 changes and 43 rule checks](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 41 changes and 50 rule checks](./docs/external-repository-evaluation.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -189,6 +189,7 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Flag a newly added direct dependency with no static JS/TS import as a low-severity review candidate.
 - Report malformed `package.json` files as evidence-backed findings instead of crashing.
 - Compare resolved package additions, removals, and version changes in npm `package-lock.json` v2/v3.
+- Show confirmed root direct dependencies that lead to a changed npm, pnpm, or Yarn lockfile package.
 - Keep scoped and nested installation paths distinct, and exclude local workspace links.
 - Compare resolved registry package changes in pnpm `pnpm-lock.yaml` v9, including two-document lockfiles.
 - Report malformed or unsupported lockfiles as findings rather than silently skipping them.
@@ -196,8 +197,9 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Attribute changed Yarn workspace manifests using the same root `workspaces` patterns, with Yarn provenance when `packageManager` or `yarn.lock` identifies Yarn.
 - Analyze changed pnpm workspace manifests selected by `pnpm-workspace.yaml`, including exclusion patterns.
 - Report changes to workspace patterns and manifest moves into or out of a configured workspace.
-- Extract top-level named functions, classes, interfaces, and type aliases from `.ts` and `.tsx` files.
+- Extract top-level named functions, classes, interfaces, type aliases, and enums, plus named class methods from `.ts` and `.tsx` files.
 - Track named top-level JavaScript/JSX functions, classes, variables, ESM export aliases, and default exports without inferring type compatibility.
+- Track static named properties in a top-level CommonJS `module.exports = { ... }` object.
 - Detect symbol additions, modifications, and removals with source locations.
 - Preserve direct exports, local export lists, and external re-exports as public-symbol evidence.
 - When the previous package `exports` resolve to maintained source files, limit public API warnings to those entrypoints and their re-exported modules.
@@ -229,7 +231,8 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Report source files without a related test change as medium-severity findings.
 - Support repository-relative `*`, `**`, and `?` path patterns.
 
-Transitive lockfile dependency provenance, JavaScript duplicate-implementation and method-level structure analysis, and optional AI review are not implemented yet.
+Lockfile attribution is limited to resolvable root dependency paths. JavaScript duplicate-implementation
+analysis, method signature compatibility checks, and optional AI review are not implemented yet.
 
 ## CLI usage
 
@@ -462,7 +465,7 @@ This command runs:
 - architecture tests that enforce dependency direction;
 - a reproducibility check for the bundled GitHub Action.
 
-For a reproducible check of 43 rule decisions across 36 reviewed changes in external
+For a reproducible check of 50 rule decisions across 41 reviewed changes in external
 repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
 
 Run only the production build with:
@@ -504,6 +507,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
    - ✅ pnpm workspace manifest dependency changes
    - ✅ Yarn 4 metadata-v8 `yarn.lock` resolved registry package changes
    - ✅ Yarn workspace manifest dependency changes
+   - ✅ Root direct dependency paths for resolvable npm, pnpm, and Yarn lockfile entries
 7. ✅ Detection of removed public exports
    - ✅ Named and default ESM exports in JavaScript, without inferred type compatibility
 8. ✅ Standalone HTML dashboard and SVG dependency-impact graph
@@ -523,24 +527,25 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Line counts are skipped for untracked files larger than 10 MiB.
 - Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root `package.json` and changed npm/pnpm/Yarn workspace manifests.
 - The no-static-reference finding is a review candidate, not proof that a package is unused. It checks explicit JS/TS imports, re-exports, literal `require()` and `import()` across maintained source files; CLI-only/configuration usage may not appear. It does not emit a candidate if source reads or parsing are incomplete, a computed module load exists, no source was scanned, or more than 5,000 source files are present.
-- npm `package-lock.json` v2/v3 analysis compares installed package paths and versions, not dependency provenance, integrity hashes, or vulnerability data. It does not attribute transitive packages to their parents.
-- pnpm `pnpm-lock.yaml` v9 analysis compares registry package IDs and versions in the project document. It ignores integrity-only edits, local/Git packages, snapshot peer variants, and dependency provenance. Root-direct evidence comes from the root importer only.
+- npm `package-lock.json` v2/v3 analysis compares installed package paths and versions. Root attribution follows declared dependencies through npm installation paths; an unresolved or workspace-linked path remains unattributed. Integrity hashes and vulnerability data are not analyzed.
+- pnpm `pnpm-lock.yaml` v9 analysis compares registry package IDs and versions in the project document. Root attribution follows exact snapshot IDs and registry references. It ignores integrity-only edits, local/Git packages, and ambiguous peer variants. Root-direct evidence comes from the root importer only.
 - npm and Yarn workspace detection supports the root `workspaces` array with explicit paths and `*`, `**`, and `?` globs. Negation, brace, and character-class patterns are reported as unsupported. Yarn is identified by the root `packageManager` field or `yarn.lock`; when pnpm config also exists, pnpm takes precedence.
 - pnpm workspace detection reads `pnpm-workspace.yaml` `packages` patterns with `*`, `**`, `?`, and leading `!` exclusions. When both npm and pnpm workspace settings exist, pnpm settings take precedence to avoid duplicate findings. Other glob features and pnpm catalogs are not interpreted.
 - Yarn 4 `yarn.lock` metadata-v8 analysis compares registry package resolutions and versions.
   Yarn Classic and other metadata versions are reported as unsupported. Workspace, patch, file,
-  Git, and virtual resolutions, checksum-only changes, and dependency provenance are not analyzed.
+  Git, and virtual resolutions and checksum-only changes are not analyzed. Root attribution follows
+  exact registry descriptors; unresolved or ambiguous paths remain unattributed.
   Runtime dependency usage is not established.
 - Working-tree `package-lock.json`, `pnpm-lock.yaml`, and `yarn.lock` files are limited to 10 MiB; other text snapshots retain the 1 MiB limit.
-- TypeScript symbol analysis supports named top-level functions, classes, interfaces, and type aliases in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
-- TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal and static top-level `exports.name =` / `module.exports.name =` removal, but does not infer function signatures. Previous root or nested package `exports` are followed through explicit source targets and relative re-exports. This is a file-level approximation: a named re-export may still expose only some symbols from its module. If an entrypoint is generated, unresolved, or unsupported, IntentPatch retains the earlier conservative warnings instead of claiming a file is private. Whole-object CommonJS assignments, dynamic keys, nested assignments, class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
+- TypeScript symbol analysis supports named top-level functions, classes, interfaces, type aliases, enums, and statically named class methods in `.ts` and `.tsx` files. JavaScript symbol analysis supports named top-level functions, classes, variables, and identifiable ESM and CommonJS exports in `.js`, `.jsx`, `.mjs`, and `.cjs` files.
+- TypeScript public API analysis supports named top-level functions and interfaces, plus member removal from exported object type aliases composed of type literals and same-file, non-generic aliases/intersections. Local `export { name }`, external `export { name } from`, and `export * from` are tracked as export evidence. JavaScript supports identifiable named and default ESM export removal and static top-level `exports.name =` / `module.exports.name =` removal, but does not infer function signatures. Previous root or nested package `exports` are followed through explicit source targets and relative re-exports. This is a file-level approximation: a named re-export may still expose only some symbols from its module. If an entrypoint is generated, unresolved, or unsupported, IntentPatch retains the earlier conservative warnings instead of claiming a file is private. Static CommonJS object literals expose named properties, while dynamic whole-object assignments leave those names uncertain. Computed keys, nested assignments, full class contracts, generic alias instantiation, unions, cross-file type references, and full type assignability are not interpreted yet. Unsupported type-alias shapes do not produce member-removal findings.
 - Function compatibility first compares recorded signatures. For self-contained, explicitly typed declarations it then uses strict TypeScript assignability to avoid warning on compatible changes. A narrow syntactic check also accepts primitive parameters widened by union arms when the return text is unchanged. Other unresolved names, inferred types, malformed or unsupported signature shapes remain unverified and keep the review warning; this is not a whole-project type check or a runtime compatibility guarantee.
 - Interface property compatibility recognizes unchanged types and optional fields added inside
   supported object literals, including `Readonly` wrappers. Other nested type transformations
   remain unverified rather than being treated as compatible.
 - Duplicate candidates require a newly added top-level function and an existing top-level function to have exactly the same normalized tokens after comments and whitespace are removed, with at least 12 body tokens. Renamed identifiers, methods, and semantically equivalent implementations are not detected.
 - A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
-- Methods, TypeScript variable declarations, enums, and nested declarations are not included in symbol analysis.
+- Computed class methods, TypeScript variable declarations, and nested declarations are not included in symbol analysis. Named public method removal is reported, but method signature compatibility is not checked.
 - Formatting or comment changes inside a declaration can be counted as symbol modifications.
 - Impact analysis covers static `import`, side-effect imports, `export ... from`, `import = require()`, and string-literal `require()` and `import()` in JS/TS source files. Local aliases use the nearest `tsconfig.json` or
   `jsconfig.json`, with relative `extends` support.
@@ -556,8 +561,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Related tests are matched by basename unless an exact source path has a `tests.related`
   mapping. This is a declared relationship, not inferred test coverage; tests are not executed.
 - The HTML impact graph uses a deterministic two-column layout. Nodes link to report rows; path
-  search and severity filters narrow report rows, not the graph itself. Node movement and zoom
-  are not implemented.
+  search and severity filters also narrow graph nodes and edges. Buttons and keyboard controls zoom
+  and pan the view, and pointer dragging pans it. Filtering hides nodes without changing the layout.
 
 ## License
 

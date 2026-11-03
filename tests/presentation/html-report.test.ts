@@ -49,6 +49,8 @@ describe("formatHtmlReport", () => {
     assert.match(output, /<svg[^>]+aria-label="Dependency impact graph"/);
     assert.match(output, /graph-edge direct/);
     assert.match(output, /graph-edge transitive/);
+    assert.match(output, /data-graph-action="in"/);
+    assert.match(output, /data-graph-from="src\/user\.ts"/);
     assert.match(output, /id="path-filter"/);
     assert.match(output, /data-severity-filter="high"/);
     assert.match(output, /data-report-path="src\/user\.ts"/);
@@ -94,7 +96,10 @@ describe("formatHtmlReport", () => {
     assert.ok(script);
 
     const element = (attributes: Record<string, string> = {}) => {
-      const listeners = new Map<string, () => void>();
+      const listeners = new Map<
+        string,
+        (event?: { key?: string; preventDefault?: () => void }) => void
+      >();
       return {
         hidden: false,
         value: "",
@@ -103,11 +108,14 @@ describe("formatHtmlReport", () => {
         setAttribute: (key: string, value: string) => {
           attributes[key] = value;
         },
-        addEventListener: (event: string, callback: () => void) => {
+        addEventListener: (
+          event: string,
+          callback: (payload?: { key?: string; preventDefault?: () => void }) => void,
+        ) => {
           listeners.set(event, callback);
         },
-        fire: (event: string) => {
-          listeners.get(event)?.();
+        fire: (event: string, payload?: { key?: string; preventDefault?: () => void }) => {
+          listeners.get(event)?.(payload);
         },
       };
     };
@@ -115,6 +123,15 @@ describe("formatHtmlReport", () => {
     controls.hidden = true;
     const input = element();
     const status = element();
+    const graphStatus = element();
+    const graph = element({ "data-graph-height": "200", viewBox: "0 0 1000 200" });
+    const graphUser = element({ "data-graph-path": "src/user.ts" });
+    const graphAccount = element({ "data-graph-path": "src/account.ts" });
+    const graphEdge = element({
+      "data-graph-from": "src/user.ts",
+      "data-graph-to": "src/account.ts",
+    });
+    const zoomIn = element({ "data-graph-action": "in" });
     const high = element({ "data-report-path": "src/user.ts", "data-finding-severity": "high" });
     const medium = element({
       "data-report-path": "src/account.ts",
@@ -127,25 +144,43 @@ describe("formatHtmlReport", () => {
     const link = element();
     const document = {
       getElementById: (id: string) =>
-        ({ "report-controls": controls, "path-filter": input, "visible-count": status })[
-          id as "report-controls" | "path-filter" | "visible-count"
-        ],
+        ({
+          "report-controls": controls,
+          "path-filter": input,
+          "visible-count": status,
+          "graph-visible-count": graphStatus,
+        })[id as "report-controls" | "path-filter" | "visible-count" | "graph-visible-count"],
+      querySelector: (selector: string) => (selector === ".impact-graph" ? graph : null),
       querySelectorAll: (selector: string) =>
         selector === "[data-report-path]"
           ? [high, medium, file]
           : selector === "[data-severity-filter]"
             ? buttons
-            : [link],
+            : selector === "[data-graph-path]"
+              ? [graphUser, graphAccount]
+              : selector === "[data-graph-from]"
+                ? [graphEdge]
+                : selector === "[data-graph-action]"
+                  ? [zoomIn]
+                  : [link],
     };
     runInNewContext(script, { document });
     assert.equal(controls.hidden, false);
     assert.equal(status.textContent, "2 findings shown");
+    assert.equal(graphStatus.textContent, "2 graph files shown");
+    zoomIn.fire("click");
+    assert.equal(graph.getAttribute("viewBox"), "125 25 750 150");
+    graph.fire("keydown", { key: "ArrowRight", preventDefault: () => {} });
+    assert.equal(graph.getAttribute("viewBox"), "218.75 25 750 150");
 
     input.value = "user";
     input.fire("input");
     assert.equal(high.hidden, false);
     assert.equal(medium.hidden, true);
     assert.equal(file.hidden, false);
+    assert.equal(graphUser.hidden, false);
+    assert.equal(graphAccount.hidden, true);
+    assert.equal(graphEdge.hidden, true);
     buttons[2]?.fire("click");
     assert.equal(high.hidden, true);
     link.fire("click");

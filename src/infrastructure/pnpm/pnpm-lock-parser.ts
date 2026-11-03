@@ -6,6 +6,7 @@ import type {
   PnpmLockParser,
 } from "../../application/ports/pnpm-lock-parser.js";
 import { isRecord } from "../../domain/value-guards.js";
+import { traceDirectOrigins } from "../dependencies/trace-direct-origins.js";
 
 const directSections = ["dependencies", "devDependencies", "optionalDependencies"] as const;
 const packageNamePattern = /^(?:@[^/@]+\/)?[^/@]+$/;
@@ -70,6 +71,34 @@ export class PnpmYamlLockParser implements PnpmLockParser {
           ...packageId,
           rootDirect: direct.ids.has(id),
         });
+      }
+      const edges = new Map<string, string[]>();
+      if (isRecord(project.snapshots)) {
+        for (const [id, descriptor] of Object.entries(project.snapshots)) {
+          // Peer variants need a separate snapshot identity; do not merge their edges by guesswork.
+          if (!packages.has(id) || !isRecord(descriptor)) continue;
+          const children: string[] = [];
+          for (const section of ["dependencies", "optionalDependencies"] as const) {
+            const dependencies = descriptor[section];
+            if (!isRecord(dependencies)) continue;
+            for (const [name, reference] of Object.entries(dependencies)) {
+              if (typeof reference !== "string" || reference.includes("(")) continue;
+              const child = `${name}@${reference}`;
+              if (packages.has(child)) children.push(child);
+            }
+          }
+          edges.set(id, children);
+        }
+      }
+      const roots = new Map(
+        [...direct.ids]
+          .filter((id) => packages.has(id))
+          .map((id) => [id, packages.get(id)?.name ?? id]),
+      );
+      const origins = traceDirectOrigins(roots, edges);
+      for (const [id, item] of packages) {
+        const introducedBy = origins.get(id);
+        if (introducedBy !== undefined) packages.set(id, { ...item, introducedBy });
       }
       return { ok: true, packages };
     } catch (error) {

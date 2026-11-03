@@ -163,7 +163,7 @@ LOW     구현체가 하나뿐인 추상화 추가
 
 실제 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
 [자체 저장소 변경 3건의 사례 연구](./docs/real-world-evaluation.md),
-[외부 저장소 변경 36건·규칙별 판정 43건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
+[외부 저장소 변경 41건·규칙별 판정 50건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
@@ -188,6 +188,7 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - 새 직접 dependency에 정적 JS/TS 참조가 없으면 `low` 심각도의 검토 후보로 표시
 - 잘못된 `package.json`을 예외 대신 근거가 포함된 finding으로 보고
 - npm `package-lock.json` v2/v3의 실제 설치 패키지 추가·삭제·버전 변경 비교
+- npm·pnpm·Yarn lockfile에서 확인 가능한 루트 직접 dependency를 변경 패키지의 원인으로 표시
 - scoped·중첩 설치 경로를 구분하고 로컬 workspace 링크는 제외
 - pnpm `pnpm-lock.yaml` v9의 레지스트리 패키지 추가·삭제·버전 변경 비교(2개 문서 형식 포함)
 - 잘못되었거나 미지원인 lockfile을 누락하지 않고 finding으로 보고
@@ -198,8 +199,9 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - finding 심각도(`high`, `medium`, `low`) 집계
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
 - 설치된 패키지 버전을 확인하는 `--version` 명령
-- `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭 추출
+- `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭·enum과 이름 있는 클래스 메서드 추출
 - `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수와 식별 가능한 ESM export 추적
+- 최상위 CommonJS `module.exports = { ... }` 객체의 정적인 이름 추적
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
 - 직접 `export`된 선언, 로컬 export 목록과 외부 re-export를 공개 심볼 근거에 보존
 - 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
@@ -229,8 +231,8 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - Pull Request·push commit 범위를 자동 판별하는 GitHub Action
 - GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
 
-아직 lockfile 전이 dependency의 부모 귀속 분석, JavaScript 중복 구현·메서드 구조 분석과 AI 리뷰
-기능은 구현되지 않았습니다.
+lockfile 귀속은 해석 가능한 루트 dependency 경로로 제한됩니다. JavaScript 중복 구현 분석,
+메서드 시그니처 호환성 검사와 AI 리뷰 기능은 아직 구현되지 않았습니다.
 
 ## 상세 사용법
 
@@ -465,7 +467,7 @@ npm run check
 - 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
 - 계층 간 의존 방향을 검증하는 아키텍처 테스트
 
-외부 저장소의 실제 변경 36건에서 공개 API·의존성·범위·테스트 규칙의 경고를 사람이 검토한 기대 결과와 비교하는
+외부 저장소의 실제 변경 41건에서 공개 API·의존성·범위·테스트 규칙의 경고를 사람이 검토한 기대 결과와 비교하는
 방법은 [외부 저장소 평가 문서](./docs/external-repository-evaluation.md)에 정리했습니다.
 
 프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
@@ -511,6 +513,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
    - ✅ pnpm workspace manifest의 직접 dependency 변경
    - ✅ Yarn 4 metadata-v8 `yarn.lock` 레지스트리 패키지 변경
    - ✅ Yarn workspace manifest의 직접 dependency 변경
+   - ✅ 해석 가능한 npm·pnpm·Yarn lockfile 항목의 루트 직접 dependency 경로 추적
 7. ✅ 직접 export된 공개 심볼 삭제와 export 해제 탐지
    - ✅ JavaScript ESM의 이름 있는 export·default export 삭제 탐지
 8. ✅ 단일 HTML 대시보드와 SVG 기반 dependency 영향 그래프
@@ -534,10 +537,12 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   소스의 명시적 import·re-export·문자열 `require()`·`import()`를 살펴봅니다. CLI나 설정
   파일에서만 사용하는 경우는 놓칠 수 있습니다. 파일 읽기·파싱이 불완전하거나 계산된 module
   load가 있거나, 스캔한 소스가 없거나, 소스 파일이 5,000개를 넘으면 후보를 보고하지 않습니다.
-- npm `package-lock.json` v2/v3은 설치 경로와 버전을 비교합니다. 부모 dependency 귀속,
-  integrity hash나 취약점 정보까지 분석하지는 않습니다.
+- npm `package-lock.json` v2/v3은 설치 경로와 버전을 비교합니다. 명시된 dependency와 npm 설치
+  경로를 따라 루트 직접 dependency를 추적하지만, 해석할 수 없는 경로나 workspace 링크는 귀속하지
+  않습니다. integrity hash와 취약점 정보는 분석하지 않습니다.
 - pnpm `pnpm-lock.yaml` v9은 프로젝트 문서의 레지스트리 패키지 ID와 버전을 비교합니다.
-  integrity만 바뀐 경우, 로컬·Git 패키지, snapshot의 peer 변형, 부모 dependency 귀속은 분석하지 않습니다.
+  정확히 일치하는 snapshot ID와 레지스트리 참조를 따라 루트 원인을 추적합니다. integrity만 바뀐
+  경우, 로컬·Git 패키지와 모호한 peer 변형은 추적하지 않습니다.
   루트의 직접 dependency 여부는 루트 importer를 기준으로 표시합니다.
 - npm·Yarn workspace 판별은 루트의 `workspaces` 배열과 명시 경로, `*`·`**`·`?` 패턴을 지원합니다.
   부정·중괄호·문자 클래스 패턴은 미지원 finding으로 보고합니다.
@@ -548,14 +553,16 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   우선합니다. 그 외 glob 문법과 catalog는 해석하지 않습니다.
 - Yarn 4 metadata-v8 `yarn.lock`의 레지스트리 패키지 해석 결과와 버전은 비교합니다.
   Yarn Classic·다른 metadata 버전은 미지원으로 보고합니다. workspace·patch·file·Git·virtual
-  해석 결과, checksum만 바뀐 경우, 부모 dependency 귀속은 분석하지 않습니다. 런타임에서의 실제
+  해석 결과와 checksum만 바뀐 경우는 분석하지 않습니다. 정확히 일치하는 레지스트리 descriptor만
+  루트 dependency에 귀속하며, 해석할 수 없는 경로는 원인을 단정하지 않습니다. 런타임에서의 실제
   dependency 사용 여부도 판정하지 않습니다.
 - working tree의 `package-lock.json`·`pnpm-lock.yaml`·`yarn.lock`은 10 MiB,
   그 외 텍스트 snapshot은 1 MiB로 제한합니다.
-- TypeScript 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수, 클래스, 인터페이스, 타입
-  별칭만 지원합니다.
+- TypeScript 심볼 분석은 `.ts`와 `.tsx`의 이름이 있는 최상위 함수·클래스·인터페이스·타입
+  별칭·enum과 정적 이름의 클래스 메서드를 지원합니다.
 - JavaScript 심볼 분석은 `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수 및 식별 가능한
-  ESM export와 최상위의 정적 `exports.name =`·`module.exports.name =` 할당을 추적합니다.
+  ESM export, 최상위의 정적 `exports.name =`·`module.exports.name =` 할당과 정적
+  `module.exports = { ... }` 객체의 이름을 추적합니다.
 - TypeScript 공개 API 분석은 이름이 있는 최상위 함수·인터페이스와 객체 리터럴, 같은 파일의
   비제네릭 별칭·교집합으로 구성된 공개 타입 별칭의 구성원 삭제를 지원합니다. 로컬
   `export { name }`, 외부 `export { name } from`, `export * from`은 export 근거로 추적합니다.
@@ -564,7 +571,7 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   진입점과 상대 경로 re-export가 도달하는 파일에만 공개 API 경고를 냅니다. 이는 파일 단위
   근사치로, 이름 있는 re-export가 파일의 일부 심볼만 노출하는 경우도 있습니다. 생성된
   진입점이나 해석 불가능한 경로에서는 비공개라고 단정하지 않고 기존 경고를 유지합니다.
-  CommonJS 객체 전체 대입·동적 속성·중첩 대입, 클래스 계약, 제네릭 별칭 인스턴스화, 합집합, 파일 간 타입 참조와
+  동적으로 계산되는 CommonJS 객체 전체 대입·동적 속성·중첩 대입, 클래스 계약, 제네릭 별칭 인스턴스화, 합집합, 파일 간 타입 참조와
   완전한 타입 할당 가능성은 해석하지 않습니다. 지원하지
   않는 타입 별칭 형태에서는 구성원 삭제 finding을 내지 않습니다.
 - 함수 호환성은 먼저 기록된 시그니처를 비교하고, 외부 참조 없이 해석할 수 있는 명시적 타입은
@@ -580,7 +587,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   의미적으로만 같은 구현은 탐지하지 않습니다.
 - 단일 구현 추상화는 새 인터페이스를 `implements`로 명시한 이름 있는 클래스가 정확히 하나일 때만
   보고합니다. TypeScript의 구조적 구현, factory 반환 타입과 런타임 등록은 계산하지 않습니다.
-- 메서드, TypeScript 변수 선언, enum, 중첩 선언은 아직 심볼 분석 대상이 아닙니다.
+- 계산된 이름의 메서드, TypeScript 변수 선언과 중첩 선언은 아직 심볼 분석 대상이 아닙니다.
+  공개 메서드 삭제는 보고하지만 메서드 시그니처 호환성은 검사하지 않습니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
 - 영향 분석은 JS/TS 소스의 정적 `import`, side-effect import, `export ... from`,
   `import = require()` 및 문자열 `require()`·`import()`를 대상으로 합니다. 로컬 별칭은 가장 가까운 `tsconfig.json` 또는
@@ -607,8 +615,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   선언하면 이름이 다른 테스트도 지정할 수 있습니다. 이는 테스트 실행이나 실제 커버리지 측정이
   아니라 사용자가 선언한 연결입니다.
 - HTML 영향 그래프는 결정적인 두 열 레이아웃이며 노드를 누르면 보고서의 관련 행으로 이동합니다.
-  경로·심각도 필터는 보고서 행만 좁히고 그래프 자체를 필터링하지 않습니다. 노드 이동과 확대·축소는
-  아직 구현하지 않았습니다.
+  경로·심각도 필터는 그래프의 노드와 연결선에도 적용됩니다. 버튼·키보드로 확대·이동하고 드래그로
+  이동할 수 있습니다. 필터는 노드를 숨길 뿐 레이아웃을 재배치하지 않습니다.
 
 ## 라이선스
 

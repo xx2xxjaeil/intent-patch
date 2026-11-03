@@ -37,10 +37,60 @@ snapshots:
     assert.deepEqual(
       [...result.packages.values()],
       [
-        { id: "@scope/direct@1.2.3", name: "@scope/direct", version: "1.2.3", rootDirect: true },
+        {
+          id: "@scope/direct@1.2.3",
+          name: "@scope/direct",
+          version: "1.2.3",
+          rootDirect: true,
+          introducedBy: ["@scope/direct"],
+        },
         { id: "transitive@2.1.0", name: "transitive", version: "2.1.0", rootDirect: false },
       ],
     );
+  });
+
+  it("traces a transitive snapshot to its direct importer when the snapshot identity is exact", () => {
+    const result = parser.parse(`
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      direct:
+        version: 1.0.0
+packages:
+  direct@1.0.0: {}
+  leaf@2.0.0: {}
+snapshots:
+  direct@1.0.0:
+    dependencies:
+      leaf: 2.0.0
+  leaf@2.0.0: {}
+`);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.deepEqual(result.packages.get("leaf@2.0.0")?.introducedBy, ["direct"]);
+  });
+
+  it("does not attribute a peer variant to a different plain package snapshot", () => {
+    const result = parser.parse(`
+lockfileVersion: '9.0'
+importers:
+  .:
+    dependencies:
+      direct:
+        version: 1.0.0
+packages:
+  direct@1.0.0: {}
+  leaf@2.0.0: {}
+snapshots:
+  direct@1.0.0:
+    dependencies:
+      leaf: 2.0.0(peer@3.0.0)
+  leaf@2.0.0: {}
+`);
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.packages.get("leaf@2.0.0")?.introducedBy, undefined);
   });
 
   it("uses the project document, not the leading environment document", () => {

@@ -4,6 +4,8 @@ export interface LockedPackage {
   readonly name: string;
   readonly version: string;
   readonly rootDirect: boolean;
+  /** 확인된 루트 직접 의존성에서 이 설치 항목까지 이어지는 경로의 시작점이다. */
+  readonly introducedBy?: readonly string[];
 }
 
 export type PackageLockParseResult =

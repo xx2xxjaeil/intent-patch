@@ -57,7 +57,12 @@ export class CompareSourceSymbols implements SymbolChangeAnalyzer {
       }
 
       filesAnalyzed += 1;
-      const fileChanges = compareFileSymbols(file.path, before.symbols, after.symbols);
+      const fileChanges = compareFileSymbols(
+        file.path,
+        before.symbols,
+        after.symbols,
+        after.uncertainNamedExports === true,
+      );
       changes.push(
         ...fileChanges.map((change) =>
           internalPaths.has(basePath)
@@ -83,6 +88,7 @@ function compareFileSymbols(
   path: string,
   before: readonly SourceSymbol[],
   after: readonly SourceSymbol[],
+  uncertainNamedExports = false,
 ): SymbolChange[] {
   const previousSymbols = indexSymbols(before);
   const currentSymbols = indexSymbols(after);
@@ -114,6 +120,9 @@ function compareFileSymbols(
         beforeLine: previous.line,
         ...(previous.exported === undefined ? {} : { beforeExported: previous.exported }),
         ...(previous.publicApi === undefined ? {} : { beforePublicApi: previous.publicApi }),
+        ...(uncertainNamedExports && previous.kind === "re-export"
+          ? { afterExportsUncertain: true as const }
+          : {}),
       });
       continue;
     }

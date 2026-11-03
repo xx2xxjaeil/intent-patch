@@ -40,6 +40,7 @@ describe("PnpmLockfileRule", () => {
             version: "1.1.0",
             packageId: "direct@1.1.0",
             rootDirect: true,
+            introducedBy: "direct",
             from: "1.0.0",
             to: "1.1.0",
           },
