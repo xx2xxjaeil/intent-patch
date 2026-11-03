@@ -13,8 +13,7 @@ Open `../intentpatch-report.html` in a browser. Writing the generated report bes
 prevents it from appearing as a changed source file on the next run. Findings link to a bounded Git diff preview in the
 same file. The preview shows up to 30 changed files and 160 patch lines per file; it says when a
 binary or untracked file has no text patch. The full diff remains available through Git. HTML is a
-local file and needs no server or API key. These diff links are available in the current source
-build; the published v0.9.0 report omits them until the next release.
+local file and needs no server or API key. These diff links are included in v0.9.1 and later.
 
 `init` creates `.intentpatch.json` only when it does not already exist. The example allows that
 file because the new contract itself appears as a Git change. It does not infer scope from

@@ -26,7 +26,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.9.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.9.1 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
@@ -36,7 +36,7 @@ GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.9.0을
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.9.1을
 전역 설치 없이 실행할 수 있습니다.
 
 ```bash
@@ -46,8 +46,8 @@ npx intentpatch analyze --format html --output ../intentpatch-report.html
 ```
 
 처음 실행하는 경우 [첫 실행 안내](./docs/first-run.md)의 `init → analyze → HTML` 순서와
-오류별 확인 방법을 참고하세요. 현재 소스 빌드의 HTML에서는 finding에서 해당 파일의 제한된
-Git diff 미리보기로 이동할 수 있습니다. 공개된 v0.9.0에는 아직 이 링크가 없습니다.
+오류별 확인 방법을 참고하세요. HTML finding에서 해당 파일의 제한된 Git diff 미리보기로
+이동할 수 있습니다.
 
 현재 소스 버전을 실행하려면 저장소를 빌드합니다.
 
@@ -87,7 +87,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.9.0
+        uses: xx2xxjaeil/intent-patch@v0.9.1
         with:
           fail-on: high
 
@@ -99,7 +99,8 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.9.0에는 Yarn
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.9.1에는 HTML diff
+미리보기, 확대된 외부 평가와 정적 CommonJS 이름 export 삭제 탐지가 포함됩니다. v0.9.0에는 Yarn
 workspace dependency 분석과 Change Contract를 안전하게 만드는 `init` 명령이 추가되었습니다.
 Yarn 4 lockfile 분석, 소스와 테스트의 명시적 연결, 보고서 필터와 영향 그래프 탐색 개선,
 패키지 진입점 기준 공개 API 경고, 삭제된 모듈의 이전 import 영향 분석, 선택적 Claude Code·Codex·Cursor
@@ -464,7 +465,7 @@ npm run check
 - 생성한 npm tarball을 임시 프로젝트에 설치하고 실행하는 패키지 통합 테스트
 - 계층 간 의존 방향을 검증하는 아키텍처 테스트
 
-외부 저장소의 실제 변경 32건에서 공개 API·의존성·범위·테스트 규칙의 경고를 사람이 검토한 기대 결과와 비교하는
+외부 저장소의 실제 변경 36건에서 공개 API·의존성·범위·테스트 규칙의 경고를 사람이 검토한 기대 결과와 비교하는
 방법은 [외부 저장소 평가 문서](./docs/external-repository-evaluation.md)에 정리했습니다.
 
 프로덕션 빌드만 확인하려면 다음 명령을 사용합니다.
@@ -481,7 +482,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.9.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.9.1`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
