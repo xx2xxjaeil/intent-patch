@@ -59,6 +59,9 @@ async function main(): Promise<void> {
       if (contract.scope.include.length === 0) {
         process.stdout.write("Scope checks are off until scope.include has an expected path.\n");
       }
+      process.stdout.write(
+        "Next: review .intentpatch.json, then run intentpatch analyze --format html --output ../intentpatch-report.html in this repository.\n",
+      );
       return;
     }
     if (options.command === "claude-hook") {

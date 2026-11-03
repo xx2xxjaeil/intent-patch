@@ -137,6 +137,32 @@ describe("packaged CLI integration", () => {
     assert.match(cursor.stderr, /IntentPatch: 1 files changed/);
     assert.equal((await readdir(join(repository, ".git", "intentpatch-reports"))).length, 1);
     assert.deepEqual(await readdir(join(repository, ".git", "intentpatch-hooks")), []);
+
+    const initResult = await executeFile(
+      executable,
+      [
+        "init",
+        "--intent",
+        "Remove the user export",
+        "--include",
+        "src/**",
+        "--allow",
+        ".intentpatch.json",
+      ],
+      { cwd: repository },
+    );
+    assert.match(initResult.stdout, /Next: review \.intentpatch\.json/u);
+    const htmlPath = join(workspace, "intentpatch-report.html");
+    const htmlResult = await executeFile(
+      executable,
+      ["analyze", "--format", "html", "--output", "../intentpatch-report.html"],
+      { cwd: repository },
+    );
+    assert.match(htmlResult.stdout, /report written to/u);
+    const html = await readFile(htmlPath, "utf8");
+    assert.match(html, /Remove the user export/u);
+    assert.match(html, /Review file diff/u);
+    assert.match(html, /@@ -1 \+1 @@/u);
   });
 });
 

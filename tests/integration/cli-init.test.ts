@@ -44,6 +44,7 @@ describe("CLI init integration", () => {
       { cwd: projectRoot },
     );
     assert.match(stdout, /change contract created/u);
+    assert.match(stdout, /Next: review \.intentpatch\.json/u);
     const content = await readFile(join(repository, ".intentpatch.json"), "utf8");
     assert.equal(content.endsWith("\n"), true);
     const contract = await new JsonChangeContractLoader().load(repository);
