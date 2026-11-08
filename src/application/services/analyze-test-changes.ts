@@ -7,7 +7,7 @@ import { matchesPathPattern } from "./path-pattern.js";
 const sourceExtension = /\.(?:[cm]?[jt]sx?)$/u;
 const testSuffix = /\.(?:(?:unit|integration|e2e)\.)?(?:test|spec)$/u;
 
-/** 변경 파일을 테스트 정책으로 분류하고 파일명 기반 관련 테스트를 연결한다. */
+/** 변경 파일을 테스트 정책으로 분류하고 명시적 매핑·정적 import·파일명 근거로 연결한다. */
 export class AnalyzeTestChanges implements TestChangeAnalyzer {
   public async analyze(context: AnalysisContext): Promise<TestChangeAnalysis> {
     const policy = context.contract?.tests;
@@ -24,6 +24,16 @@ export class AnalyzeTestChanges implements TestChangeAnalyzer {
         matchesAny(file.path, policy.requireFor) &&
         !matchesAny(file.path, policy.exclude),
     );
+    const imports = context.impact?.dependencies ?? [];
+    const importedBy = new Map<string, Set<string>>();
+    for (const dependency of imports) {
+      const targets = importedBy.get(dependency.importer) ?? new Set<string>();
+      targets.add(dependency.imported);
+      importedBy.set(dependency.importer, targets);
+    }
+    const importedPathsByTest = new Map(
+      testFiles.map((test) => [test.path, reachableImports(test.path, importedBy)]),
+    );
 
     return createTestChangeAnalysis({
       testFiles,
@@ -37,13 +47,34 @@ export class AnalyzeTestChanges implements TestChangeAnalyzer {
                 ? (policy.related?.[source.path] ?? []).some((path) =>
                     matchesPathPattern(test.path, path),
                   )
-                : testIdentity(test.path) === sourceIdentity(source.path)) &&
+                : testIdentity(test.path) === sourceIdentity(source.path) ||
+                  (importedPathsByTest.get(test.path)?.has(source.path) ?? false)) &&
               (source.kind === "deleted" || test.changeKind !== "deleted"),
           )
           .map((test) => test.path),
       })),
     });
   }
+}
+
+function reachableImports(
+  testPath: string,
+  importedBy: ReadonlyMap<string, ReadonlySet<string>>,
+): ReadonlySet<string> {
+  const seen = new Set([testPath]);
+  const queue = [testPath];
+  for (let index = 0; index < queue.length; index += 1) {
+    const current = queue[index];
+    if (current === undefined) continue;
+    for (const imported of importedBy.get(current) ?? []) {
+      if (!seen.has(imported)) {
+        seen.add(imported);
+        queue.push(imported);
+      }
+    }
+  }
+  seen.delete(testPath);
+  return seen;
 }
 
 function matchesAny(path: string, patterns: readonly string[]): boolean {

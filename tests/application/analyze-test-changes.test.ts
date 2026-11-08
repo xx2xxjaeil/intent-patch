@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { AnalyzeTestChanges } from "../../src/application/services/analyze-test-changes.js";
 import { createChangeSet, type FileChange } from "../../src/domain/change.js";
 import { createChangeContract } from "../../src/domain/change-contract.js";
+import { createImpactAnalysis } from "../../src/domain/impact.js";
 
 describe("AnalyzeTestChanges", () => {
   it("returns an empty analysis when no test policy was configured", async () => {
@@ -141,6 +142,51 @@ describe("AnalyzeTestChanges", () => {
         },
       }),
     });
+    assert.deepEqual(result.sourceCoverage[0]?.matchingTests, []);
+  });
+
+  it("connects a changed test to a changed source through static imports", async () => {
+    const result = await new AnalyzeTestChanges().analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([
+        changedFile("src/account.ts"),
+        changedFile("tests/account-flow.test.ts"),
+      ]),
+      contract: createChangeContract({
+        tests: { requireFor: ["src/**"], include: ["tests/**"] },
+      }),
+      impact: createImpactAnalysis({
+        sourceFiles: 3,
+        changedModules: ["src/account.ts"],
+        dependencies: [
+          { importer: "tests/account-flow.test.ts", imported: "src/flow.ts" },
+          { importer: "src/flow.ts", imported: "src/account.ts" },
+        ],
+        impactedFiles: [],
+      }),
+    });
+
+    assert.deepEqual(result.sourceCoverage[0]?.matchingTests, ["tests/account-flow.test.ts"]);
+  });
+
+  it("does not infer a test relation from a shared dependency", async () => {
+    const result = await new AnalyzeTestChanges().analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([changedFile("src/account.ts"), changedFile("tests/flow.test.ts")]),
+      contract: createChangeContract({
+        tests: { requireFor: ["src/**"], include: ["tests/**"] },
+      }),
+      impact: createImpactAnalysis({
+        sourceFiles: 3,
+        changedModules: ["src/account.ts"],
+        dependencies: [
+          { importer: "tests/flow.test.ts", imported: "src/shared.ts" },
+          { importer: "src/account.ts", imported: "src/shared.ts" },
+        ],
+        impactedFiles: [],
+      }),
+    });
+
     assert.deepEqual(result.sourceCoverage[0]?.matchingTests, []);
   });
 });

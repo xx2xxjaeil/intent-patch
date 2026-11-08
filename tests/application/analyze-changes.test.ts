@@ -5,8 +5,35 @@ import { RuleEngine } from "../../src/application/services/rule-engine.js";
 import { AnalyzeChanges } from "../../src/application/use-cases/analyze-changes.js";
 import { createChangeSet } from "../../src/domain/change.js";
 import { createChangeContract } from "../../src/domain/change-contract.js";
+import { createImpactAnalysis } from "../../src/domain/impact.js";
+import { createTestChangeAnalysis } from "../../src/domain/test-change.js";
 
 describe("AnalyzeChanges", () => {
+  it("passes the completed import graph to test analysis", async () => {
+    const impact = createImpactAnalysis({
+      sourceFiles: 2,
+      changedModules: ["src/user.ts"],
+      dependencies: [{ importer: "tests/user.test.ts", imported: "src/user.ts" }],
+      impactedFiles: [],
+    });
+    let receivedImpact: unknown;
+    const useCase = new AnalyzeChanges(
+      { collect: async () => createChangeSet([]) },
+      undefined,
+      undefined,
+      { analyze: async () => impact },
+      {
+        analyze: async (context) => {
+          receivedImpact = context.impact;
+          return createTestChangeAnalysis({ testFiles: [], sourceCoverage: [] });
+        },
+      },
+    );
+
+    await useCase.execute();
+    assert.equal(receivedImpact, impact);
+  });
+
   it("uses HEAD and the working tree by default", async () => {
     const changes = createChangeSet([]);
     let receivedTarget: Parameters<ChangeSource["collect"]>[0] | undefined;
