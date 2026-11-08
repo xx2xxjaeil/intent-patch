@@ -2,7 +2,9 @@ export interface FunctionImplementationFact {
   readonly name: string;
   readonly line: number;
   readonly implementationFingerprint: string;
+  readonly structuralFingerprint?: string;
   readonly tokenCount: number;
+  readonly symbolKind?: "method";
 }
 
 export interface InterfaceDeclarationFact {

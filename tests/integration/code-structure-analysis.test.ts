@@ -27,6 +27,39 @@ afterEach(async () => {
 });
 
 describe("code structure analysis integration", () => {
+  it("reports a new class method that duplicates a function after safe local renames", async () => {
+    const repository = await createRepository();
+    await writeFile(
+      join(repository, "feature.ts"),
+      [
+        "export class Service {",
+        "  verifySession(input: string): string {",
+        "    const trimmed = input.trim();",
+        '    if (trimmed.length === 0) { throw new Error("missing"); }',
+        "    return trimmed.toLowerCase();",
+        "  }",
+        "}",
+      ].join("\n"),
+    );
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([new DuplicateImplementationRule()]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+      undefined,
+      undefined,
+      new AnalyzeCodeStructure(new GitProjectFileSource(repository), [
+        new TypeScriptCodeStructureExtractor(),
+      ]),
+    ).execute();
+
+    assert.equal(report.findings.items[0]?.title, "New method duplicates existing implementation");
+    assert.equal(report.findings.items[0]?.evidence.matchKind, "renamed-locals");
+    assert.equal(report.findings.items[0]?.evidence.existingFile, "auth.ts");
+  });
+
   it("reports copied implementation and a new interface with one implementation", async () => {
     const repository = await createRepository();
     await writeFile(

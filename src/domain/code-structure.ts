@@ -7,6 +7,8 @@ export interface CodeSymbolLocation {
 export interface DuplicateImplementationCandidate {
   readonly added: CodeSymbolLocation;
   readonly existing: CodeSymbolLocation;
+  readonly addedKind?: "method";
+  readonly matchKind?: "renamed-locals";
 }
 
 export interface SingleImplementationAbstraction {
@@ -55,6 +57,8 @@ export function createCodeStructureAnalysis(
       Object.freeze({
         added: freezeLocation(candidate.added),
         existing: freezeLocation(candidate.existing),
+        ...(candidate.addedKind === undefined ? {} : { addedKind: candidate.addedKind }),
+        ...(candidate.matchKind === undefined ? {} : { matchKind: candidate.matchKind }),
       }),
     )
     .sort(compareDuplicateCandidates);

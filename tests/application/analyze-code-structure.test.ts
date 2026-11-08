@@ -10,6 +10,46 @@ import { createChangeSet } from "../../src/domain/change.js";
 import { createSymbolChangeSet } from "../../src/domain/symbol-change.js";
 
 describe("AnalyzeCodeStructure", () => {
+  it("finds a renamed-locals duplicate in a newly added method", async () => {
+    const files = createFileSource(["src/new.ts", "src/existing.ts"]);
+    const extractor = new FixtureExtractor({
+      "src/new.ts": success({
+        functions: [
+          {
+            ...functionFact("Service.run", "different", 20, 3),
+            structuralFingerprint: "same",
+            symbolKind: "method",
+          },
+        ],
+      }),
+      "src/existing.ts": success({
+        functions: [
+          { ...functionFact("normalize", "original", 20, 5), structuralFingerprint: "same" },
+        ],
+      }),
+    });
+    const result = await new AnalyzeCodeStructure(files, [extractor]).analyze({
+      target: { baseRef: "HEAD" },
+      changes: createChangeSet([]),
+      symbolChanges: createSymbolChangeSet([
+        {
+          path: "src/new.ts",
+          name: "Service.run",
+          symbolKind: "method",
+          changeKind: "added",
+        },
+      ]),
+    });
+    assert.deepEqual(result.duplicateCandidates, [
+      {
+        added: { path: "src/new.ts", name: "Service.run", line: 3 },
+        existing: { path: "src/existing.ts", name: "normalize", line: 5 },
+        addedKind: "method",
+        matchKind: "renamed-locals",
+      },
+    ]);
+  });
+
   it("finds existing duplicate functions and interfaces with one implementation", async () => {
     const files = createFileSource([
       "src/new.ts",

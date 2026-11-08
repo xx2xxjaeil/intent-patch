@@ -5,10 +5,10 @@ import { TypeScriptCodeStructureExtractor } from "../../src/infrastructure/types
 describe("TypeScriptCodeStructureExtractor", () => {
   const extractor = new TypeScriptCodeStructureExtractor();
 
-  it("supports TypeScript files", () => {
+  it("supports TypeScript and JavaScript files", () => {
     assert.equal(extractor.supports("src/service.ts"), true);
     assert.equal(extractor.supports("src/view.tsx"), true);
-    assert.equal(extractor.supports("src/service.js"), false);
+    assert.equal(extractor.supports("src/service.js"), true);
   });
 
   it("extracts normalized function bodies and implementation relationships", () => {
@@ -81,5 +81,58 @@ describe("TypeScriptCodeStructureExtractor", () => {
     if (result.kind === "unavailable") {
       assert.match(result.reason, /line 1, column/);
     }
+  });
+
+  it("matches renamed local bindings while preserving external calls and property names", () => {
+    const left = extractor.extract(
+      "src/left.ts",
+      "function left(value: string) { const result = value.trim(); return result.toLowerCase(); }",
+    );
+    const renamed = extractor.extract(
+      "src/right.ts",
+      "function right(input: string) { const trimmed = input.trim(); return trimmed.toLowerCase(); }",
+    );
+    const different = extractor.extract(
+      "src/other.ts",
+      "function other(input: string) { const trimmed = input.trim(); return trimmed.toUpperCase(); }",
+    );
+    assert.equal(left.kind, "success");
+    assert.equal(renamed.kind, "success");
+    assert.equal(different.kind, "success");
+    if (left.kind !== "success" || renamed.kind !== "success" || different.kind !== "success")
+      return;
+    assert.equal(
+      left.facts.functions[0]?.structuralFingerprint,
+      renamed.facts.functions[0]?.structuralFingerprint,
+    );
+    assert.notEqual(
+      left.facts.functions[0]?.implementationFingerprint,
+      renamed.facts.functions[0]?.implementationFingerprint,
+    );
+    assert.notEqual(
+      left.facts.functions[0]?.structuralFingerprint,
+      different.facts.functions[0]?.structuralFingerprint,
+    );
+  });
+
+  it("extracts class methods and JavaScript functions as duplicate candidates", () => {
+    const result = extractor.extract(
+      "src/service.ts",
+      "class Service { run(value: string) { const result = value.trim(); return result.toLowerCase(); } }",
+    );
+    const javascript = extractor.extract(
+      "src/helper.js",
+      "function normalize(value) { const result = value.trim(); return result.toLowerCase(); }",
+    );
+    assert.equal(extractor.supports("src/helper.js"), true);
+    assert.equal(result.kind, "success");
+    assert.equal(javascript.kind, "success");
+    if (result.kind !== "success" || javascript.kind !== "success") return;
+    assert.equal(result.facts.functions[0]?.name, "Service.run");
+    assert.equal(result.facts.functions[0]?.symbolKind, "method");
+    assert.equal(
+      result.facts.functions[0]?.implementationFingerprint,
+      javascript.facts.functions[0]?.implementationFingerprint,
+    );
   });
 });
