@@ -185,7 +185,15 @@ function declarationIdentity(
 /** 정적 이름을 가진 메서드만 별도 심볼로 기록한다. 공개 클래스의 private/protected 메서드는 공개 API가 아니다. */
 function classMethodSymbols(group: SymbolGroup, sourceFile: ts.SourceFile): SourceSymbol[] {
   if (group.kind !== "class") return [];
-  const methods = new Map<string, { line: number; exported: boolean; declarations: string[] }>();
+  const methods = new Map<
+    string,
+    {
+      line: number;
+      exported: boolean;
+      declarations: string[];
+      nodes: ts.MethodDeclaration[];
+    }
+  >();
   for (const declaration of group.statements.filter(ts.isClassDeclaration)) {
     for (const member of declaration.members) {
       if (!ts.isMethodDeclaration(member)) continue;
@@ -205,19 +213,31 @@ function classMethodSymbols(group: SymbolGroup, sourceFile: ts.SourceFile): Sour
           line: sourceFile.getLineAndCharacterOfPosition(member.getStart(sourceFile)).line + 1,
           exported: group.exported && !isPrivate,
           declarations: [member.getText(sourceFile)],
+          nodes: [member],
         });
       } else {
         existing.declarations.push(member.getText(sourceFile));
+        existing.nodes.push(member);
       }
     }
   }
-  return [...methods].map(([name, method]) => ({
-    name,
-    kind: "method",
-    line: method.line,
-    exported: method.exported,
-    fingerprint: createHash("sha256").update(method.declarations.join("\0")).digest("hex"),
-  }));
+  return [...methods].map(([name, method]) => {
+    const overloads = method.nodes.filter((node) => node.body === undefined);
+    const signatures = (overloads.length > 0 ? overloads : method.nodes)
+      .map((node) => functionSignature(node, sourceFile))
+      .sort();
+    const publicApi: PublicApi | undefined = method.exported
+      ? { kind: "function", signatures }
+      : undefined;
+    return {
+      name,
+      kind: "method",
+      line: method.line,
+      exported: method.exported,
+      fingerprint: createHash("sha256").update(method.declarations.join("\0")).digest("hex"),
+      ...(publicApi === undefined ? {} : { publicApi }),
+    };
+  });
 }
 
 function staticClassMemberName(name: ts.PropertyName): string | undefined {
@@ -344,7 +364,7 @@ function resolveTypeAliasMembers(
 }
 
 function functionSignature(
-  declaration: ts.FunctionDeclaration | ts.MethodSignature,
+  declaration: ts.FunctionDeclaration | ts.MethodDeclaration | ts.MethodSignature,
   sourceFile: ts.SourceFile,
 ): string {
   const typeParameters = declaration.typeParameters?.map((parameter) =>

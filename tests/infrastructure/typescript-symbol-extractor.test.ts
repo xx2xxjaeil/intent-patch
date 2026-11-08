@@ -3,6 +3,28 @@ import { describe, it } from "node:test";
 import { TypeScriptSymbolExtractor } from "../../src/infrastructure/typescript/typescript-symbol-extractor.js";
 
 describe("TypeScriptSymbolExtractor", () => {
+  it("extracts overload contracts for exported methods and excludes private methods", () => {
+    const result = new TypeScriptSymbolExtractor().extract(
+      "src/service.ts",
+      [
+        "export class Service {",
+        "  run(value: string): string;",
+        "  run(value: string | number): string { return String(value); }",
+        "  private hidden(value: string): string { return value; }",
+        "}",
+      ].join("\n"),
+    );
+    assert.equal(result.kind, "success");
+    if (result.kind !== "success") return;
+    const publicMethod = result.symbols.find((symbol) => symbol.name === "Service.run");
+    const privateMethod = result.symbols.find((symbol) => symbol.name === "Service.hidden");
+    assert.deepEqual(publicMethod?.publicApi, {
+      kind: "function",
+      signatures: ["(string):string"],
+    });
+    assert.equal(privateMethod?.publicApi, undefined);
+  });
+
   const extractor = new TypeScriptSymbolExtractor();
 
   it("supports TypeScript files but not JavaScript files", () => {

@@ -5,6 +5,22 @@ import { createChangeSet } from "../../src/domain/change.js";
 import { createSymbolChangeSet, type SymbolChange } from "../../src/domain/symbol-change.js";
 
 describe("PublicApiCompatibilityRule", () => {
+  it("reports a changed public method signature with its own rule", async () => {
+    const findings = await analyze({
+      path: "src/service.ts",
+      name: "Service.run",
+      symbolKind: "method",
+      changeKind: "modified",
+      beforeExported: true,
+      afterExported: true,
+      beforePublicApi: { kind: "function", signatures: ["(string):string"] },
+      afterPublicApi: { kind: "function", signatures: ["(number):string"] },
+    });
+    assert.equal(findings[0]?.ruleId, "api/public-method-signature-changed");
+    assert.equal(findings[0]?.title, "Public method contract changed");
+    assert.equal(findings[0]?.evidence.removedSignatures, "(string):string");
+  });
+
   it("reports a removed public function signature", async () => {
     const findings = await analyze({
       path: "src/user.ts",

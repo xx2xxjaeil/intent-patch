@@ -10,7 +10,7 @@ import type { AnalysisContext, AnalysisRule } from "../ports/analysis-rule.js";
 import type { FunctionSignatureCompatibility } from "../ports/function-signature-compatibility.js";
 import type { PropertyTypeCompatibility } from "../ports/property-type-compatibility.js";
 
-/** 공개 함수·인터페이스 계약과 공개 객체 타입의 구성원 삭제를 찾는다. */
+/** 공개 함수·메서드·인터페이스 계약과 공개 객체 타입의 구성원 삭제를 찾는다. */
 export class PublicApiCompatibilityRule implements AnalysisRule {
   public constructor(
     private readonly signatureCompatibility: FunctionSignatureCompatibility,
@@ -113,10 +113,16 @@ function functionFinding(
 
   return [
     {
-      ruleId: "api/public-signature-changed",
+      ruleId:
+        change.symbolKind === "method"
+          ? "api/public-method-signature-changed"
+          : "api/public-signature-changed",
       severity: "high",
-      title: "Public function contract changed",
-      description: `The exported function ${change.name} no longer provides every previous call signature.`,
+      title:
+        change.symbolKind === "method"
+          ? "Public method contract changed"
+          : "Public function contract changed",
+      description: `The exported ${change.symbolKind === "method" ? "method" : "function"} ${change.name} no longer provides every previous call signature.`,
       file: change.path,
       evidence: {
         symbolName: change.name,
