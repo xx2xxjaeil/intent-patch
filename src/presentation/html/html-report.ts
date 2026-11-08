@@ -1,3 +1,4 @@
+import { traceIntentToFiles } from "../../application/services/trace-intent-to-files.js";
 import type { FileChange, LineDelta } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
@@ -47,6 +48,7 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderSeverityBar(report)}
     ${renderReportControls()}
     ${renderContract(report.contract)}
+    ${renderIntentTrace(report.contract, report.changes.files)}
     ${renderImpact(report.impact.changedModules, report.impact.impactedFiles, report.changes.files)}
     ${renderFindings(report.findings.items, report.patchPreviews ?? [])}
     ${renderPatchPreviews(report.patchPreviews ?? [], report.changes.files.length)}
@@ -172,6 +174,45 @@ function renderContract(contract: ChangeContract | undefined): string {
           `<div><dt>${escapeHtml(label ?? "")}</dt><dd>${escapeHtml(value ?? "")}</dd></div>`,
       )
       .join("")}</dl>`,
+  );
+}
+
+function renderIntentTrace(
+  contract: ChangeContract | undefined,
+  files: readonly FileChange[],
+): string {
+  if (contract === undefined) return "";
+  const traces = traceIntentToFiles(contract, files);
+  const groups = [
+    { relation: "expected", label: "Expected scope", note: "Matched scope.include" },
+    { relation: "allowed", label: "Allowed scope", note: "Matched scope.allow" },
+    { relation: "outside", label: "Outside scope", note: "No declared path matched" },
+    { relation: "unclassified", label: "Unclassified", note: "Expected paths not configured" },
+  ] as const;
+  const columns = groups.flatMap((group) => {
+    const matches = traces.filter((trace) => trace.relation === group.relation);
+    if (matches.length === 0) return [];
+    return [
+      `<div class="intent-trace-group ${group.relation}" data-intent-group>
+      <h3>${group.label} <small data-intent-count>${matches.length}</small></h3>
+      <p>${group.note}</p>
+      <ul>${matches
+        .map((trace) => {
+          const fileIndex = files.findIndex((file) => file.path === trace.path);
+          return `<li data-report-path="${escapeHtml(trace.path)}"><a href="#file-${fileIndex}">${escapeHtml(trace.path)}</a>${trace.patterns.length === 0 ? "" : `<small>${escapeHtml(trace.patterns.join(", "))}</small>`}</li>`;
+        })
+        .join("")}</ul>
+    </div>`,
+    ];
+  });
+  const root = contract.intent === undefined ? "Declared change" : contract.intent;
+  return renderSection(
+    "Request → changed files",
+    "Contract path evidence",
+    `<div class="intent-trace">
+    <div class="intent-trace-root"><span>REQUEST</span><strong>${escapeHtml(root)}</strong></div>
+    <div class="intent-trace-groups">${columns.join("") || renderEmpty("No changed files were found.")}</div>
+  </div><p class="intent-trace-note">Connections show declared path matches, not inferred natural-language intent.</p>`,
   );
 }
 
@@ -494,6 +535,7 @@ const reportScript = `(() => {
   const graphNodes = [...document.querySelectorAll("[data-graph-path]")];
   const graphEdges = [...document.querySelectorAll("[data-graph-from]")];
   const graphStatus = document.getElementById("graph-visible-count");
+  const intentGroups = [...document.querySelectorAll("[data-intent-group]")];
   function update() {
     const path = input.value.trim().toLocaleLowerCase();
     let findings = 0;
@@ -506,6 +548,12 @@ const reportScript = `(() => {
         findings++;
         findingPaths.add(entry.getAttribute("data-report-path"));
       }
+    }
+    for (const group of intentGroups) {
+      const count = [...group.querySelectorAll("li[data-report-path]")].filter((item) => !item.hidden).length;
+      group.hidden = count === 0;
+      const label = group.querySelector("[data-intent-count]");
+      if (label) label.textContent = String(count);
     }
     status.textContent = [findings, "findings shown"].join(" ");
     const visiblePaths = new Set();
@@ -632,6 +680,21 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .contract-grid div { padding:16px; background:var(--panel-2); }
 .contract-grid dt { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
 .contract-grid dd { margin:7px 0 0; overflow-wrap:anywhere; font:13px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.intent-trace { display:grid; grid-template-columns:minmax(170px,1fr) 3fr; gap:22px; align-items:start; }
+.intent-trace-root,.intent-trace-group { padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--panel-2); }
+.intent-trace-root { border-color:var(--cyan); overflow-wrap:anywhere; }
+.intent-trace-root span { display:block; margin-bottom:8px; color:var(--cyan); font-size:10px; font-weight:800; letter-spacing:.14em; }
+.intent-trace-root strong { font-size:15px; }
+.intent-trace-groups { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; border-left:2px solid var(--line); padding-left:20px; }
+.intent-trace-group { position:relative; }
+.intent-trace-group::before { content:""; position:absolute; width:20px; height:2px; left:-21px; top:29px; background:var(--line); }
+.intent-trace-group.outside { border-color:var(--medium); }
+.intent-trace-group h3 small { color:var(--muted); font-size:12px; }
+.intent-trace-group p,.intent-trace-note { color:var(--muted); font-size:12px; }
+.intent-trace-group ul { padding:0; margin:12px 0 0; list-style:none; }
+.intent-trace-group li { padding:8px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
+.intent-trace-group li a { color:var(--text); font:12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+.intent-trace-group li small { display:block; margin-top:4px; color:var(--muted); }
 .finding-list { display:grid; gap:10px; }
 .finding { padding:18px; border:1px solid var(--line); border-left:3px solid var(--low); border-radius:12px; background:var(--panel-2); }
 .finding.high { border-left-color:var(--high); }.finding.medium { border-left-color:var(--medium); }
@@ -680,5 +743,5 @@ td { padding:14px 12px; border-bottom:1px solid #202735; vertical-align:top; } t
 .notes { display:grid; gap:8px; margin:0; padding-left:18px; color:#b9c2d0; }
 .empty { margin:0; padding:28px; border:1px dashed #303949; border-radius:12px; color:var(--muted); text-align:center; }
 footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:#536074; font-size:11px; letter-spacing:.05em; text-transform:uppercase; }
-@media (max-width:760px) { .shell{width:min(100% - 24px,1180px);padding-top:32px}.hero{align-items:flex-start;flex-direction:column}.metrics{grid-template-columns:repeat(2,1fr)}.contract-grid,.impact-list{grid-template-columns:1fr}.severity-bar{flex-wrap:wrap}.panel{padding:18px}.intent{grid-template-columns:1fr}.report-state{width:100%} }
+@media (max-width:760px) { .shell{width:min(100% - 24px,1180px);padding-top:32px}.hero{align-items:flex-start;flex-direction:column}.metrics{grid-template-columns:repeat(2,1fr)}.contract-grid,.impact-list,.intent-trace{grid-template-columns:1fr}.intent-trace-groups{border-left:0;border-top:2px solid var(--line);padding:20px 0 0}.intent-trace-group::before{display:none}.severity-bar{flex-wrap:wrap}.panel{padding:18px}.intent{grid-template-columns:1fr}.report-state{width:100%} }
 `;
