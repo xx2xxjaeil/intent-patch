@@ -29,7 +29,8 @@ npx --yes intentpatch@0.9.2 analyze --base '1cc489b^' --head 1cc489b --format ht
 Open `intentpatch-report.html` locally. This case reports a public-API risk and a duplicate-code
 candidate that were later fixed; [the case study](./docs/real-world-evaluation.md) explains the
 review decisions. The [checked-in HTML report](./docs/examples/intent-input-change.html) is the
-same real-change example, not a mockup. GitHub may show the HTML source rather than render it.
+same real-change example, not a mockup. A [contract-based example](./docs/examples/intent-trace.html)
+shows the request-to-changed-files map. GitHub may show the HTML source rather than render it.
 
 ## Quick start
 

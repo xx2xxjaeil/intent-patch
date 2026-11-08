@@ -1,0 +1,7 @@
+{
+  "intent": "Add request-file input and opt-in pull request body support",
+  "scope": {
+    "include": ["src/infrastructure/config/**", "src/presentation/**"],
+    "allow": ["tests/**", "action.yml", "action-dist/**"]
+  }
+}

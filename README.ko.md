@@ -32,6 +32,7 @@ npx --yes intentpatch@0.9.2 analyze --base '1cc489b^' --head 1cc489b --format ht
 생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
 공개 API 위험과 중복 코드 후보가 보고됩니다. 판단 근거는 [실제 변경 사례](./docs/real-world-evaluation.md)에
 정리했고, [저장된 HTML 보고서](./docs/examples/intent-input-change.html)도 확인할 수 있습니다.
+[계약 경로를 연결한 예시](./docs/examples/intent-trace.html)에서는 요청-변경 파일 화면을 볼 수 있습니다.
 GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작

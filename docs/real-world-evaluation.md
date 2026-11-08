@@ -34,6 +34,18 @@ node dist/presentation/cli/main.js analyze \
   --format html --output docs/examples/intent-input-change.html
 ```
 
+A second [HTML example](./examples/intent-trace.html) shows the request-to-changed-files map for
+the same commit. Its [illustrative Change Contract](./examples/intent-trace-contract.json) was
+written after the commit to demonstrate path evidence; it is not part of the evaluation labels.
+Recreate that report with:
+
+```bash
+node dist/presentation/cli/main.js analyze \
+  --base 1cc489b^ --head 1cc489b \
+  --config docs/examples/intent-trace-contract.json \
+  --format html --output docs/examples/intent-trace.html
+```
+
 The commit `81b40f9` alone changes an exported member from required to optional. Comparing just
 that intermediate commit to its parent can still produce a high finding: consumers that read a
 previously required property may have to handle `undefined`. The appropriate comparison for the
