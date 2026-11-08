@@ -18,7 +18,7 @@ AnalyzeChanges 유스케이스
   │                           └─ git ls-files --others -z
   │
   ├─ TestChangeAnalyzer 포트 ─▶ AnalyzeTestChanges
-  │                              └─ Contract 경로 분류 + 파일명 기반 테스트 연결
+  │                              └─ Contract 경로 분류 + 명시적 매핑·import graph·파일명 연결
   │
   ├─ CompareSourceSymbols
   │   ├─ FileSnapshotSource 포트 ─────▶ GitFileSnapshotSource
@@ -75,7 +75,7 @@ ChangeReport
   ├─ TestChangeAnalysis
   ├─ 텍스트 보고서
   ├─ JSON 보고서
-  ├─ 단일 HTML 보고서 + SVG 영향 그래프
+  ├─ 단일 HTML 보고서 + 요청-변경 파일 연결 화면 + SVG 영향 그래프
   └─ GitHub Action Job Summary + annotation + artifact용 보고서
 ```
 
@@ -113,11 +113,11 @@ pnpm v9 YAML의 프로젝트 문서를 읽고,
 `AnalyzeImportImpact`는 module graph를 역방향으로 탐색하지만 파일을 얻는 방법과 언어별 import
 문법·설정 별칭 해석은 각각 `ProjectFileSource`, `ModuleReferenceExtractor`,
 `ModuleAliasResolver` 포트에 위임합니다.
-`AnalyzeCodeStructure`는 새 함수·인터페이스만 시작점으로 삼아 현재 프로젝트의 구현 fingerprint와
+`AnalyzeCodeStructure`는 새 함수·메서드·인터페이스를 시작점으로 삼아 현재 프로젝트의 구현 fingerprint와
 명시적 `implements` 관계를 비교하고, 언어 문법은 `CodeStructureExtractor`에 위임합니다.
-`AnalyzeTestChanges`는 Contract 경로에 따라 변경 파일을 분류하고 소스와 테스트를 연결합니다.
+`AnalyzeTestChanges`는 Contract 경로에 따라 변경 파일을 분류하고 정적 import 그래프와 소스·테스트를 연결합니다.
 규칙들은 정규화된 분석 사실과 Contract만 읽으며 설정 파일의 형식이나 위치를 알지 못합니다.
-`AnalyzeChanges`는 테스트·심볼 분석, 구조·영향 분석 순으로 사실을 만든 뒤 규칙 엔진에 전달합니다.
+`AnalyzeChanges`는 영향·심볼 분석을 먼저 수행하고, 영향 그래프를 테스트 분석에 전달한 뒤 구조·테스트 사실을 규칙 엔진에 전달합니다.
 
 ### Infrastructure
 
@@ -127,8 +127,8 @@ TypeScript AST 파싱을 담당합니다. `GitProjectFileSource`는 working tree
 module specifier로 변환합니다. JS 공개 심볼은 ESM export 근거만 보존하며 타입 호환성을 추측하지 않습니다.
 별칭 어댑터는 선택한 Git 결과점 또는 삭제 파일의 이전 기준점에서 가장 가까운 TypeScript 설정과 상대 경로 `extends`를 읽고
 TypeScript 모듈 해석기를 통해 로컬 소스 파일만 그래프에 연결합니다.
-심볼 어댑터는 직접 export, 로컬 export 목록, 외부 re-export와 함수·인터페이스 공개 계약을 분석
-사실로 보존합니다. 구조 어댑터는 함수 본문을 공백·주석에 영향받지 않는 토큰 fingerprint로 바꾸고
+심볼 어댑터는 직접 export, 로컬 export 목록, 외부 re-export와 함수·메서드·인터페이스 공개 계약을 분석
+사실로 보존합니다. 구조 어댑터는 함수·메서드 본문을 공백·주석에 영향받지 않는 토큰 fingerprint로 바꾸고
 인터페이스 선언과 클래스의 명시적 `implements` 이름을 추출합니다.
 Compiler API의 노드 타입은 application과 domain 계층으로 전파되지 않습니다.
 두 레거시 모듈 참조 extractor의 deep-import 경로는 얇은 호환 어댑터로 유지하고, 조립에는
@@ -233,14 +233,16 @@ LLM은 Contract 초안을 제안할 수 있지만, 실제 규칙 입력은 항�
 ### 15. 테스트 변경 사실과 누락 판단을 분리
 
 변경된 테스트 수와 소스별 관련 테스트 목록은 `TestChangeAnalysis`에 관찰 사실로 보존합니다.
-테스트 변경이 없다는 위험 판단은 `MissingTestChangeRule`이 별도의 finding으로 만듭니다. 현재는
-언어별 호출 관계를 추측하지 않고 정규화된 파일명이 같은 경우만 연결해 결과를 재현 가능하게
-유지합니다. 수정·추가된 소스에 대해 삭제된 테스트는 동반 변경으로 인정하지 않습니다.
+테스트 변경이 없다는 위험 판단은 `MissingTestChangeRule`이 별도의 finding으로 만듭니다.
+명시적 매핑이 있으면 우선하고, 없으면 현재 정적 import 그래프에서 테스트가 소스에 도달하거나
+정규화된 파일명이 같을 때 연결합니다. 수정·추가된 소스에 대해 삭제된 테스트는 동반 변경으로
+인정하지 않습니다. 연결은 실제 테스트 실행이나 커버리지를 뜻하지 않습니다.
 
 ### 16. HTML 보고서는 하나의 이식 가능한 파일로 생성
 
 보고서를 공유하거나 CI artifact로 보존할 때 별도 웹 서버와 asset 배포가 필요하지 않도록 CSS와
-SVG를 HTML 안에 포함합니다. 외부 CDN과 클라이언트 dependency를 사용하지 않아 오프라인에서도
+SVG를 HTML 안에 포함합니다. 계약 경로와 변경 파일의 관계는 별도 요청-변경 화면에 표시합니다.
+외부 CDN과 클라이언트 dependency를 사용하지 않아 오프라인에서도
 동일하게 열리고, 분석 대상 저장소에서 온 문자열은 HTML entity로 변환해 코드나 intent가 markup으로
 실행되지 않게 합니다. 영향 그래프는 `ImpactAnalysis`의 변경 모듈과 직접·간접 영향 관계만
 시각화하므로 텍스트 보고서와 판단 근거가 달라지지 않습니다. 경로·심각도 필터는 표시할 노드와
@@ -248,8 +250,8 @@ SVG를 HTML 안에 포함합니다. 외부 CDN과 클라이언트 dependency를 
 
 ### 17. 공개 API 위험은 구조화한 계약으로 판정
 
-TypeScript 어댑터는 함수 본문을 제외한 호출 시그니처와 인터페이스의 상속·멤버 계약을 별도로
-추출합니다. 함수 규칙은 이전 시그니처가 텍스트상 사라져도, 주입된 포트를 통해 TypeScript가
+TypeScript 어댑터는 함수·메서드 본문을 제외한 호출 시그니처와 인터페이스의 상속·멤버 계약을 별도로
+추출합니다. 함수·메서드 규칙은 이전 시그니처가 텍스트상 사라져도, 주입된 포트를 통해 TypeScript가
 현재 callable type을 이전 타입에 할당할 수 있다고 확인하면 경고를 내지 않습니다. 외부 타입
 참조나 추론 타입 때문에 독립적인 검사로 확인할 수 없으면 기존 경고를 유지합니다. 인터페이스
 멤버·상속 관계의 변경은 별도로 판단하고, 함수 본문만 바뀐 경우는 심볼 변경 사실로만 남깁니다.
@@ -263,11 +265,11 @@ TypeScript 어댑터는 함수 본문을 제외한 호출 시그니처와 인터
 ### 18. 구조 신호와 위험 판단을 분리
 
 구조 어댑터가 반환하는 fingerprint나 AST 사실을 규칙이 직접 해석하지 않습니다.
-`AnalyzeCodeStructure`가 신규 함수와 기존 함수의 동일 구현 후보, 신규 인터페이스와 단일 구현체
+`AnalyzeCodeStructure`가 신규 함수·메서드와 기존 구현의 동일 후보, 신규 인터페이스와 단일 구현체
 관계를 `CodeStructureAnalysis`로 만든 뒤 각 규칙이 `medium` 또는 `low` finding으로 변환합니다.
 짧은 함수는 우연히 같을 가능성이 높아 12토큰 미만을 제외하고, 다른 신규 함수는 기존 코드
-재사용 후보로 취급하지 않습니다. 이름 변경까지 추측하는 유사도 분석 대신 완전히 같은 토큰만
-비교해 결과를 재현 가능하게 유지합니다.
+재사용 후보로 취급하지 않습니다. 단순 매개변수·지역 변수의 이름 변경만 정규화하며, 중첩 스코프·
+구조 분해·외부 호출 변경은 추측하지 않습니다.
 
 ### 19. GitHub Action을 외부 어댑터로 유지
 

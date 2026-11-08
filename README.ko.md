@@ -183,7 +183,7 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - working tree 분석 시 untracked 파일 포함
 - 터미널용 텍스트 보고서
 - 후속 도구 연동을 위한 JSON 보고서
-- 요약 카드, 경로·심각도 필터, finding, 테스트 신호와 탐색 가능한 영향 그래프를 담은 단일 HTML 보고서
+- 요약 카드, 경로·심각도 필터, finding, 테스트 신호, 요청-변경 파일 연결 화면과 탐색 가능한 영향 그래프를 담은 단일 HTML 보고서
 - 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
 - production·development dependency 추가 탐지
 - dependency 삭제, 버전 변경, 섹션 이동 탐지
@@ -207,10 +207,10 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - 심볼 추가·수정·삭제 탐지와 소스 위치 표시
 - 직접 `export`된 선언, 로컬 export 목록과 외부 re-export를 공개 심볼 근거에 보존
 - 공개 심볼 삭제와 `export` 해제를 호환성 위험 `high` finding으로 탐지
-- 공개 함수의 기존 호출 시그니처 제거, 공개 인터페이스의 호환성 파괴, 해석 가능한 공개 객체 타입 별칭의 구성원 삭제를 `high` finding으로 탐지
-- TypeScript가 현재 함수 타입으로 기존 호출을 수용할 수 있다고 확인한 경우 시그니처 변경 경고를 제외
+- 공개 함수·클래스 메서드의 기존 호출 시그니처 제거, 공개 인터페이스의 호환성 파괴, 해석 가능한 공개 객체 타입 별칭의 구성원 삭제를 `high` finding으로 탐지
+- TypeScript가 현재 함수·메서드 타입으로 기존 호출을 수용할 수 있다고 확인한 경우 시그니처 변경 경고를 제외
 - 구현이 추가된 기존 overload는 제외하고 기존 overload가 사라진 경우만 함수 계약 변경으로 판정
-- 공백과 주석을 제외한 구현 토큰이 같은 신규 함수와 기존 함수를 재사용 후보 `medium` finding으로 탐지
+- 신규 TypeScript·JavaScript 함수와 TypeScript 클래스 메서드의 동일 구현을 재사용 후보 `medium` finding으로 탐지. 단순 지역 식별자 이름 변경도 비교
 - 신규 인터페이스를 명시적으로 구현하는 클래스가 하나뿐이면 추상화 검토 `low` finding으로 탐지
 - rename 전후 파일 경로를 사용한 심볼 비교
 - 구문 오류가 있는 파일을 누락시키지 않고 분석 불가 근거로 보고
@@ -223,18 +223,19 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - 해결하지 못한 상대 import와 읽기·파싱 실패를 분석 근거로 보존
 - working tree의 tracked·untracked 파일 또는 지정한 head ref를 동일한 결과점에서 분석
 - `.intentpatch.json`에 요청 의도, 예상 경로, 허용 경로와 변경량 예산 선언
+- HTML에서 변경 파일을 계약의 예상·허용 경로와 연결하고 범위 밖 파일을 구분
 - CLI 요청 문서 또는 선택적으로 GitHub PR 본문에서 요청 의도를 입력
 - 예상·허용 패턴을 벗어난 변경 파일을 파일별 `medium` finding으로 탐지
 - 변경 파일 수와 측정 라인 예산 초과를 수치 근거가 있는 `low` finding으로 탐지
-- Contract가 지정한 소스·테스트 경로를 분류하고 파일명 또는 명시적 매핑으로 관련 변경 연결
+- Contract가 지정한 소스·테스트 경로를 분류하고 명시적 매핑, 정적 import 관계 또는 파일명으로 관련 변경 연결
 - 테스트 변경 수와 추가·삭제 수를 별도의 분석 사실로 집계
 - 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
 - Pull Request·push commit 범위를 자동 판별하는 GitHub Action
 - GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
 
-lockfile 귀속은 해석 가능한 루트 dependency 경로로 제한됩니다. JavaScript 중복 구현 분석,
-메서드 시그니처 호환성 검사와 AI 리뷰 기능은 아직 구현되지 않았습니다.
+lockfile 귀속은 해석 가능한 루트 dependency 경로로 제한됩니다. 프로젝트 전체 TypeScript
+호환성 검사와 선택형 AI 리뷰 기능은 아직 구현되지 않았습니다.
 
 ## 상세 사용법
 
@@ -334,11 +335,11 @@ intentpatch init \
 - `tests.related`: 소스 파일의 정확한 경로와 관련 테스트 경로 패턴의 명시적 연결.
   해당 소스에는 파일명 기반 자동 연결 대신 이 설정을 적용합니다.
 
-명시적 연결이 없으면 테스트 연결은 결정적인 결과를 위해 파일명을 사용합니다. 예를 들어 `src/user.ts`는
+명시적 연결이 없으면 테스트 연결에 정적 import 관계와 파일명을 사용합니다. 예를 들어 `src/user.ts`는
 `tests/user.test.ts`, `user.spec.ts`, `user.integration.test.ts` 같은 변경과 연결됩니다.
 이름이 다른 통합 테스트는 `tests` 객체 안에
 `"related": { "src/user.ts": ["tests/account-deletion*.test.ts"] }`처럼 지정할 수 있습니다.
-`tests.include`에 속한 변경 테스트만 인정합니다.
+`tests.include`에 속한 변경 테스트만 인정합니다. import 관계는 관련성의 근거이며 실제 테스트 커버리지를 증명하지는 않습니다.
 
 기본 파일 대신 별도 계약을 사용하려면 `--config`를 지정합니다. 상대 경로는 `--cwd`를 기준으로
 해석합니다.
@@ -408,7 +409,7 @@ MEDIUM  Change outside expected scope
 
 MEDIUM  Source change without matching test change
         src/payment/billing.ts · tests/missing-related-change
-        src/payment/billing.ts changed without a changed test sharing the same basename.
+        src/payment/billing.ts changed without a changed test sharing its basename or statically importing it.
 
 MEDIUM  New function duplicates existing implementation
         src/user/service.ts · structure/duplicate-implementation
@@ -584,13 +585,13 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 - 인터페이스 속성 타입은 기존 타입이 같거나 지원하는 객체 리터럴 안에 선택 필드만 추가된
   경우(`Readonly` 포함)에만 호환된다고 판단합니다. 다른 중첩 타입 변경은 호환을 단정하지
   않고 검토 경고를 유지합니다.
-- 중복 구현 후보는 새로 추가된 최상위 함수와 기존 최상위 함수의 토큰이 공백·주석을 제외하고
-  완전히 같으며 본문이 12토큰 이상일 때만 보고합니다. 식별자 이름이 바뀐 유사 코드, 메서드,
-  의미적으로만 같은 구현은 탐지하지 않습니다.
+- 중복 구현 후보는 새 최상위 함수 또는 이름 있는 TypeScript 클래스 메서드와 기존 함수·메서드의
+  본문이 12토큰 이상일 때 비교합니다. 공백·주석을 뺀 토큰 일치와 단순 매개변수·지역 변수 이름
+  정규화를 지원합니다. 중첩 스코프·구조 분해·다른 외부 호출과 의미만 같은 별도 구현은 추정하지 않습니다.
 - 단일 구현 추상화는 새 인터페이스를 `implements`로 명시한 이름 있는 클래스가 정확히 하나일 때만
   보고합니다. TypeScript의 구조적 구현, factory 반환 타입과 런타임 등록은 계산하지 않습니다.
 - 계산된 이름의 메서드, TypeScript 변수 선언과 중첩 선언은 아직 심볼 분석 대상이 아닙니다.
-  공개 메서드 삭제는 보고하지만 메서드 시그니처 호환성은 검사하지 않습니다.
+  이름 있는 공개 메서드는 공개 함수와 같은 보수적인 시그니처 호환성 검사를 사용합니다.
 - 선언 내부의 포맷이나 주석 변경도 심볼 수정으로 집계될 수 있습니다.
 - 영향 분석은 JS/TS 소스의 정적 `import`, side-effect import, `export ... from`,
   `import = require()` 및 문자열 `require()`·`import()`를 대상으로 합니다. 로컬 별칭은 가장 가까운 `tsconfig.json` 또는
@@ -613,9 +614,11 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   0줄이라고 간주하지 않지만, 해당 파일의 크기를 라인 예산에 포함하지도 않습니다.
 - 테스트 분석은 실행 결과나 코드 커버리지를 측정하지 않고 Contract에 지정된 변경 파일만
   비교합니다.
-- 관련 테스트는 기본적으로 파일명으로 연결하지만 정확한 소스 경로에 `tests.related`를
-  선언하면 이름이 다른 테스트도 지정할 수 있습니다. 이는 테스트 실행이나 실제 커버리지 측정이
-  아니라 사용자가 선언한 연결입니다.
+- 관련 변경 테스트는 정적 import 경로 또는 파일명으로 연결하지만 정확한 소스 경로에
+  `tests.related`를 선언하면 그 매핑을 우선합니다. 삭제된 소스는 현재 import 그래프에 없으므로
+  명시적 매핑이나 파일명을 사용합니다. 이는 테스트 실행이나 실제 커버리지 측정이 아닙니다.
+- HTML 요청-변경 연결 화면은 명시된 Change Contract 경로와 변경 파일의 관계만 보여줍니다.
+  자연어 요청만으로 예상 경로나 기능 영역을 추론하지 않습니다.
 - HTML 영향 그래프는 결정적인 두 열 레이아웃이며 노드를 누르면 보고서의 관련 행으로 이동합니다.
   경로·심각도 필터는 그래프의 노드와 연결선에도 적용됩니다. 버튼·키보드로 확대·이동하고 드래그로
   이동할 수 있습니다. 필터는 노드를 숨길 뿐 레이아웃을 재배치하지 않습니다.
