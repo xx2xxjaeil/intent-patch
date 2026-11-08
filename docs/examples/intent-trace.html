@@ -519,7 +519,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">   base:</span>
 <span class="patch-context">     description: Base Git reference; detected automatically for pull_request and push events</span>
 <span class="patch-context">     required: false</span></code></pre>
-        
+
       </article><article id="diff-2" class="patch-card" data-report-path="src/infrastructure/config/text-intent-loader.ts">
         <h3>src/infrastructure/config/text-intent-loader.ts</h3>
         <pre aria-label="Git diff for src/infrastructure/config/text-intent-loader.ts"><code><span class="patch-hunk">@@ -0,0 +1,30 @@</span>
@@ -553,7 +553,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-add">+    return intent;</span>
 <span class="patch-add">+  }</span>
 <span class="patch-add">+}</span></code></pre>
-        
+
       </article><article id="diff-3" class="patch-card" data-report-path="src/presentation/analyze-repository.ts">
         <h3>src/presentation/analyze-repository.ts</h3>
         <pre aria-label="Git diff for src/presentation/analyze-repository.ts"><code><span class="patch-hunk">@@ -17,6 +17,7 @@ import { AnalyzeTestChanges } from &quot;../application/services/analyze-test-changes</span>
@@ -593,7 +593,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">   const projectFiles = new GitProjectFileSource(options.workingDirectory, commandRunner);</span>
 <span class="patch-context">   const ruleEngine = new RuleEngine([</span>
 <span class="patch-context">     new PackageDependencyRule(snapshotSource),</span></code></pre>
-        
+
       </article><article id="diff-4" class="patch-card" data-report-path="src/presentation/cli/arguments.ts">
         <h3>src/presentation/cli/arguments.ts</h3>
         <pre aria-label="Git diff for src/presentation/cli/arguments.ts"><code><span class="patch-hunk">@@ -10,6 +10,7 @@ export interface AnalyzeCommandOptions {</span>
@@ -639,7 +639,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">   --format &lt;type&gt; Output format: text, json, or html (default: text)</span>
 <span class="patch-context">   --json         Alias for --format json</span>
 <span class="patch-context">   --output &lt;path&gt;</span></code></pre>
-        
+
       </article><article id="diff-5" class="patch-card" data-report-path="src/presentation/cli/main.ts">
         <h3>src/presentation/cli/main.ts</h3>
         <pre aria-label="Git diff for src/presentation/cli/main.ts"><code><span class="patch-hunk">@@ -2,6 +2,7 @@</span>
@@ -664,7 +664,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">       ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),</span>
 <span class="patch-context">       ...(options.headRef === undefined ? {} : { headRef: options.headRef }),</span>
 <span class="patch-context">       ...(options.configurationPath === undefined</span></code></pre>
-        
+
       </article><article id="diff-6" class="patch-card" data-report-path="src/presentation/github/action-inputs.ts">
         <h3>src/presentation/github/action-inputs.ts</h3>
         <pre aria-label="Git diff for src/presentation/github/action-inputs.ts"><code><span class="patch-hunk">@@ -3,6 +3,8 @@ import { type Severity, severities } from &quot;../../domain/finding.js&quot;;</span>
@@ -705,7 +705,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context"> function parseSeverity(value: string): Severity {</span>
 <span class="patch-context">   if (severities.some((severity) =&gt; severity === value)) {</span>
 <span class="patch-context">     return value as Severity;</span></code></pre>
-        
+
       </article><article id="diff-7" class="patch-card" data-report-path="src/presentation/github/pr-body-intent.ts">
         <h3>src/presentation/github/pr-body-intent.ts</h3>
         <pre aria-label="Git diff for src/presentation/github/pr-body-intent.ts"><code><span class="patch-hunk">@@ -0,0 +1,18 @@</span>
@@ -727,7 +727,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-add">+function isRecord(value: unknown): value is Record&lt;string, unknown&gt; {</span>
 <span class="patch-add">+  return typeof value === &quot;object&quot; &amp;&amp; value !== null &amp;&amp; !Array.isArray(value);</span>
 <span class="patch-add">+}</span></code></pre>
-        
+
       </article><article id="diff-8" class="patch-card" data-report-path="src/presentation/github/run-action.ts">
         <h3>src/presentation/github/run-action.ts</h3>
         <pre aria-label="Git diff for src/presentation/github/run-action.ts"><code><span class="patch-hunk">@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from &quot;node:fs/promises&quot;;</span>
@@ -771,7 +771,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">     ...(inputs.configurationPath === undefined</span>
 <span class="patch-context">       ? {}</span>
 <span class="patch-context">       : { configurationPath: inputs.configurationPath }),</span></code></pre>
-        
+
       </article><article id="diff-9" class="patch-card" data-report-path="tests/infrastructure/text-intent-loader.test.ts">
         <h3>tests/infrastructure/text-intent-loader.test.ts</h3>
         <pre aria-label="Git diff for tests/infrastructure/text-intent-loader.test.ts"><code><span class="patch-hunk">@@ -0,0 +1,37 @@</span>
@@ -812,7 +812,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-add">+    );</span>
 <span class="patch-add">+  });</span>
 <span class="patch-add">+});</span></code></pre>
-        
+
       </article><article id="diff-10" class="patch-card" data-report-path="tests/integration/cli-intent-file.test.ts">
         <h3>tests/integration/cli-intent-file.test.ts</h3>
         <pre aria-label="Git diff for tests/integration/cli-intent-file.test.ts"><code><span class="patch-hunk">@@ -0,0 +1,70 @@</span>
@@ -886,7 +886,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-add">+    );</span>
 <span class="patch-add">+  });</span>
 <span class="patch-add">+});</span></code></pre>
-        
+
       </article><article id="diff-11" class="patch-card" data-report-path="tests/integration/github-action.test.ts">
         <h3>tests/integration/github-action.test.ts</h3>
         <pre aria-label="Git diff for tests/integration/github-action.test.ts"><code><span class="patch-hunk">@@ -48,6 +48,57 @@ describe(&quot;GitHub Action integration&quot;, () =&gt; {</span>
@@ -947,7 +947,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">   it(&quot;runs the bundled action without installing repository dependencies&quot;, async () =&gt; {</span>
 <span class="patch-context">     const { repository, eventPath } = await createBreakingRepository();</span>
 <span class="patch-context">     temporaryDirectories.push(repository);</span></code></pre>
-        
+
       </article><article id="diff-12" class="patch-card" data-report-path="tests/presentation/arguments.test.ts">
         <h3>tests/presentation/arguments.test.ts</h3>
         <pre aria-label="Git diff for tests/presentation/arguments.test.ts"><code><span class="patch-hunk">@@ -29,6 +29,8 @@ describe(&quot;parseArguments&quot;, () =&gt; {</span>
@@ -967,7 +967,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">         outputFormat: &quot;json&quot;,</span>
 <span class="patch-context">         failOn: &quot;medium&quot;,</span>
 <span class="patch-context">       },</span></code></pre>
-        
+
       </article><article id="diff-13" class="patch-card" data-report-path="tests/presentation/github-action-inputs.test.ts">
         <h3>tests/presentation/github-action-inputs.test.ts</h3>
         <pre aria-label="Git diff for tests/presentation/github-action-inputs.test.ts"><code><span class="patch-hunk">@@ -11,6 +11,7 @@ describe(&quot;readGitHubActionInputs&quot;, () =&gt; {</span>
@@ -1007,7 +1007,7 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-context">   });</span>
 <span class="patch-context"> });</span>
 <span class="patch-context"> </span></code></pre>
-        
+
       </article><article id="diff-14" class="patch-card" data-report-path="tests/presentation/pr-body-intent.test.ts">
         <h3>tests/presentation/pr-body-intent.test.ts</h3>
         <pre aria-label="Git diff for tests/presentation/pr-body-intent.test.ts"><code><span class="patch-hunk">@@ -0,0 +1,19 @@</span>
@@ -1030,10 +1030,10 @@ footer { display:flex; justify-content:space-between; padding:26px 4px 0; color:
 <span class="patch-add">+    );</span>
 <span class="patch-add">+  });</span>
 <span class="patch-add">+});</span></code></pre>
-        
+
       </article></div>
     </section>
-    
+
     <section class="panel">
       <div class="section-heading"><div><span>15 files</span><h2>Changed files</h2></div></div>
       <div class="table-wrap"><table>

@@ -621,7 +621,7 @@ type Current = ${E};`,z0.default.ScriptTarget.Latest,!0),J=N.statements.filter(z
   <script>${zwt}</script>
 </body>
 </html>
-`}function Twt(k){return k?.intent===void 0?"":`<section class="intent" aria-label="Change intent">
+`.replace(/[ \t]+$/gmu,"")}function Twt(k){return k?.intent===void 0?"":`<section class="intent" aria-label="Change intent">
       <span>REQUEST</span>
       <p>${pc(k.intent)}</p>
     </section>`}function xwt(k,T,E){let{summary:N}=k.changes;return`<section class="metrics" aria-label="Change summary">

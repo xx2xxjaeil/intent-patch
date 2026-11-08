@@ -65,7 +65,7 @@ export function formatHtmlReport(report: ChangeReport): string {
   <script>${reportScript}</script>
 </body>
 </html>
-`;
+`.replace(/[ \t]+$/gmu, "");
 }
 
 function renderIntent(contract: ChangeContract | undefined): string {

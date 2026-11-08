@@ -34,6 +34,7 @@ describe("formatHtmlReport", () => {
     const output = formatHtmlReport(createReport());
 
     assert.match(output, /^<!doctype html>/);
+    assert.doesNotMatch(output, /[ \t]+$/gmu);
     assert.match(output, /Agent Change Report/);
     assert.match(output, /HEAD → working tree/);
     assert.match(output, /Files changed/);
