@@ -39,7 +39,11 @@ export class AnalyzeCodeStructure implements CodeStructureAnalyzer {
   ) {}
 
   public async analyze(context: AnalysisContext): Promise<CodeStructureAnalysis> {
-    const addedFunctions = addedSymbols(context, "function");
+    const addedFunctions = (context.symbolChanges?.changes ?? []).filter(
+      (change) =>
+        change.changeKind === "added" &&
+        (change.symbolKind === "function" || change.symbolKind === "method"),
+    );
     const addedInterfaces = addedSymbols(context, "interface");
     if (addedFunctions.length === 0 && addedInterfaces.length === 0) {
       return emptyAnalysis();
@@ -130,11 +134,28 @@ function findDuplicateCandidates(
     }
     const existing = existingFunctions
       .filter(
-        (candidate) => candidate.implementationFingerprint === added.implementationFingerprint,
+        (candidate) =>
+          candidate.tokenCount >= minimumImplementationTokens &&
+          (candidate.implementationFingerprint === added.implementationFingerprint ||
+            (added.structuralFingerprint !== undefined &&
+              candidate.structuralFingerprint === added.structuralFingerprint &&
+              candidate.tokenCount === added.tokenCount)),
       )
-      .sort(compareLocatedSymbols)[0];
+      .sort(
+        (left, right) =>
+          Number(right.implementationFingerprint === added.implementationFingerprint) -
+            Number(left.implementationFingerprint === added.implementationFingerprint) ||
+          compareLocatedSymbols(left, right),
+      )[0];
     if (existing !== undefined) {
-      candidates.push({ added: toLocation(added), existing: toLocation(existing) });
+      candidates.push({
+        added: toLocation(added),
+        existing: toLocation(existing),
+        ...(change.symbolKind === "method" ? { addedKind: "method" as const } : {}),
+        ...(existing.implementationFingerprint === added.implementationFingerprint
+          ? {}
+          : { matchKind: "renamed-locals" as const }),
+      });
     }
   }
   return candidates;

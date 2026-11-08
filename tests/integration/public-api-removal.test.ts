@@ -152,6 +152,33 @@ describe("public API removal integration", () => {
     ]);
   });
 
+  it("reports a changed public class method signature from Git snapshots", async () => {
+    const repository = await createRepository(
+      "export class Service { run(value: string): string { return value; } }\n",
+    );
+    await writeFile(
+      join(repository, "api.ts"),
+      "export class Service { run(value: number): string { return String(value); } }\n",
+    );
+
+    const report = await new AnalyzeChanges(
+      new GitChangeSource(repository),
+      new RuleEngine([
+        new PublicApiCompatibilityRule(
+          new TypeScriptFunctionSignatureCompatibility(),
+          new TypeScriptPropertyTypeCompatibility(),
+        ),
+      ]),
+      new CompareSourceSymbols(new GitFileSnapshotSource(repository), [
+        new TypeScriptSymbolExtractor(),
+      ]),
+    ).execute();
+
+    assert.equal(report.findings.items.length, 1);
+    assert.equal(report.findings.items[0]?.ruleId, "api/public-method-signature-changed");
+    assert.equal(report.findings.items[0]?.evidence.symbolName, "Service.run");
+  });
+
   it("does not report a function that still accepts the old calls", async () => {
     const repository = await createRepository(
       "export function customAlphabet(alphabet: string, size: number): () => string { return () => alphabet.slice(0, size); }\n",

@@ -29,7 +29,8 @@ npx --yes intentpatch@0.9.2 analyze --base '1cc489b^' --head 1cc489b --format ht
 Open `intentpatch-report.html` locally. This case reports a public-API risk and a duplicate-code
 candidate that were later fixed; [the case study](./docs/real-world-evaluation.md) explains the
 review decisions. The [checked-in HTML report](./docs/examples/intent-input-change.html) is the
-same real-change example, not a mockup. GitHub may show the HTML source rather than render it.
+same real-change example, not a mockup. A [contract-based example](./docs/examples/intent-trace.html)
+shows the request-to-changed-files map. GitHub may show the HTML source rather than render it.
 
 ## Quick start
 
@@ -178,7 +179,7 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Distinguish binary files.
 - Include untracked files in working-tree analysis.
 - Render terminal-friendly text and machine-readable JSON reports.
-- Generate a standalone HTML report containing summary cards, path/severity filters, findings, test signals, and a navigable impact graph.
+- Generate a standalone HTML report containing summary cards, path/severity filters, findings, test signals, a request-to-changed-files map, and a navigable impact graph.
 - Render the visualization with inline CSS and SVG, without a CDN or runtime JavaScript dependency.
 - Aggregate findings by `high`, `medium`, and `low` severity.
 - Return a CI-friendly exit code through `--fail-on`.
@@ -206,10 +207,10 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Preserve direct exports, local export lists, and external re-exports as public-symbol evidence.
 - When the previous package `exports` resolve to maintained source files, limit public API warnings to those entrypoints and their re-exported modules.
 - Report removed public symbols and removed exports as high-severity compatibility risks.
-- Detect removed public function call signatures, incompatible public interface changes, and removed members of resolvable public object type aliases.
-- Suppress a public function signature warning when TypeScript confirms that the current callable type still accepts the previous calls.
+- Detect removed public function and class-method call signatures, incompatible public interface changes, and removed members of resolvable public object type aliases.
+- Suppress a public function or method signature warning when TypeScript confirms that the current callable type still accepts the previous calls.
 - Exclude overloads that only gain an implementation while reporting previously available overloads that disappear.
-- Find newly added functions whose normalized implementation matches an existing function.
+- Find newly added TypeScript/JavaScript functions and TypeScript class methods whose implementation matches an existing callable, including safe local-identifier renames.
 - Report a newly added interface when exactly one class explicitly implements it.
 - Compare symbols correctly across renamed files.
 - Preserve syntax errors as analysis evidence instead of silently dropping a file.
@@ -225,16 +226,17 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Build the graph at the same result point as the diff: the working tree or the selected head ref.
 - Include importers that depended on a deleted module in the previous revision, with a distinct previous-import marker.
 - Read intent, expected paths, allowed paths, and change budgets from `.intentpatch.json`.
+- Show which changed files match expected or allowed contract patterns, and which fall outside them, in the HTML request map.
 - Accept a request text/Markdown file through the CLI, or opt in to using the PR body in the GitHub Action.
 - Report each file outside expected and allowed patterns as a medium-severity finding.
 - Report file-count and measurable-line budget overruns with numeric evidence.
-- Classify source and test paths declared by the contract and connect related changes by basename or an explicit mapping.
+- Classify source and test paths declared by the contract and connect related changes by explicit mapping, static import reachability, or basename.
 - Report test file counts and added or deleted tests as separate facts.
 - Report source files without a related test change as medium-severity findings.
 - Support repository-relative `*`, `**`, and `?` path patterns.
 
-Lockfile attribution is limited to resolvable root dependency paths. JavaScript duplicate-implementation
-analysis, method signature compatibility checks, and optional AI review are not implemented yet.
+Lockfile attribution is limited to resolvable root dependency paths. Full-project TypeScript
+compatibility checking and optional AI review are not implemented yet.
 
 ## CLI usage
 
@@ -330,7 +332,7 @@ Create `.intentpatch.json` in the repository being analyzed and declare the expe
 - `tests.related`: optional exact source paths mapped to related test path patterns; an explicit
   mapping overrides basename matching for that source.
 
-Without an explicit mapping, test matching uses basenames for deterministic results. For example,
+Without an explicit mapping, test matching uses the static import graph and basenames for deterministic results. For example,
 `src/user.ts` can match changed files such as `tests/user.test.ts`, `user.spec.ts`, or
 `user.integration.test.ts`. For a differently named integration test, add a mapping:
 
@@ -338,7 +340,7 @@ Without an explicit mapping, test matching uses basenames for deterministic resu
 "related": { "src/user.ts": ["tests/account-deletion*.test.ts"] }
 ```
 
-Place `related` inside the `tests` object. Only changed test files matching `tests.include` count.
+Place `related` inside the `tests` object. Only changed test files matching `tests.include` count. Static import reachability is evidence of a relationship, not proof of test coverage.
 
 Use `--config` to select another contract. Relative paths are resolved from `--cwd`:
 
@@ -407,7 +409,7 @@ MEDIUM  Change outside expected scope
 
 MEDIUM  Source change without matching test change
         src/payment/billing.ts · tests/missing-related-change
-        src/payment/billing.ts changed without a changed test sharing the same basename.
+        src/payment/billing.ts changed without a changed test sharing its basename or statically importing it.
 
 MEDIUM  New function duplicates existing implementation
         src/user/service.ts · structure/duplicate-implementation
@@ -545,9 +547,9 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Interface property compatibility recognizes unchanged types and optional fields added inside
   supported object literals, including `Readonly` wrappers. Other nested type transformations
   remain unverified rather than being treated as compatible.
-- Duplicate candidates require a newly added top-level function and an existing top-level function to have exactly the same normalized tokens after comments and whitespace are removed, with at least 12 body tokens. Renamed identifiers, methods, and semantically equivalent implementations are not detected.
+- Duplicate candidates require a newly added top-level function or named TypeScript class method and an existing function or method with at least 12 body tokens. Exact tokens match after comments and whitespace are removed; a second comparison normalizes simple parameter and local-variable names. Nested scopes, destructuring, different external calls or property names, and semantically equivalent but structurally different implementations are not inferred.
 - A single-implementation abstraction is reported only when exactly one named class explicitly uses `implements` for a new interface. Structural implementation, factory return types, and runtime registration are not calculated.
-- Computed class methods, TypeScript variable declarations, and nested declarations are not included in symbol analysis. Named public method removal is reported, but method signature compatibility is not checked.
+- Computed class methods, TypeScript variable declarations, and nested declarations are not included in symbol analysis. Named public method signatures use the same conservative, self-contained compatibility check as public functions.
 - Formatting or comment changes inside a declaration can be counted as symbol modifications.
 - Impact analysis covers static `import`, side-effect imports, `export ... from`, `import = require()`, and string-literal `require()` and `import()` in JS/TS source files. Local aliases use the nearest `tsconfig.json` or
   `jsconfig.json`, with relative `extends` support.
@@ -560,8 +562,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Path patterns support only repository-relative `*`, `**`, and `?`; negation and brace expansion are not supported.
 - `maxLines` sums only measurable added and deleted lines in text files. Binary or unmeasurable files are not treated as zero lines, but their size is not included in the budget.
 - Test analysis compares only the changed paths declared in the contract; it does not execute tests or measure coverage.
-- Related tests are matched by basename unless an exact source path has a `tests.related`
-  mapping. This is a declared relationship, not inferred test coverage; tests are not executed.
+- Related changed tests are matched by static import reachability or basename unless an exact source path has a `tests.related` mapping. Deleted modules rely on explicit mappings or basenames because the test graph describes the current snapshot. This is a relationship signal, not measured coverage; tests are not executed.
+- The HTML request map connects changed paths to explicit Change Contract patterns. It does not infer feature areas or expected paths from natural-language intent.
 - The HTML impact graph uses a deterministic two-column layout. Nodes link to report rows; path
   search and severity filters also narrow graph nodes and edges. Buttons and keyboard controls zoom
   and pan the view, and pointer dragging pans it. Filtering hides nodes without changing the layout.

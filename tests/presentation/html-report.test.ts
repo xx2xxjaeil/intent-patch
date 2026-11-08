@@ -34,6 +34,7 @@ describe("formatHtmlReport", () => {
     const output = formatHtmlReport(createReport());
 
     assert.match(output, /^<!doctype html>/);
+    assert.doesNotMatch(output, /[ \t]+$/gmu);
     assert.match(output, /Agent Change Report/);
     assert.match(output, /HEAD → working tree/);
     assert.match(output, /Files changed/);
@@ -55,6 +56,10 @@ describe("formatHtmlReport", () => {
     assert.match(output, /data-severity-filter="high"/);
     assert.match(output, /data-report-path="src\/user\.ts"/);
     assert.match(output, /href="#file-0"/);
+    assert.match(output, /Request → changed files/);
+    assert.match(output, /class="intent-trace-group expected"/);
+    assert.match(output, /class="intent-trace-group outside"/);
+    assert.match(output, /href="#file-1">tests\/user\.test\.ts<\/a>/);
     assert.match(output, /href="#impact-0"/);
     assert.doesNotMatch(output, /https?:\/\//);
   });
@@ -65,6 +70,7 @@ describe("formatHtmlReport", () => {
     assert.match(output, /Delete &lt;script&gt;alert\(&#39;x&#39;\)&lt;\/script&gt;/);
     assert.match(output, /Review &lt;unsafe&gt;/);
     assert.doesNotMatch(output, /<script>alert/);
+    assert.match(output, /<strong>Delete &lt;script&gt;/);
   });
 
   it("marks impact found through previous imports after a module deletion", () => {
@@ -138,6 +144,13 @@ describe("formatHtmlReport", () => {
       "data-finding-severity": "medium",
     });
     const file = element({ "data-report-path": "src/user.ts" });
+    const intentRow = element({ "data-report-path": "src/user.ts" });
+    const intentCount = element();
+    const intentGroup = {
+      hidden: false,
+      querySelectorAll: () => [intentRow],
+      querySelector: () => intentCount,
+    };
     const buttons = ["all", "high", "medium", "low"].map((severity) =>
       element({ "data-severity-filter": severity }),
     );
@@ -153,20 +166,25 @@ describe("formatHtmlReport", () => {
       querySelector: (selector: string) => (selector === ".impact-graph" ? graph : null),
       querySelectorAll: (selector: string) =>
         selector === "[data-report-path]"
-          ? [high, medium, file]
-          : selector === "[data-severity-filter]"
-            ? buttons
-            : selector === "[data-graph-path]"
-              ? [graphUser, graphAccount]
-              : selector === "[data-graph-from]"
-                ? [graphEdge]
-                : selector === "[data-graph-action]"
-                  ? [zoomIn]
-                  : [link],
+          ? [high, medium, file, intentRow]
+          : selector === "[data-intent-group]"
+            ? [intentGroup]
+            : selector === "[data-severity-filter]"
+              ? buttons
+              : selector === "[data-graph-path]"
+                ? [graphUser, graphAccount]
+                : selector === "[data-graph-from]"
+                  ? [graphEdge]
+                  : selector === "[data-graph-action]"
+                    ? [zoomIn]
+                    : selector === ".impact-graph a[href^='#']"
+                      ? [link]
+                      : [],
     };
     runInNewContext(script, { document });
     assert.equal(controls.hidden, false);
     assert.equal(status.textContent, "2 findings shown");
+    assert.equal(intentCount.textContent, "1");
     assert.equal(graphStatus.textContent, "2 graph files shown");
     zoomIn.fire("click");
     assert.equal(graph.getAttribute("viewBox"), "125 25 750 150");
@@ -175,9 +193,16 @@ describe("formatHtmlReport", () => {
 
     input.value = "user";
     input.fire("input");
+    assert.equal(intentGroup.hidden, false);
     assert.equal(high.hidden, false);
     assert.equal(medium.hidden, true);
     assert.equal(file.hidden, false);
+    input.value = "account";
+    input.fire("input");
+    assert.equal(intentGroup.hidden, true);
+    assert.equal(intentCount.textContent, "0");
+    input.value = "user";
+    input.fire("input");
     assert.equal(graphUser.hidden, false);
     assert.equal(graphAccount.hidden, true);
     assert.equal(graphEdge.hidden, true);

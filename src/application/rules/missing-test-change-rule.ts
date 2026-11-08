@@ -20,11 +20,11 @@ export class MissingTestChangeRule implements AnalysisRule {
           title: "Source change without matching test change",
           description: explicit
             ? `${coverage.sourcePath} changed without a changed test from its explicit related-test mapping.`
-            : `${coverage.sourcePath} changed without a changed test sharing the same basename.`,
+            : `${coverage.sourcePath} changed without a changed test sharing its basename or statically importing it.`,
           file: coverage.sourcePath,
           evidence: {
             sourceChangeKind: coverage.sourceChangeKind,
-            matchingStrategy: explicit ? "explicit" : "basename",
+            matchingStrategy: explicit ? "explicit" : "basename-or-import-graph",
             testPatterns,
           },
         };

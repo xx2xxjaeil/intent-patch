@@ -47,11 +47,12 @@ describe("MissingTestChangeRule", () => {
         ruleId: "tests/missing-related-change",
         severity: "medium",
         title: "Source change without matching test change",
-        description: "src/account.ts changed without a changed test sharing the same basename.",
+        description:
+          "src/account.ts changed without a changed test sharing its basename or statically importing it.",
         file: "src/account.ts",
         evidence: {
           sourceChangeKind: "added",
-          matchingStrategy: "basename",
+          matchingStrategy: "basename-or-import-graph",
           testPatterns: "**/*.spec.ts, tests/**/*.test.ts",
         },
       },

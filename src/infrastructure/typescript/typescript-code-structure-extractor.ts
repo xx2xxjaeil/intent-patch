@@ -12,7 +12,7 @@ import { parseTypeScriptSource } from "./parse-typescript-source.js";
 /** TypeScript AST에서 구현 중복과 단일 구현 추론에 필요한 사실만 추출한다. */
 export class TypeScriptCodeStructureExtractor implements CodeStructureExtractor {
   public supports(path: string): boolean {
-    return path.endsWith(".ts") || path.endsWith(".tsx");
+    return /\.(?:[cm]?[jt]s|[jt]sx)$/u.test(path);
   }
 
   public extract(path: string, source: string): CodeStructureExtractionResult {
@@ -34,7 +34,11 @@ export class TypeScriptCodeStructureExtractor implements CodeStructureExtractor 
         statement.name !== undefined &&
         statement.body !== undefined
       ) {
-        const implementation = fingerprintImplementation(statement.body, sourceFile);
+        const implementation = fingerprintImplementation(
+          statement.body,
+          sourceFile,
+          statement.parameters,
+        );
         functions.push({ name: statement.name.text, line, ...implementation });
         continue;
       }
@@ -52,6 +56,20 @@ export class TypeScriptCodeStructureExtractor implements CodeStructureExtractor 
           line,
           implementedTypes: implementedTypeNames(statement),
         });
+        for (const member of statement.members) {
+          if (!ts.isMethodDeclaration(member) || member.body === undefined) continue;
+          const methodName = staticMethodName(member.name);
+          if (methodName === undefined) continue;
+          const isStatic = (ts.getModifiers(member) ?? []).some(
+            (modifier) => modifier.kind === ts.SyntaxKind.StaticKeyword,
+          );
+          functions.push({
+            name: `${statement.name.text}${isStatic ? ".static" : ""}.${methodName}`,
+            line: sourceFile.getLineAndCharacterOfPosition(member.getStart(sourceFile)).line + 1,
+            symbolKind: "method",
+            ...fingerprintImplementation(member.body, sourceFile, member.parameters),
+          });
+        }
       }
     }
 
@@ -69,7 +87,13 @@ export class TypeScriptCodeStructureExtractor implements CodeStructureExtractor 
 function fingerprintImplementation(
   body: ts.Block,
   sourceFile: ts.SourceFile,
-): Readonly<{ implementationFingerprint: string; tokenCount: number }> {
+  parameters: ts.NodeArray<ts.ParameterDeclaration>,
+): Readonly<{
+  implementationFingerprint: string;
+  structuralFingerprint?: string;
+  tokenCount: number;
+}> {
+  const substitutions = localIdentifierSubstitutions(body, parameters, sourceFile);
   const scanner = ts.createScanner(
     sourceFile.languageVersion,
     true,
@@ -77,15 +101,84 @@ function fingerprintImplementation(
     body.getText(sourceFile),
   );
   const tokens: string[] = [];
+  const structuralTokens: string[] = [];
 
   for (let token = scanner.scan(); token !== ts.SyntaxKind.EndOfFileToken; token = scanner.scan()) {
-    tokens.push(`${token}:${scanner.getTokenText()}`);
+    const value = scanner.getTokenText();
+    tokens.push(`${token}:${value}`);
+    structuralTokens.push(`${token}:${substitutions?.get(scanner.getTokenPos()) ?? value}`);
   }
 
   return {
     implementationFingerprint: createHash("sha256").update(tokens.join("\0")).digest("hex"),
+    ...(substitutions === undefined
+      ? {}
+      : {
+          structuralFingerprint: createHash("sha256")
+            .update(structuralTokens.join("\0"))
+            .digest("hex"),
+        }),
     tokenCount: tokens.length,
   };
+}
+
+/** 매개변수·지역 변수의 참조만 치환한다. 중첩 스코프와 구조 분해는 추정하지 않는다. */
+function localIdentifierSubstitutions(
+  body: ts.Block,
+  parameters: ts.NodeArray<ts.ParameterDeclaration>,
+  sourceFile: ts.SourceFile,
+): ReadonlyMap<number, string> | undefined {
+  const names: string[] = [];
+  for (const parameter of parameters) {
+    if (!ts.isIdentifier(parameter.name)) return undefined;
+    names.push(parameter.name.text);
+  }
+  let supported = true;
+  const collect = (node: ts.Node): void => {
+    if (node !== body && ts.isFunctionLike(node)) {
+      supported = false;
+      return;
+    }
+    if (ts.isVariableDeclaration(node)) {
+      if (!ts.isIdentifier(node.name)) supported = false;
+      else names.push(node.name.text);
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(body);
+  if (!supported || new Set(names).size !== names.length) return undefined;
+
+  // NUL 접두사는 실제 식별자와 충돌하지 않아 외부 호출명을 지역 변수로 오인하지 않는다.
+  const canonical = new Map(names.map((name, index) => [name, `\0local${index}`]));
+  const substitutions = new Map<number, string>();
+  const visit = (node: ts.Node): void => {
+    if (ts.isIdentifier(node) && canonical.has(node.text) && !isPropertyName(node)) {
+      substitutions.set(
+        node.getStart(sourceFile) - body.getStart(sourceFile),
+        canonical.get(node.text) ?? "",
+      );
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(body);
+  return substitutions;
+}
+
+function isPropertyName(node: ts.Identifier): boolean {
+  const parent = node.parent;
+  return (
+    (ts.isPropertyAccessExpression(parent) && parent.name === node) ||
+    (ts.isPropertyAssignment(parent) && parent.name === node) ||
+    (ts.isShorthandPropertyAssignment(parent) && parent.name === node) ||
+    (ts.isMethodDeclaration(parent) && parent.name === node) ||
+    (ts.isLabeledStatement(parent) && parent.label === node)
+  );
+}
+
+function staticMethodName(name: ts.PropertyName): string | undefined {
+  return ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)
+    ? name.text
+    : undefined;
 }
 
 function implementedTypeNames(declaration: ts.ClassDeclaration): readonly string[] {
