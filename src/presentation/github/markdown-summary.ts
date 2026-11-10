@@ -16,6 +16,8 @@ export function formatGitHubSummary(report: ChangeReport): string {
     "| Metric | Result |",
     "| --- | ---: |",
     `| Files changed | ${changeSummary.filesChanged} |`,
+    `| Symbol files checked / unavailable / outside target | ${report.analysisCoverage.symbolFilesChecked} / ${report.analysisCoverage.symbolFilesUnavailable} / ${report.analysisCoverage.symbolFilesNotTargeted} |`,
+    `| Import graph source files read / unresolved / issues | ${report.analysisCoverage.importGraphSourceFilesRead} / ${report.analysisCoverage.unresolvedImports} / ${report.analysisCoverage.importGraphIssues} |`,
     `| Lines | +${changeSummary.additions} / -${changeSummary.deletions} |`,
     `| Direct dependents | ${report.impact.summary.directDependents} |`,
     `| Transitive impact | ${report.impact.summary.transitiveDependents} |`,

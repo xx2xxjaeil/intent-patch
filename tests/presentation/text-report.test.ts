@@ -34,6 +34,17 @@ describe("formatTextReport", () => {
           lines: { kind: "measured", additions: 1, deletions: 0 },
         },
       ]),
+      analysisCoverage: {
+        changedFiles: 1,
+        symbolFilesChecked: 0,
+        symbolFilesUnavailable: 0,
+        symbolFilesNotTargeted: 1,
+        importGraphSourceFilesRead: 4,
+        unresolvedImports: 0,
+        importGraphIssues: 0,
+        binaryFiles: 0,
+        unmeasuredLineFiles: 0,
+      },
       findings: createFindingSet([
         {
           ruleId: "dependency/new-production",
@@ -107,6 +118,8 @@ describe("formatTextReport", () => {
     });
 
     assert.match(output, /New dependencies {5}1/);
+    assert.match(output, /Analysis coverage \(not test coverage\)/u);
+    assert.match(output, /0 checked, 0 unavailable, 1 outside target/u);
     assert.match(output, /Risky API changes {4}1/);
     assert.match(output, /Duplicate candidates 1/);
     assert.match(output, /Single implementations 1/);

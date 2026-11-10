@@ -93,6 +93,18 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push(...formatChangeContract(report.contract));
   }
 
+  const coverage = report.analysisCoverage;
+  lines.push(
+    "",
+    "Analysis coverage (not test coverage)",
+    "",
+    `Changed files       ${coverage.changedFiles}`,
+    `Symbol files        ${coverage.symbolFilesChecked} checked, ${coverage.symbolFilesUnavailable} unavailable, ${coverage.symbolFilesNotTargeted} outside target (for example, non-source or generated files)`,
+    `Import graph        ${coverage.importGraphSourceFilesRead} source files read, ${coverage.unresolvedImports} unresolved imports, ${coverage.importGraphIssues} issues`,
+    `Line counts         ${coverage.binaryFiles} binary files, ${coverage.unmeasuredLineFiles} unavailable`,
+    "No findings does not prove that every behavior was checked. See unavailable analysis below.",
+  );
+
   if (files.length > 0) {
     lines.push("", "Changed files", "");
     lines.push(...files.map(formatFile));

@@ -19,6 +19,17 @@ describe("formatGitHubSummary", () => {
           lines: { kind: "measured", additions: 3, deletions: 1 },
         },
       ]),
+      analysisCoverage: {
+        changedFiles: 1,
+        symbolFilesChecked: 0,
+        symbolFilesUnavailable: 0,
+        symbolFilesNotTargeted: 1,
+        importGraphSourceFilesRead: 1,
+        unresolvedImports: 0,
+        importGraphIssues: 0,
+        binaryFiles: 0,
+        unmeasuredLineFiles: 0,
+      },
       findings: createFindingSet([
         {
           ruleId: "scope/outside|expected",
@@ -51,6 +62,7 @@ describe("formatGitHubSummary", () => {
 
     assert.match(output, /## IntentPatch Change Report/);
     assert.match(output, /\| Files changed \| 1 \|/);
+    assert.match(output, /Symbol files checked \/ unavailable \/ outside target \| 0 \/ 0 \/ 1/u);
     assert.match(output, /\| Missing test changes \| 1 \|/);
     assert.match(output, /Unexpected &lt;script&gt;&#124;change/);
     assert.match(output, /src\/user&#96;name\.ts/);

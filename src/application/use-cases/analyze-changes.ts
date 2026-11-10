@@ -1,3 +1,4 @@
+import { createAnalysisCoverage } from "../../domain/analysis-coverage.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import { createCodeStructureAnalysis } from "../../domain/code-structure.js";
 import { createImpactAnalysis } from "../../domain/impact.js";
@@ -89,6 +90,7 @@ export class AnalyzeChanges {
       target,
       ...(input.contract === undefined ? {} : { contract: input.contract }),
       changes,
+      analysisCoverage: createAnalysisCoverage(changes, symbolChanges, impact),
       findings,
       symbolChanges,
       codeStructure,

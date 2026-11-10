@@ -1,3 +1,4 @@
+import type { AnalysisCoverage } from "./analysis-coverage.js";
 import type { ChangeSet } from "./change.js";
 import type { ChangeContract } from "./change-contract.js";
 import type { CodeStructureAnalysis } from "./code-structure.js";
@@ -16,6 +17,7 @@ export interface ChangeReport {
   readonly target: AnalysisTarget;
   readonly contract?: ChangeContract;
   readonly changes: ChangeSet;
+  readonly analysisCoverage: AnalysisCoverage;
   readonly findings: FindingSet;
   readonly baseline?: Readonly<{
     suppressed: readonly SuppressedFinding[];
