@@ -23,7 +23,7 @@ Clone the repository, then run one analysis command against a real change in its
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.11.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.12.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 Open `intentpatch-report.html` locally. You can also [explore the hosted report](https://xx2xxjaeil.github.io/intent-patch/). This case reports a public-API risk and a duplicate-code
@@ -35,7 +35,7 @@ shows the request-to-changed-files map. GitHub may show the HTML source rather t
 ## Quick start
 
 IntentPatch requires Node.js 20 or later and Git. From the repository you want to review, run
-the published v0.11.0 CLI without installing it globally:
+the published v0.12.0 CLI without installing it globally:
 
 ```bash
 cd /path/to/repository
@@ -82,7 +82,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.11.0
+        uses: xx2xxjaeil/intent-patch@v0.12.0
         with:
           fail-on: high
 
@@ -94,8 +94,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. v0.11.0 adds reviewed finding
-baselines, PR policy-change findings, and a hosted report demo. v0.10.0 adds a request-to-files
+Pin the action to a released version or an immutable commit SHA. v0.12.0 adds interactive Change
+Contract setup and an analysis coverage summary in CLI, JSON, HTML, and GitHub Job Summary reports.
+v0.11.0 adds reviewed finding baselines, PR policy-change findings, and a hosted report demo.
+v0.10.0 adds a request-to-files
 map in HTML reports, exported class method compatibility checks, static import links to changed
 tests, and duplicate detection for methods and renamed local identifiers. v0.9.2 added root dependency
 attribution for resolvable lockfile entries, enum and class-method analysis, static CommonJS
@@ -504,7 +506,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.11.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.12.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
