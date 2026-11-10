@@ -1,14 +1,14 @@
 # External repository evaluation
 
 The first exploratory run compared six merged changes from two independent open-source projects.
-The reviewed-label evaluation below extends that set to 41 distinct changes and 50 rule checks
+The reviewed-label evaluation below extends that set to 41 distinct changes and 52 rule checks
 from four repositories.
 Together they show what IntentPatch can and cannot establish outside its own repository. Only Git snapshots were
 read; the external projects' install, build, and test scripts were not run. The six-case results
 were measured on 2026-10-18; the export-removal evaluation was measured on 2026-10-19 and the
 multi-rule extension on 2026-10-21. The signature-compatibility revision was measured on
 2026-10-22, the p-limit API extension on 2026-10-26, the dependency/scope/test extension on
-2026-10-30, and the picocolors extensions on 2026-11-03 and 2026-11-04. None is a general precision or recall
+2026-10-30, the picocolors extensions on 2026-11-03 and 2026-11-04, and the import-related test checks on 2026-11-10. None is a general precision or recall
 benchmark.
 
 ## Reproduce
@@ -53,14 +53,14 @@ report rather than silently treated as a complete alias graph.
 
 ## Curated multi-rule evaluation
 
-A versioned [case manifest](./external-evaluation-cases.json) contains 50 independently reviewed
+A versioned [case manifest](./external-evaluation-cases.json) contains 52 independently reviewed
 rule checks over 41 distinct changes from p-queue, nanoid, p-limit, and picocolors, including the six
 exploratory changes above.
 Each case names **one rule** and its expected `(file, exported name)`, `(file, package)`, or
 `(file)` labels, reviewed against the
 Git diff before running the evaluator. A commit is scored for another rule only when it has a
 separate reviewed case; an unchecked rule is neither a pass nor a failure. Nineteen checks cover
-`api/exported-symbol-removed`; the other 31 checks cover three more public-API rules and
+`api/exported-symbol-removed`; the other 33 checks cover three more public-API rules and
 dependency, scope, and test-change rules. Scope and test cases carry explicit Change Contracts;
 the evaluator writes them only to a temporary file, not into an external checkout.
 
@@ -79,7 +79,7 @@ npm run evaluate:external -- --repositories ..
 The script checks every fixed commit and its parent, builds IntentPatch, runs the CLI against the
 Git snapshots once per unique change, and compares only the selected rule's findings with its
 reviewed labels. `--json` includes per-case, per-rule, and overall counts. A mismatch exits
-nonzero. On 2026-11-04, all 50 checks matched. Seventeen cases expect findings and 33 expect none
+nonzero. On 2026-11-10, all 52 checks matched. Eighteen cases expect findings and 34 expect none
 for their selected rule:
 
 | Rule | Checks | Matched expected labels | Missing | Unexpected |
@@ -93,8 +93,10 @@ for their selected rule:
 | `dependency/removed` | 3 | 3 | 0 | 0 |
 | `dependency/version-changed` | 2 | 5 | 0 | 0 |
 | `scope/outside-expected-path` | 2 | 1 | 0 | 0 |
-| `tests/missing-related-change` | 6 | 2 | 0 | 0 |
-| **Total** | **50** | **32** | **0** | **0** |
+| `tests/missing-related-change` | 8 | 3 | 0 | 0 |
+| **Total** | **52** | **33** | **0** | **0** |
+
+The two 2026-11-10 checks use [p-queue's abort-listener fix](https://github.com/sindresorhus/p-queue/commit/e9074f06fff500a13e0ef7c910ff4fc2fe65b01c) and [p-limit's p-try removal](https://github.com/sindresorhus/p-limit/commit/69b6017d180297c0eb0d229167bbfe0e832ebe91). In the former, the differently named `test/advanced.ts` imports the changed `source/index.ts`, and both change; the import-aware test rule correctly stays quiet without an explicit mapping. In the latter, `test.js` imports the changed `index.js` but does not change, so the rule reports one missing related test change. This evaluates changed-test evidence, not whether either project's tests pass.
 
 The additional picocolors cases check that a browser entrypoint gaining a static CommonJS
 `createColors` name is not mistaken for an export removal and that the name remains visible after

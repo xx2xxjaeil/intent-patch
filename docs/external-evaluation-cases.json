@@ -351,6 +351,34 @@
       "expected": [{ "file": "index.js" }]
     },
     {
+      "id": "p-queue-abort-listener-related-test-by-import",
+      "ruleId": "tests/missing-related-change",
+      "repository": "p-queue",
+      "head": "e9074f06fff500a13e0ef7c910ff4fc2fe65b01c",
+      "reason": "The differently named advanced.ts test imports source/index.js, resolving to the changed TypeScript source without an explicit mapping.",
+      "contract": {
+        "tests": {
+          "requireFor": ["source/index.ts"],
+          "include": ["test/advanced.ts"]
+        }
+      },
+      "expected": []
+    },
+    {
+      "id": "p-limit-remove-p-try-without-imported-test-change",
+      "ruleId": "tests/missing-related-change",
+      "repository": "p-limit",
+      "head": "69b6017d180297c0eb0d229167bbfe0e832ebe91",
+      "reason": "The existing test.js imports the changed source, but it is not changed in this commit.",
+      "contract": {
+        "tests": {
+          "requireFor": ["index.js"],
+          "include": ["test.js"]
+        }
+      },
+      "expected": [{ "file": "index.js" }]
+    },
+    {
       "id": "picocolors-add-browser-commonjs-name",
       "ruleId": "api/exported-symbol-removed",
       "repository": "picocolors",
