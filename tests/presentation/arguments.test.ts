@@ -67,6 +67,20 @@ describe("parseArguments", () => {
     assert.throws(() => parseArguments(["init", "--max-files", "-1"], "/repo"), CliUsageError);
     assert.throws(() => parseArguments(["init", "--max-lines", "1.5"], "/repo"), CliUsageError);
     assert.throws(() => parseArguments(["init", "--force"], "/repo"), CliUsageError);
+    assert.deepEqual(parseArguments(["init", "--interactive"], "/repo"), {
+      command: "init",
+      workingDirectory: "/repo",
+      interactive: true,
+      include: [],
+      allow: [],
+      testSources: [],
+      testFiles: [],
+      testExcludes: [],
+    });
+    assert.throws(
+      () => parseArguments(["init", "--interactive", "--include", "src/**"], "/repo"),
+      CliUsageError,
+    );
   });
   it("parses opt-in Claude Code hook commands", () => {
     assert.deepEqual(parseArguments(["claude-hook", "capture"], "/repo"), {

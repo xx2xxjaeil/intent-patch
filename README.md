@@ -309,6 +309,13 @@ intentpatch init \
 expected `--include` path; test-change checks require both `--test-source` and `--test-file`.
 Use `--cwd` to target another directory. This command is included in v0.9.0 and later.
 
+In a terminal, `intentpatch init --interactive` lists up to 100 paths changed since `HEAD` and
+lets you select expected paths, allowed exceptions, budgets, and test-path patterns. You can also
+enter repository-relative globs for paths that have not changed yet. The request text never
+selects paths for you. The wizard requires an existing Git commit and a TTY, and accepts only
+`--cwd` and `--intent` alongside `--interactive`. Add `.intentpatch.json` as an allowed path if
+you will analyze the newly created contract in the working tree.
+
 Create `.intentpatch.json` in the repository being analyzed and declare the expected scope of the request:
 
 ```json

@@ -20,6 +20,7 @@ export interface AnalyzeCommandOptions {
 export interface InitCommandOptions {
   readonly command: "init";
   readonly workingDirectory: string;
+  readonly interactive?: true;
   readonly intent?: string;
   readonly include: readonly string[];
   readonly allow: readonly string[];
@@ -215,6 +216,7 @@ Options:
   --fail-on <severity>
                  Exit with code 1 for findings at or above high, medium, or low
   init --intent <text>       Requested change (optional)
+  init --interactive         Select changed paths and configure a contract in a terminal
   init --include <pattern>   Expected path; repeatable (enables scope checks)
   init --allow <pattern>     Allowed exception; repeatable
   init --max-files <number>  Maximum changed files
@@ -233,6 +235,7 @@ function parseInitOptions(
 ): InitCommandOptions {
   let workingDirectory = currentDirectory;
   let intent: string | undefined;
+  let interactive = false;
   const include: string[] = [];
   const allow: string[] = [];
   let maxFiles: number | undefined;
@@ -249,6 +252,9 @@ function parseInitOptions(
         break;
       case "--intent":
         intent = requireOptionValue(options, ++index, option);
+        break;
+      case "--interactive":
+        interactive = true;
         break;
       case "--include":
         include.push(requireOptionValue(options, ++index, option));
@@ -281,9 +287,22 @@ function parseInitOptions(
   if (testExcludes.length > 0 && testSources.length === 0) {
     throw new CliUsageError("--test-exclude requires --test-source and --test-file");
   }
+  if (
+    interactive &&
+    (include.length > 0 ||
+      allow.length > 0 ||
+      maxFiles !== undefined ||
+      maxLines !== undefined ||
+      testSources.length > 0 ||
+      testFiles.length > 0 ||
+      testExcludes.length > 0)
+  ) {
+    throw new CliUsageError("--interactive accepts only --cwd and --intent");
+  }
   return {
     command: "init",
     workingDirectory,
+    ...(interactive ? { interactive: true as const } : {}),
     ...(intent === undefined ? {} : { intent }),
     include,
     allow,

@@ -9,6 +9,11 @@ npx intentpatch init --intent "Remove the user export" --include "src/**" --allo
 npx intentpatch analyze --format html --output ../intentpatch-report.html
 ```
 
+For a guided setup, run `npx intentpatch init --interactive` instead of the first command.
+Select changed paths by number, add globs for future paths, and review the JSON before confirming.
+The wizard needs a terminal and an existing Git commit. Include `.intentpatch.json` among allowed
+paths if you will analyze the new contract itself before committing it.
+
 Open `../intentpatch-report.html` in a browser. Writing the generated report beside the repository
 prevents it from appearing as a changed source file on the next run. Findings link to a bounded Git diff preview in the
 same file. The preview shows up to 30 changed files and 160 patch lines per file; it says when a

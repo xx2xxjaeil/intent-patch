@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import process from "node:process";
 import { type ChangeContract, createChangeContract } from "../../domain/change-contract.js";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { writeChangeContract } from "../../infrastructure/config/write-change-contract.js";
+import { GitChangeSource } from "../../infrastructure/git/git-change-source.js";
 import { GitPrivateAgentIntentStore } from "../../infrastructure/git/git-private-agent-intent-store.js";
 import { GitPrivateAgentReportWriter } from "../../infrastructure/git/git-private-agent-report-writer.js";
 import { CommandExecutionError } from "../../infrastructure/process/command-runner.js";
@@ -15,6 +17,7 @@ import { runCodexHook } from "../codex/hook.js";
 import { runCursorHook } from "../cursor/hook.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
 import { shouldFail } from "./failure-policy.js";
+import { promptForContract } from "./interactive-init.js";
 import { writeReportFile } from "./report-file-writer.js";
 import { formatReport } from "./report-formatter.js";
 
@@ -32,27 +35,49 @@ async function main(): Promise<void> {
     }
     if (options.command === "init") {
       let contract: ChangeContract;
-      try {
-        contract = createChangeContract({
-          ...(options.intent === undefined ? {} : { intent: options.intent }),
-          scope: {
-            include: options.include,
-            allow: options.allow,
-            ...(options.maxFiles === undefined ? {} : { maxFiles: options.maxFiles }),
-            ...(options.maxLines === undefined ? {} : { maxLines: options.maxLines }),
-          },
-          ...(options.testSources.length === 0
-            ? {}
-            : {
-                tests: {
-                  requireFor: options.testSources,
-                  include: options.testFiles,
-                  exclude: options.testExcludes,
-                },
-              }),
+      if (options.interactive) {
+        if (!process.stdin.isTTY || !process.stdout.isTTY) {
+          throw new CliUsageError("init --interactive requires an interactive terminal");
+        }
+        const destination = resolve(options.workingDirectory, ".intentpatch.json");
+        try {
+          await access(destination);
+          throw new Error(`Change contract already exists: ${destination}`);
+        } catch (error) {
+          if (!isMissingFile(error)) throw error;
+        }
+        const changes = await new GitChangeSource(options.workingDirectory).collect({
+          baseRef: "HEAD",
         });
-      } catch (error) {
-        throw new CliUsageError(error instanceof Error ? error.message : String(error));
+        const selected = await promptForContract(changes.files, options.intent);
+        if (selected === undefined) {
+          process.stdout.write("IntentPatch init cancelled; no file was written.\n");
+          return;
+        }
+        contract = selected;
+      } else {
+        try {
+          contract = createChangeContract({
+            ...(options.intent === undefined ? {} : { intent: options.intent }),
+            scope: {
+              include: options.include,
+              allow: options.allow,
+              ...(options.maxFiles === undefined ? {} : { maxFiles: options.maxFiles }),
+              ...(options.maxLines === undefined ? {} : { maxLines: options.maxLines }),
+            },
+            ...(options.testSources.length === 0
+              ? {}
+              : {
+                  tests: {
+                    requireFor: options.testSources,
+                    include: options.testFiles,
+                    exclude: options.testExcludes,
+                  },
+                }),
+          });
+        } catch (error) {
+          throw new CliUsageError(error instanceof Error ? error.message : String(error));
+        }
       }
       const path = await writeChangeContract(options.workingDirectory, contract);
       process.stdout.write(`IntentPatch change contract created at ${path}\n`);
@@ -140,6 +165,10 @@ function isPackageMetadata(value: unknown): value is { readonly version: string 
     return false;
   }
   return typeof value.version === "string" && value.version.trim().length > 0;
+}
+
+function isMissingFile(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 function formatError(error: unknown): string {
