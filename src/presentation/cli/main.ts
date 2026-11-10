@@ -106,6 +106,7 @@ async function main(): Promise<void> {
       ...(options.configurationPath === undefined
         ? {}
         : { configurationPath: options.configurationPath }),
+      ...(options.baselinePath === undefined ? {} : { baselinePath: options.baselinePath }),
     });
 
     const output = formatReport(report, options.outputFormat);

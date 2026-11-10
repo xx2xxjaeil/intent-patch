@@ -84,6 +84,8 @@ export function formatTextReport(report: ChangeReport): string {
     `Duplicate candidates ${structureSummary.duplicateCandidates}`,
     `Single implementations ${structureSummary.singleImplementationAbstractions}`,
     `Findings             ${findingSummary.total}`,
+    `Suppressed findings  ${report.baseline?.suppressed.length ?? 0}`,
+    `Expired exceptions   ${report.baseline?.expired.length ?? 0}`,
   ];
 
   if (report.contract !== undefined) {
@@ -133,6 +135,21 @@ export function formatTextReport(report: ChangeReport): string {
   if (findings.length > 0) {
     lines.push("", "Potential issues", "");
     lines.push(...findings.flatMap((finding, index) => formatFinding(finding, index > 0)));
+  }
+
+  if ((report.baseline?.suppressed.length ?? 0) > 0) {
+    lines.push("", "Accepted exceptions", "");
+    for (const item of report.baseline?.suppressed ?? []) {
+      lines.push(
+        `-  ${item.finding.ruleId} ${item.finding.file}: ${item.reason} (through ${item.expires})`,
+      );
+    }
+  }
+  if ((report.baseline?.expired.length ?? 0) > 0) {
+    lines.push("", "Expired exceptions", "");
+    for (const item of report.baseline?.expired ?? []) {
+      lines.push(`-  ${item.ruleId} ${item.file}: ${item.reason} (expired ${item.expires})`);
+    }
   }
 
   return `${lines.join("\n")}\n`;

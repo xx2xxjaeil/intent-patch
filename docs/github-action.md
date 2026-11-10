@@ -24,7 +24,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.3.0
+        uses: xx2xxjaeil/intent-patch@v0.10.0
         with:
           config: .intentpatch.json
           fail-on: high
@@ -46,6 +46,7 @@ jobs:
 | --- | --- | --- |
 | `working-directory` | `.` | `GITHUB_WORKSPACE` 안의 분석 대상 저장소 |
 | `config` | 없음 | 분석 대상 저장소 기준 Change Contract 경로 |
+| `baseline` | 없음 | 승인한 finding 예외 목록 경로. 기본값은 존재할 경우 `.intentpatch-baseline.json` |
 | `intent-file` | 없음 | 저장소 안의 텍스트·Markdown 요청 문서 경로 |
 | `intent-from-pr-body` | `false` | PR 본문을 기존 intent가 없을 때 대체 입력으로 사용 |
 | `base` | 자동 | 직접 지정할 base Git ref |
@@ -68,6 +69,10 @@ PR 본문을 보고서에 포함하려면 `with: intent-from-pr-body: 'true'`를
 `intent-file` → Change Contract의 `intent` → PR 본문입니다. PR 본문은 8,192자를 초과하거나
 비어 있으면 사용하지 않습니다. 요청 문장만으로 예상 경로를 추론하지 않으므로
 `scope.include`를 명시하지 않은 경우 범위 위반 finding은 생성되지 않습니다.
+
+PR이 현재 검사에 쓰이는 Change Contract나 baseline을 수정하면 high finding을 냅니다. 예외
+항목은 [finding baseline 안내](./finding-baseline.md)처럼 사유·만료일·구체적인 evidence가
+필요합니다. 안정적인 품질 게이트에서는 Action을 릴리스 태그 또는 commit SHA에 고정하세요.
 
 ## 출력
 

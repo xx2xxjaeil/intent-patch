@@ -10,6 +10,7 @@ export interface AnalyzeCommandOptions {
   readonly headRef?: string;
   readonly workingDirectory: string;
   readonly configurationPath?: string;
+  readonly baselinePath?: string;
   readonly intentFilePath?: string;
   readonly outputFormat: OutputFormat;
   readonly outputPath?: string;
@@ -124,6 +125,7 @@ export function parseArguments(
   let headRef: string | undefined;
   let workingDirectory = currentDirectory;
   let configurationPath: string | undefined;
+  let baselinePath: string | undefined;
   let intentFilePath: string | undefined;
   let outputFormat: OutputFormat = "text";
   let outputFormatOption: "--format" | "--json" | undefined;
@@ -144,6 +146,9 @@ export function parseArguments(
         break;
       case "--config":
         configurationPath = requireOptionValue(options, ++index, option);
+        break;
+      case "--baseline":
+        baselinePath = requireOptionValue(options, ++index, option);
         break;
       case "--intent-file":
         intentFilePath = requireOptionValue(options, ++index, option);
@@ -175,6 +180,7 @@ export function parseArguments(
     ...(headRef === undefined ? {} : { headRef }),
     workingDirectory,
     ...(configurationPath === undefined ? {} : { configurationPath }),
+    ...(baselinePath === undefined ? {} : { baselinePath }),
     ...(intentFilePath === undefined ? {} : { intentFilePath }),
     outputFormat,
     ...(outputPath === undefined ? {} : { outputPath }),
@@ -198,6 +204,8 @@ Options:
   --cwd <path>   Repository directory (default: current directory)
   --config <path>
                  Change contract JSON (default: <cwd>/.intentpatch.json when present)
+  --baseline <path>
+                 Finding exceptions (default: <cwd>/.intentpatch-baseline.json when present)
   --intent-file <path>
                  Plain-text or Markdown request (overrides contract intent)
   --format <type> Output format: text, json, or html (default: text)

@@ -22,6 +22,8 @@ export function formatGitHubSummary(report: ChangeReport): string {
     `| Tests changed | ${report.testChanges.summary.testsChanged} |`,
     `| Missing test changes | ${report.testChanges.summary.sourceFilesWithoutTestChanges} |`,
     `| Findings | ${findingSummary.total} |`,
+    `| Accepted exceptions | ${report.baseline?.suppressed.length ?? 0} |`,
+    `| Expired exceptions | ${report.baseline?.expired.length ?? 0} |`,
     `| High / Medium / Low | ${findingSummary.bySeverity.high} / ${findingSummary.bySeverity.medium} / ${findingSummary.bySeverity.low} |`,
   ];
 
