@@ -2,7 +2,7 @@ import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
-import type { ChangeReport } from "../../domain/report.js";
+import { analysisCoverageOf, type ChangeReport } from "../../domain/report.js";
 import type {
   SourceSymbolKind,
   SymbolChange,
@@ -93,7 +93,7 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push(...formatChangeContract(report.contract));
   }
 
-  const coverage = report.analysisCoverage;
+  const coverage = analysisCoverageOf(report);
   lines.push(
     "",
     "Analysis coverage (not test coverage)",

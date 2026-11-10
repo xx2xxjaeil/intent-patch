@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import type { FindingEvidenceValue } from "../../domain/finding.js";
 import type { BaselineEntry } from "../../domain/finding-baseline.js";
 import { isRecord } from "../../domain/value-guards.js";
+import { isNotFoundError } from "../filesystem/is-not-found-error.js";
 
 const defaultFile = ".intentpatch-baseline.json";
 
@@ -14,7 +15,7 @@ export class JsonFindingBaselineLoader {
     try {
       content = await readFile(resolved, "utf8");
     } catch (error) {
-      if (path === undefined && isNotFound(error)) return [];
+      if (path === undefined && isNotFoundError(error)) return [];
       throw error;
     }
     try {
@@ -77,8 +78,4 @@ function requiredText(value: unknown, field: string): string {
 function assertFields(value: Record<string, unknown>, allowed: readonly string[]): void {
   const unknown = Object.keys(value).find((field) => !allowed.includes(field));
   if (unknown !== undefined) throw new Error(`Unknown field: ${unknown}`);
-}
-
-function isNotFound(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }

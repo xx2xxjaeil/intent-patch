@@ -19,17 +19,6 @@ describe("formatGitHubSummary", () => {
           lines: { kind: "measured", additions: 3, deletions: 1 },
         },
       ]),
-      analysisCoverage: {
-        changedFiles: 1,
-        symbolFilesChecked: 0,
-        symbolFilesUnavailable: 0,
-        symbolFilesNotTargeted: 1,
-        importGraphSourceFilesRead: 1,
-        unresolvedImports: 0,
-        importGraphIssues: 0,
-        binaryFiles: 0,
-        unmeasuredLineFiles: 0,
-      },
       findings: createFindingSet([
         {
           ruleId: "scope/outside|expected",

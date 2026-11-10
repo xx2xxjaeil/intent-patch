@@ -1,5 +1,5 @@
 import type { Finding } from "../../domain/finding.js";
-import type { ChangeReport } from "../../domain/report.js";
+import { analysisCoverageOf, type ChangeReport } from "../../domain/report.js";
 
 const maximumDisplayedFindings = 50;
 
@@ -8,6 +8,7 @@ export function formatGitHubSummary(report: ChangeReport): string {
   const { summary: changeSummary } = report.changes;
   const { summary: findingSummary } = report.findings;
   const target = `${report.target.baseRef} → ${report.target.headRef ?? "working tree"}`;
+  const coverage = analysisCoverageOf(report);
   const lines = [
     "## IntentPatch Change Report",
     "",
@@ -16,8 +17,8 @@ export function formatGitHubSummary(report: ChangeReport): string {
     "| Metric | Result |",
     "| --- | ---: |",
     `| Files changed | ${changeSummary.filesChanged} |`,
-    `| Symbol files checked / unavailable / outside target | ${report.analysisCoverage.symbolFilesChecked} / ${report.analysisCoverage.symbolFilesUnavailable} / ${report.analysisCoverage.symbolFilesNotTargeted} |`,
-    `| Import graph source files read / unresolved / issues | ${report.analysisCoverage.importGraphSourceFilesRead} / ${report.analysisCoverage.unresolvedImports} / ${report.analysisCoverage.importGraphIssues} |`,
+    `| Symbol files checked / unavailable / outside target | ${coverage.symbolFilesChecked} / ${coverage.symbolFilesUnavailable} / ${coverage.symbolFilesNotTargeted} |`,
+    `| Import graph source files read / unresolved / issues | ${coverage.importGraphSourceFilesRead} / ${coverage.unresolvedImports} / ${coverage.importGraphIssues} |`,
     `| Lines | +${changeSummary.additions} / -${changeSummary.deletions} |`,
     `| Direct dependents | ${report.impact.summary.directDependents} |`,
     `| Transitive impact | ${report.impact.summary.transitiveDependents} |`,

@@ -6,6 +6,7 @@ import process from "node:process";
 import { type ChangeContract, createChangeContract } from "../../domain/change-contract.js";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { writeChangeContract } from "../../infrastructure/config/write-change-contract.js";
+import { isNotFoundError } from "../../infrastructure/filesystem/is-not-found-error.js";
 import { GitChangeSource } from "../../infrastructure/git/git-change-source.js";
 import { GitPrivateAgentIntentStore } from "../../infrastructure/git/git-private-agent-intent-store.js";
 import { GitPrivateAgentReportWriter } from "../../infrastructure/git/git-private-agent-report-writer.js";
@@ -44,7 +45,7 @@ async function main(): Promise<void> {
           await access(destination);
           throw new Error(`Change contract already exists: ${destination}`);
         } catch (error) {
-          if (!isMissingFile(error)) throw error;
+          if (!isNotFoundError(error)) throw error;
         }
         const changes = await new GitChangeSource(options.workingDirectory).collect({
           baseRef: "HEAD",
@@ -165,10 +166,6 @@ function isPackageMetadata(value: unknown): value is { readonly version: string 
     return false;
   }
   return typeof value.version === "string" && value.version.trim().length > 0;
-}
-
-function isMissingFile(error: unknown): boolean {
-  return error instanceof Error && "code" in error && error.code === "ENOENT";
 }
 
 function formatError(error: unknown): string {

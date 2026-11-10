@@ -3,7 +3,7 @@ import type { FileChange, LineDelta } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
-import type { ChangeReport, PatchPreview } from "../../domain/report.js";
+import { analysisCoverageOf, type ChangeReport, type PatchPreview } from "../../domain/report.js";
 import type { SymbolChange } from "../../domain/symbol-change.js";
 import type { SourceTestCoverage } from "../../domain/test-change.js";
 
@@ -103,7 +103,7 @@ function renderBaseline(report: ChangeReport): string {
 }
 
 function renderAnalysisCoverage(report: ChangeReport): string {
-  const coverage = report.analysisCoverage;
+  const coverage = analysisCoverageOf(report);
   const rows = [
     ["Changed files", String(coverage.changedFiles)],
     [
