@@ -129,6 +129,53 @@ describe("GitHub Action integration", () => {
       /Agent Change Report/,
     );
   });
+
+  it("keeps an approved baseline visible while excluding its finding from the gate", async () => {
+    const { repository, eventPath } = await createBreakingRepository(true);
+    temporaryDirectories.push(repository);
+    const runtime = new FakeRuntime(
+      {},
+      {
+        GITHUB_WORKSPACE: repository,
+        GITHUB_EVENT_NAME: "pull_request",
+        GITHUB_EVENT_PATH: eventPath,
+      },
+    );
+
+    const result = await runGitHubAction(runtime);
+    assert.equal(result.qualityGateFailed, false);
+    assert.equal(runtime.outputs.get("high-findings"), "0");
+    assert.match(runtime.summaries.join(""), /Accepted exceptions \| 1/);
+    const path = runtime.outputs.get("json-report");
+    assert.ok(path);
+    const report = JSON.parse(await readFile(path, "utf8"));
+    assert.equal(report.baseline.suppressed[0].finding.ruleId, "api/export-removed");
+  });
+
+  it("fails when a PR changes its own contract policy", async () => {
+    const { repository, eventPath, baseRef } = await createBreakingRepository();
+    temporaryDirectories.push(repository);
+    await writeFile(join(repository, ".intentpatch.json"), '{"scope":{"include":["api.ts"]}}\n');
+    await commitAll(repository, "Change policy");
+    await writeFile(
+      eventPath,
+      JSON.stringify({
+        pull_request: { base: { sha: baseRef }, head: { sha: await readHead(repository) } },
+      }),
+    );
+    const runtime = new FakeRuntime(
+      {},
+      {
+        GITHUB_WORKSPACE: repository,
+        GITHUB_EVENT_NAME: "pull_request",
+        GITHUB_EVENT_PATH: eventPath,
+      },
+    );
+
+    const result = await runGitHubAction(runtime);
+    assert.equal(result.qualityGateFailed, true);
+    assert.ok(runtime.annotations.some((item) => item.ruleId === "policy/contract-changed"));
+  });
 });
 
 class FakeRuntime implements GitHubActionRuntime {
@@ -182,7 +229,7 @@ async function commitAll(repository: string, message: string): Promise<void> {
   ]);
 }
 
-async function createBreakingRepository(): Promise<{
+async function createBreakingRepository(withBaseline = false): Promise<{
   readonly repository: string;
   readonly baseRef: string;
   readonly headRef: string;
@@ -195,6 +242,23 @@ async function createBreakingRepository(): Promise<{
     join(repository, "api.ts"),
     "export function deleteUser(id: string): void { console.log(id); }\n",
   );
+  if (withBaseline) {
+    await writeFile(
+      join(repository, ".intentpatch-baseline.json"),
+      JSON.stringify({
+        version: 1,
+        entries: [
+          {
+            ruleId: "api/export-removed",
+            file: "api.ts",
+            evidence: { symbolName: "deleteUser" },
+            reason: "Breaking change accepted for next major release",
+            expires: "2099-01-01",
+          },
+        ],
+      }),
+    );
+  }
   await commitAll(repository, "Base");
   const baseRef = await readHead(repository);
 

@@ -19,8 +19,10 @@ import { CompareSourceSymbols } from "../application/services/compare-source-sym
 import { RuleEngine } from "../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../application/use-cases/analyze-changes.js";
 import { createChangeContract } from "../domain/change-contract.js";
+import { applyFindingBaseline } from "../domain/finding-baseline.js";
 import type { ChangeReport } from "../domain/report.js";
 import { JsonChangeContractLoader } from "../infrastructure/config/json-change-contract-loader.js";
+import { JsonFindingBaselineLoader } from "../infrastructure/config/json-finding-baseline-loader.js";
 import { GitChangeSource } from "../infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-source.js";
 import { GitPatchPreviewSource } from "../infrastructure/git/git-patch-preview-source.js";
@@ -44,6 +46,7 @@ export interface RepositoryAnalysisOptions {
   readonly baseRef?: string;
   readonly headRef?: string;
   readonly configurationPath?: string;
+  readonly baselinePath?: string;
   readonly intentOverride?: string;
   readonly fallbackIntent?: string;
   readonly includePatchPreviews?: boolean;
@@ -115,11 +118,27 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
     codeStructureAnalyzer,
   );
 
-  const report = await useCase.execute({
+  let report = await useCase.execute({
     ...(options.baseRef === undefined ? {} : { baseRef: options.baseRef }),
     ...(options.headRef === undefined ? {} : { headRef: options.headRef }),
     ...(contract === undefined ? {} : { contract }),
   });
+  const baseline = await new JsonFindingBaselineLoader().load(
+    options.workingDirectory,
+    options.baselinePath,
+  );
+  if (baseline.length > 0) {
+    const result = applyFindingBaseline(
+      report.findings,
+      baseline,
+      new Date().toISOString().slice(0, 10),
+    );
+    report = {
+      ...report,
+      findings: result.findings,
+      baseline: { suppressed: result.suppressed, expired: result.expired },
+    };
+  }
   if (!options.includePatchPreviews) return report;
   const patchPreviews = await new GitPatchPreviewSource(
     options.workingDirectory,

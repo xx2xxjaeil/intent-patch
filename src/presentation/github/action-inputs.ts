@@ -3,6 +3,7 @@ import { type Severity, severities } from "../../domain/finding.js";
 export interface GitHubActionInputs {
   readonly workingDirectory: string;
   readonly configurationPath?: string;
+  readonly baselinePath?: string;
   readonly intentFilePath?: string;
   readonly intentFromPrBody?: boolean;
   readonly reportDirectory: string;
@@ -19,6 +20,7 @@ export function readGitHubActionInputs(source: ActionInputSource): GitHubActionI
   const baseRef = source.getInput("base");
   const headRef = source.getInput("head");
   const configurationPath = source.getInput("config");
+  const baselinePath = source.getInput("baseline");
   const intentFilePath = source.getInput("intent-file");
   if ((baseRef === undefined) !== (headRef === undefined)) {
     throw new Error("GitHub Action inputs 'base' and 'head' must be provided together");
@@ -30,6 +32,7 @@ export function readGitHubActionInputs(source: ActionInputSource): GitHubActionI
     failOn: parseSeverity(source.getInput("fail-on") ?? "high"),
     intentFromPrBody: parseBoolean(source.getInput("intent-from-pr-body") ?? "false"),
     ...(configurationPath === undefined ? {} : { configurationPath }),
+    ...(baselinePath === undefined ? {} : { baselinePath }),
     ...(intentFilePath === undefined ? {} : { intentFilePath }),
     ...(baseRef === undefined ? {} : { baseRef }),
     ...(headRef === undefined ? {} : { headRef }),

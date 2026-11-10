@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { isSeverityAtLeast } from "../../domain/finding.js";
+import { createFindingSet, isSeverityAtLeast } from "../../domain/finding.js";
 import type { ChangeReport } from "../../domain/report.js";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { resolveRepositoryPath } from "../../infrastructure/filesystem/repository-path.js";
@@ -10,6 +10,7 @@ import { readGitHubActionInputs } from "./action-inputs.js";
 import type { GitHubActionRuntime } from "./action-runtime.js";
 import { resolveGitHubComparison } from "./comparison.js";
 import { formatGitHubSummary } from "./markdown-summary.js";
+import { policyChangeFindings } from "./policy-change-findings.js";
 import { pullRequestBodyIntent } from "./pr-body-intent.js";
 
 export interface GitHubActionResult {
@@ -36,7 +37,7 @@ export async function runGitHubAction(runtime: GitHubActionRuntime): Promise<Git
     : undefined;
 
   runtime.info(`IntentPatch analyzing ${comparison.baseRef}...${comparison.headRef}`);
-  const report = await analyzeRepository({
+  let report = await analyzeRepository({
     workingDirectory,
     includePatchPreviews: true,
     baseRef: comparison.baseRef,
@@ -46,7 +47,22 @@ export async function runGitHubAction(runtime: GitHubActionRuntime): Promise<Git
     ...(inputs.configurationPath === undefined
       ? {}
       : { configurationPath: inputs.configurationPath }),
+    ...(inputs.baselinePath === undefined ? {} : { baselinePath: inputs.baselinePath }),
   });
+  if (eventName === "pull_request") {
+    const policyFindings = policyChangeFindings(
+      workingDirectory,
+      report.changes.files,
+      inputs.configurationPath,
+      inputs.baselinePath,
+    );
+    if (policyFindings.length > 0) {
+      report = {
+        ...report,
+        findings: createFindingSet([...report.findings.items, ...policyFindings]),
+      };
+    }
+  }
   const reportDirectory = resolveRepositoryPath(workspace, inputs.reportDirectory);
   const reportPaths = await writeReports(report, reportDirectory);
 

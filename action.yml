@@ -10,6 +10,9 @@ inputs:
   config:
     description: Change Contract path relative to the analyzed repository
     required: false
+  baseline:
+    description: Finding baseline path relative to the analyzed repository
+    required: false
   intent-file:
     description: Plain-text or Markdown request path relative to the analyzed repository
     required: false

@@ -73,6 +73,32 @@ describe("formatHtmlReport", () => {
     assert.match(output, /<strong>Delete &lt;script&gt;/);
   });
 
+  it("shows accepted and expired baseline entries without rendering their text as HTML", () => {
+    const report = createReport();
+    const finding = report.findings.items[0];
+    assert.ok(finding);
+    const output = formatHtmlReport({
+      ...report,
+      baseline: {
+        suppressed: [{ finding, reason: "Reviewed <script>risk</script>", expires: "2026-12-31" }],
+        expired: [
+          {
+            ruleId: "api/public-signature-changed",
+            file: "src/<bad>.ts",
+            evidence: { symbolName: "deleteUser" },
+            reason: "Past <review>",
+            expires: "2026-01-01",
+          },
+        ],
+      },
+    });
+    assert.match(output, /1 suppressed · 1 expired/);
+    assert.match(output, /Reviewed &lt;script&gt;risk&lt;\/script&gt;/);
+    assert.match(output, /Expired: api\/public-signature-changed/);
+    assert.match(output, /Past &lt;review&gt;/);
+    assert.doesNotMatch(output, /<script>risk<\/script>/);
+  });
+
   it("marks impact found through previous imports after a module deletion", () => {
     const report = createReport();
     const output = formatHtmlReport({

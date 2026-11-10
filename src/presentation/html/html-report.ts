@@ -51,6 +51,7 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderIntentTrace(report.contract, report.changes.files)}
     ${renderImpact(report.impact.changedModules, report.impact.impactedFiles, report.changes.files)}
     ${renderFindings(report.findings.items, report.patchPreviews ?? [])}
+    ${renderBaseline(report)}
     ${renderPatchPreviews(report.patchPreviews ?? [], report.changes.files.length)}
     ${renderTestCoverage(report.testChanges.sourceCoverage)}
     ${renderFiles(report.changes.files)}
@@ -76,6 +77,28 @@ function renderIntent(contract: ChangeContract | undefined): string {
       <span>REQUEST</span>
       <p>${escapeHtml(contract.intent)}</p>
     </section>`;
+}
+
+function renderBaseline(report: ChangeReport): string {
+  const baseline = report.baseline;
+  if (baseline === undefined) return "";
+  const suppressed = baseline.suppressed
+    .map(
+      ({ finding, reason, expires }) =>
+        `<li><strong>${escapeHtml(finding.title)}</strong> · ${escapeHtml(finding.file)}<br>${escapeHtml(reason)} · through ${escapeHtml(expires)}</li>`,
+    )
+    .join("");
+  const expired = baseline.expired
+    .map(
+      ({ ruleId, file, reason, expires }) =>
+        `<li><strong>Expired: ${escapeHtml(ruleId)}</strong> · ${escapeHtml(file)}<br>${escapeHtml(reason)} · expired ${escapeHtml(expires)}</li>`,
+    )
+    .join("");
+  return renderSection(
+    "Accepted exceptions",
+    "BASELINE",
+    `<p>${baseline.suppressed.length} suppressed · ${baseline.expired.length} expired</p>${suppressed === "" && expired === "" ? "" : `<ul class="notes">${suppressed}${expired}</ul>`}`,
+  );
 }
 
 function renderSummary(
