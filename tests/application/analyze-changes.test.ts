@@ -50,6 +50,17 @@ describe("AnalyzeChanges", () => {
     assert.deepEqual(report, {
       target: { baseRef: "HEAD" },
       changes,
+      analysisCoverage: {
+        changedFiles: 0,
+        symbolFilesChecked: 0,
+        symbolFilesUnavailable: 0,
+        symbolFilesNotTargeted: 0,
+        importGraphSourceFilesRead: 0,
+        unresolvedImports: 0,
+        importGraphIssues: 0,
+        binaryFiles: 0,
+        unmeasuredLineFiles: 0,
+      },
       findings: {
         items: [],
         summary: { total: 0, bySeverity: { high: 0, medium: 0, low: 0 } },

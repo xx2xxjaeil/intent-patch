@@ -188,6 +188,7 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - working tree 분석 시 untracked 파일 포함
 - 터미널용 텍스트 보고서
 - 후속 도구 연동을 위한 JSON 보고서
+- 텍스트·JSON(`analysisCoverage`)·HTML·GitHub Job Summary에 변경 파일, 심볼 분석 성공·불가, import graph 입력·미해결 참조, 라인 수 측정 불가를 요약
 - 요약 카드, 경로·심각도 필터, finding, 테스트 신호, 요청-변경 파일 연결 화면과 탐색 가능한 영향 그래프를 담은 단일 HTML 보고서
 - 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
 - production·development dependency 추가 탐지
@@ -312,6 +313,13 @@ intentpatch init \
 인자 없이 실행하면 비어 있지만 유효한 계약을 생성합니다. `scope.include` 경로를 지정하기
 전까지 범위 검사는 꺼져 있고, 테스트 변경 검사는 `--test-source`와 `--test-file`을 함께
 지정해야 켜집니다. 다른 디렉터리는 `--cwd`로 지정합니다. 이 명령은 v0.9.0부터 제공됩니다.
+
+터미널에서 `intentpatch init --interactive`를 실행하면 `HEAD` 이후 변경된 경로를 최대 100개
+보여주고 예상·허용 경로, 변경량 예산, 테스트 경로를 직접 선택할 수 있습니다. 아직 변경되지 않은
+파일은 저장소 상대 경로 패턴으로 입력할 수 있습니다. 요청 문장으로 범위를 자동 추측하지
+않습니다. 기존 Git 커밋과 대화형 터미널이 필요하며 `--interactive`는 `--cwd`, `--intent`와만
+함께 사용할 수 있습니다. 새 계약 파일을 working tree에서 바로 분석한다면 허용 경로에
+`.intentpatch.json`을 넣으세요.
 
 분석할 저장소의 `.intentpatch.json`에 이번 요청의 기대 범위를 선언할 수 있습니다.
 
@@ -621,6 +629,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
   0줄이라고 간주하지 않지만, 해당 파일의 크기를 라인 예산에 포함하지도 않습니다.
 - 테스트 분석은 실행 결과나 코드 커버리지를 측정하지 않고 Contract에 지정된 변경 파일만
   비교합니다.
+- 검사 가능 범위 요약은 분석기가 관찰한 수치이며 테스트 커버리지나 정확도 점수가 아닙니다. 소스가
+  아닌 파일과 생성 파일은 심볼 분석 대상 밖에 두고, 미해결 import와 분석 불가 사유는 별도로 표시합니다.
 - 관련 변경 테스트는 정적 import 경로 또는 파일명으로 연결하지만 정확한 소스 경로에
   `tests.related`를 선언하면 그 매핑을 우선합니다. 삭제된 소스는 현재 import 그래프에 없으므로
   명시적 매핑이나 파일명을 사용합니다. 이는 테스트 실행이나 실제 커버리지 측정이 아닙니다.

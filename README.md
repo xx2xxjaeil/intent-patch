@@ -182,6 +182,7 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Distinguish binary files.
 - Include untracked files in working-tree analysis.
 - Render terminal-friendly text and machine-readable JSON reports.
+- Summarize analyzer reach in text, JSON (`analysisCoverage`), HTML, and GitHub Job Summary: changed paths, checked/unavailable symbol files, import graph reads and unresolved imports, and unmeasured line counts.
 - Generate a standalone HTML report containing summary cards, path/severity filters, findings, test signals, a request-to-changed-files map, and a navigable impact graph.
 - Render the visualization with inline CSS and SVG, without a CDN or runtime JavaScript dependency.
 - Aggregate findings by `high`, `medium`, and `low` severity.
@@ -308,6 +309,13 @@ intentpatch init \
 `init` with no options creates a valid blank contract. Scope checks remain off until you add an
 expected `--include` path; test-change checks require both `--test-source` and `--test-file`.
 Use `--cwd` to target another directory. This command is included in v0.9.0 and later.
+
+In a terminal, `intentpatch init --interactive` lists up to 100 paths changed since `HEAD` and
+lets you select expected paths, allowed exceptions, budgets, and test-path patterns. You can also
+enter repository-relative globs for paths that have not changed yet. The request text never
+selects paths for you. The wizard requires an existing Git commit and a TTY, and accepts only
+`--cwd` and `--intent` alongside `--interactive`. Add `.intentpatch.json` as an allowed path if
+you will analyze the newly created contract in the working tree.
 
 Create `.intentpatch.json` in the repository being analyzed and declare the expected scope of the request:
 
@@ -572,6 +580,7 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 - Path patterns support only repository-relative `*`, `**`, and `?`; negation and brace expansion are not supported.
 - `maxLines` sums only measurable added and deleted lines in text files. Binary or unmeasurable files are not treated as zero lines, but their size is not included in the budget.
 - Test analysis compares only the changed paths declared in the contract; it does not execute tests or measure coverage.
+- Analysis coverage counts describe what the analyzers observed, not test coverage or a correctness score. Non-source and generated changed files are outside symbol analysis; unresolved imports and analysis issues remain visible separately.
 - Related changed tests are matched by static import reachability or basename unless an exact source path has a `tests.related` mapping. Deleted modules rely on explicit mappings or basenames because the test graph describes the current snapshot. This is a relationship signal, not measured coverage; tests are not executed.
 - The HTML request map connects changed paths to explicit Change Contract patterns. It does not infer feature areas or expected paths from natural-language intent.
 - The HTML impact graph uses a deterministic two-column layout. Nodes link to report rows; path

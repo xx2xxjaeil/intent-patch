@@ -3,7 +3,7 @@ import type { FileChange, LineDelta } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
-import type { ChangeReport, PatchPreview } from "../../domain/report.js";
+import { analysisCoverageOf, type ChangeReport, type PatchPreview } from "../../domain/report.js";
 import type { SymbolChange } from "../../domain/symbol-change.js";
 import type { SourceTestCoverage } from "../../domain/test-change.js";
 
@@ -45,6 +45,7 @@ export function formatHtmlReport(report: ChangeReport): string {
 
     ${renderIntent(report.contract)}
     ${renderSummary(report, newDependencies, riskyApiChanges)}
+    ${renderAnalysisCoverage(report)}
     ${renderSeverityBar(report)}
     ${renderReportControls()}
     ${renderContract(report.contract)}
@@ -98,6 +99,35 @@ function renderBaseline(report: ChangeReport): string {
     "Accepted exceptions",
     "BASELINE",
     `<p>${baseline.suppressed.length} suppressed · ${baseline.expired.length} expired</p>${suppressed === "" && expired === "" ? "" : `<ul class="notes">${suppressed}${expired}</ul>`}`,
+  );
+}
+
+function renderAnalysisCoverage(report: ChangeReport): string {
+  const coverage = analysisCoverageOf(report);
+  const rows = [
+    ["Changed files", String(coverage.changedFiles)],
+    [
+      "Symbol analysis",
+      `${coverage.symbolFilesChecked} checked · ${coverage.symbolFilesUnavailable} unavailable · ${coverage.symbolFilesNotTargeted} outside target`,
+    ],
+    [
+      "Import graph",
+      `${coverage.importGraphSourceFilesRead} source files read · ${coverage.unresolvedImports} unresolved imports · ${coverage.importGraphIssues} issues`,
+    ],
+    [
+      "Line counts",
+      `${coverage.binaryFiles} binary files · ${coverage.unmeasuredLineFiles} unavailable`,
+    ],
+  ];
+  return renderSection(
+    "Analysis coverage",
+    "OBSERVED SCOPE",
+    `<p>These are analyzer reach counts, not test coverage or a correctness score. Symbol analysis targets supported maintained JS/TS files; other changed paths include non-source and generated files. Unavailable paths and reasons appear in Analysis notes below.</p><dl class="contract-grid">${rows
+      .map(
+        ([label, value]) =>
+          `<div><dt>${escapeHtml(label ?? "")}</dt><dd>${escapeHtml(value ?? "")}</dd></div>`,
+      )
+      .join("")}</dl>`,
   );
 }
 

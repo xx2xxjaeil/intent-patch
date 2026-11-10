@@ -2,7 +2,7 @@ import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.
 import type { ChangeContract } from "../../domain/change-contract.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
-import type { ChangeReport } from "../../domain/report.js";
+import { analysisCoverageOf, type ChangeReport } from "../../domain/report.js";
 import type {
   SourceSymbolKind,
   SymbolChange,
@@ -92,6 +92,18 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push("", "Change contract", "");
     lines.push(...formatChangeContract(report.contract));
   }
+
+  const coverage = analysisCoverageOf(report);
+  lines.push(
+    "",
+    "Analysis coverage (not test coverage)",
+    "",
+    `Changed files       ${coverage.changedFiles}`,
+    `Symbol files        ${coverage.symbolFilesChecked} checked, ${coverage.symbolFilesUnavailable} unavailable, ${coverage.symbolFilesNotTargeted} outside target (for example, non-source or generated files)`,
+    `Import graph        ${coverage.importGraphSourceFilesRead} source files read, ${coverage.unresolvedImports} unresolved imports, ${coverage.importGraphIssues} issues`,
+    `Line counts         ${coverage.binaryFiles} binary files, ${coverage.unmeasuredLineFiles} unavailable`,
+    "No findings does not prove that every behavior was checked. See unavailable analysis below.",
+  );
 
   if (files.length > 0) {
     lines.push("", "Changed files", "");

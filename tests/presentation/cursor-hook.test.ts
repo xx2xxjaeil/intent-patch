@@ -154,6 +154,17 @@ function report(files: number): ChangeReport {
         lines: { kind: "measured" as const, additions: 1, deletions: 0 },
       })),
     ),
+    analysisCoverage: {
+      changedFiles: files,
+      symbolFilesChecked: 0,
+      symbolFilesUnavailable: 0,
+      symbolFilesNotTargeted: files,
+      importGraphSourceFilesRead: files,
+      unresolvedImports: 0,
+      importGraphIssues: 0,
+      binaryFiles: 0,
+      unmeasuredLineFiles: 0,
+    },
     findings: createFindingSet([]),
     symbolChanges: createSymbolChangeSet([]),
     codeStructure: createCodeStructureAnalysis({

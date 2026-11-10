@@ -32,6 +32,8 @@ describe("formatHtmlReport", () => {
 
   it("renders a self-contained report with analysis evidence", () => {
     const output = formatHtmlReport(createReport());
+    assert.match(output, /Analysis coverage/u);
+    assert.match(output, /2 outside target/u);
 
     assert.match(output, /^<!doctype html>/);
     assert.doesNotMatch(output, /[ \t]+$/gmu);
@@ -261,6 +263,17 @@ function createReport(): ChangeReport {
         lines: { kind: "measured", additions: 12, deletions: 0 },
       },
     ]),
+    analysisCoverage: {
+      changedFiles: 2,
+      symbolFilesChecked: 0,
+      symbolFilesUnavailable: 0,
+      symbolFilesNotTargeted: 2,
+      importGraphSourceFilesRead: 2,
+      unresolvedImports: 0,
+      importGraphIssues: 0,
+      binaryFiles: 0,
+      unmeasuredLineFiles: 0,
+    },
     findings: createFindingSet([
       {
         ruleId: "tests/missing-related-change",

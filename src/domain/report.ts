@@ -1,3 +1,4 @@
+import { type AnalysisCoverage, createAnalysisCoverage } from "./analysis-coverage.js";
 import type { ChangeSet } from "./change.js";
 import type { ChangeContract } from "./change-contract.js";
 import type { CodeStructureAnalysis } from "./code-structure.js";
@@ -16,6 +17,7 @@ export interface ChangeReport {
   readonly target: AnalysisTarget;
   readonly contract?: ChangeContract;
   readonly changes: ChangeSet;
+  readonly analysisCoverage?: AnalysisCoverage;
   readonly findings: FindingSet;
   readonly baseline?: Readonly<{
     suppressed: readonly SuppressedFinding[];
@@ -34,4 +36,12 @@ export interface PatchPreview {
   readonly lines: readonly string[];
   readonly truncated: boolean;
   readonly unavailableReason?: string;
+}
+
+/** 이전 버전의 ChangeReport 객체에도 관찰 범위 요약을 제공한다. */
+export function analysisCoverageOf(report: ChangeReport): AnalysisCoverage {
+  return (
+    report.analysisCoverage ??
+    createAnalysisCoverage(report.changes, report.symbolChanges, report.impact)
+  );
 }

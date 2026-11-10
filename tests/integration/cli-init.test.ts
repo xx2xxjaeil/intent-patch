@@ -20,6 +20,20 @@ afterEach(async () => {
 });
 
 describe("CLI init integration", () => {
+  it("rejects interactive mode without a terminal before writing a contract", async () => {
+    const repository = await mkdtemp(join(tmpdir(), "intentpatch-init-pipe-"));
+    directories.push(repository);
+    await assert.rejects(
+      executeFile("node", ["--import", "tsx", cli, "init", "--interactive", "--cwd", repository], {
+        cwd: projectRoot,
+      }),
+      /requires an interactive terminal/u,
+    );
+    await assert.rejects(readFile(join(repository, ".intentpatch.json"), "utf8"), {
+      code: "ENOENT",
+    });
+  });
+
   it("creates a loadable contract from supplied scope and test paths", async () => {
     const repository = await mkdtemp(join(tmpdir(), "intentpatch-init-"));
     directories.push(repository);

@@ -59,6 +59,8 @@ describe("CLI intent file integration", () => {
     );
     const report = JSON.parse(stdout);
     assert.equal(report.contract.intent, "Implement account deletion");
+    assert.equal(report.analysisCoverage.changedFiles, 1);
+    assert.equal(report.analysisCoverage.symbolFilesNotTargeted, 1);
     assert.equal(report.contract.scope.include.length, 0);
     assert.equal(
       report.findings.items.some(
