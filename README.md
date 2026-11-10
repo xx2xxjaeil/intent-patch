@@ -26,7 +26,7 @@ cd intent-patch
 npx --yes intentpatch@0.10.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
-Open `intentpatch-report.html` locally. This case reports a public-API risk and a duplicate-code
+Open `intentpatch-report.html` locally. You can also [explore the hosted report](https://xx2xxjaeil.github.io/intent-patch/). This case reports a public-API risk and a duplicate-code
 candidate that were later fixed; [the case study](./docs/real-world-evaluation.md) explains the
 review decisions. The [checked-in HTML report](./docs/examples/intent-input-change.html) is the
 same real-change example, not a mockup. A [contract-based example](./docs/examples/intent-trace.html)
@@ -163,7 +163,7 @@ Every finding includes the relevant file, a stable rule ID, and evidence for the
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
 [three-case self-repository study](./docs/real-world-evaluation.md), and the
-[external evaluation of 41 changes and 50 rule checks](./docs/external-repository-evaluation.md). After cloning,
+[external evaluation of 41 changes and 52 rule checks](./docs/external-repository-evaluation.md) and a [reproducible performance sample](./docs/performance.md). After cloning,
 open the HTML file locally in a browser; GitHub may show its source rather than render it.
 
 ## Implemented capabilities
@@ -235,6 +235,9 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Classify source and test paths declared by the contract and connect related changes by explicit mapping, static import reachability, or basename.
 - Report test file counts and added or deleted tests as separate facts.
 - Report source files without a related test change as medium-severity findings.
+- Accept reviewed finding exceptions with specific evidence, a reason, and an expiry date; show
+  accepted and expired exceptions separately from active findings.
+- Flag a PR that changes its own Change Contract or finding baseline as a high-severity policy change.
 - Support repository-relative `*`, `**`, and `?` path patterns.
 
 Lockfile attribution is limited to resolvable root dependency paths. Full-project TypeScript
@@ -354,6 +357,10 @@ node dist/presentation/cli/main.js analyze \
 
 Start with [`.intentpatch.example.json`](./.intentpatch.example.json). Without a contract, all existing analysis still runs and only the scope rules are disabled.
 
+For a reviewed exception to a recurring finding, use an optional
+[finding baseline](./docs/finding-baseline.md). Baseline entries require a reason, expiry date, and
+specific finding evidence; expired exceptions stop suppressing findings.
+
 ### Quality gates
 
 Return exit code `1` after rendering the report when a finding meets or exceeds the selected severity:
@@ -471,7 +478,7 @@ This command runs:
 - architecture tests that enforce dependency direction;
 - a reproducibility check for the bundled GitHub Action.
 
-For a reproducible check of 50 rule decisions across 41 reviewed changes in external
+For a reproducible check of 52 rule decisions across 41 reviewed changes in external
 repositories, see the [external evaluation](./docs/external-repository-evaluation.md).
 
 Run only the production build with:

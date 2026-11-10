@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>IntentPatch · Real change report</title>
+  <meta name="description" content="Explore an IntentPatch report generated from a real Git change, with deterministic findings and a request-to-files map.">
+  <style>
+    :root { color-scheme:dark; font-family:Inter,ui-sans-serif,system-ui,sans-serif; background:#0c1017; color:#e6edf7; }
+    * { box-sizing:border-box; }
+    body { margin:0; }
+    main { width:min(1120px,calc(100% - 32px)); margin:0 auto; padding:64px 0 80px; }
+    .eyebrow { color:#6cd4d0; font:700 12px ui-monospace,monospace; letter-spacing:.14em; text-transform:uppercase; }
+    h1 { max-width:850px; margin:14px 0; font-size:clamp(36px,6vw,64px); line-height:1.06; letter-spacing:-.05em; }
+    p { max-width:740px; color:#aab8ca; line-height:1.7; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin:32px 0 46px; }
+    a { color:#7cddda; }
+    .button { display:inline-block; padding:12px 18px; border:1px solid #486c72; border-radius:10px; text-decoration:none; font-weight:700; }
+    .button.primary { background:#86e1dc; color:#101b22; border-color:#86e1dc; }
+    .card { padding:22px; border:1px solid #2b3747; border-radius:16px; background:#151d29; }
+    .card h2 { margin:0 0 10px; font-size:20px; }
+    .card p { margin:0; }
+    iframe { display:block; width:100%; height:620px; margin-top:28px; border:1px solid #2b3747; border-radius:14px; background:#0c1017; }
+    footer { margin-top:22px; color:#78889b; font-size:13px; }
+    @media (max-width:650px) { main{padding-top:36px} iframe{height:500px} }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">IntentPatch / real Git history</div>
+    <h1>See what an AI coding change actually touched.</h1>
+    <p>This standalone report analyzes a real commit in the IntentPatch repository. It links changed files to an explicit example Change Contract and shows findings, tests, and import impact. The contract was written after the commit for demonstration; it is not evidence that the original request declared these paths.</p>
+    <nav class="actions" aria-label="Demo links">
+      <a class="button primary" href="./examples/intent-trace.html">Open interactive report</a>
+      <a class="button" href="https://github.com/xx2xxjaeil/intent-patch/blob/main/docs/real-world-evaluation.md">Read case study</a>
+      <a class="button" href="https://github.com/xx2xxjaeil/intent-patch">Source code</a>
+    </nav>
+    <section class="card" aria-label="Report preview">
+      <h2>Report preview</h2>
+      <p>The full report opens as a self-contained HTML file. No account, API key, or paid service is needed.</p>
+    </section>
+    <iframe src="./examples/intent-trace.html" title="IntentPatch real change report preview" loading="lazy"></iframe>
+    <footer>Deterministic evidence is a review aid, not a correctness verdict.</footer>
+  </main>
+</body>
+</html>

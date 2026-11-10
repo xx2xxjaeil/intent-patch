@@ -166,9 +166,9 @@ LOW     구현체가 하나뿐인 추상화 추가
 분석 결과는 단순한 경고 문구가 아니라 관련 파일, 규칙 ID, 판단 근거와 함께 제공하는 것을
 원칙으로 합니다.
 
-실제 커밋을 분석한 [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
+실제 커밋을 분석한 [웹 데모](https://xx2xxjaeil.github.io/intent-patch/), [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
 [자체 저장소 변경 3건의 사례 연구](./docs/real-world-evaluation.md),
-[외부 저장소 변경 41건·규칙별 판정 50건의 평가 결과](./docs/external-repository-evaluation.md)를 볼 수 있습니다. 저장소를 clone한
+[외부 저장소 변경 41건·규칙별 판정 52건의 평가 결과](./docs/external-repository-evaluation.md)와 [재현 가능한 성능 측정](./docs/performance.md)을 볼 수 있습니다. 저장소를 clone한
 뒤 HTML 파일을 브라우저에서 열어 주세요. GitHub 파일 화면은 렌더링 대신 소스를 보여줄 수
 있습니다.
 
@@ -233,9 +233,11 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - Contract가 지정한 소스·테스트 경로를 분류하고 명시적 매핑, 정적 import 관계 또는 파일명으로 관련 변경 연결
 - 테스트 변경 수와 추가·삭제 수를 별도의 분석 사실로 집계
 - 관련 테스트 변경이 없는 소스 파일을 `medium` finding으로 탐지
+- [finding 예외 목록](./docs/finding-baseline.md)에 구체적인 근거·사유·만료일을 기록하고, 적용·만료 내역을 보고서에 표시
 - `*`, `**`, `?` 기반의 저장소 상대 경로 패턴 지원
 - Pull Request·push commit 범위를 자동 판별하는 GitHub Action
 - GitHub Job Summary, workflow annotation, JSON·HTML artifact용 보고서 생성
+- PR이 분석에 쓰이는 Change Contract 또는 예외 목록을 수정하면 `high` 정책 finding으로 표시
 
 lockfile 귀속은 해석 가능한 루트 dependency 경로로 제한됩니다. 프로젝트 전체 TypeScript
 호환성 검사와 선택형 AI 리뷰 기능은 아직 구현되지 않았습니다.
