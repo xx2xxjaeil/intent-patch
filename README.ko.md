@@ -26,7 +26,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.10.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.11.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
@@ -37,7 +37,7 @@ GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.10.0을
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.11.0을
 전역 설치 없이 실행할 수 있습니다.
 
 ```bash
@@ -88,7 +88,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.10.0
+        uses: xx2xxjaeil/intent-patch@v0.11.0
         with:
           fail-on: high
 
@@ -100,7 +100,9 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.10.0에는 HTML 보고서의
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.11.0에는
+근거·사유·만료일이 있는 finding 예외 목록과 PR 정책 변경 경고, 웹 데모가 추가되었습니다.
+v0.10.0에는 HTML 보고서의
 요청-변경 파일 연결, 공개 클래스 메서드 호환성 검사, 정적 import로 연결된 변경 테스트 표시,
 메서드와 지역 변수 이름만 다른 중복 구현 탐지가 추가됐습니다. v0.9.2에는 해석 가능한
 lockfile의 루트 의존성 귀속, enum·클래스 메서드 분석, 정적 CommonJS 객체 export 추적,
@@ -492,7 +494,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.10.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.11.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
