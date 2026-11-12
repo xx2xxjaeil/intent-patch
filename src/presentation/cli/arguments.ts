@@ -31,6 +31,12 @@ export interface InitCommandOptions {
   readonly testExcludes: readonly string[];
 }
 
+export interface DoctorCommandOptions {
+  readonly command: "doctor";
+  readonly workingDirectory: string;
+  readonly configurationPath?: string;
+}
+
 export interface HelpCommandOptions {
   readonly command: "help";
 }
@@ -63,6 +69,7 @@ export interface CursorHookCommandOptions {
 export type CliOptions =
   | AnalyzeCommandOptions
   | InitCommandOptions
+  | DoctorCommandOptions
   | ClaudeHookCommandOptions
   | CodexHookCommandOptions
   | CursorHookCommandOptions
@@ -90,6 +97,25 @@ export function parseArguments(
   const [command, ...options] = arguments_;
   if (command === "init") {
     return parseInitOptions(options, currentDirectory);
+  }
+  if (command === "doctor") {
+    let workingDirectory = currentDirectory;
+    let configurationPath: string | undefined;
+    for (let index = 0; index < options.length; index += 1) {
+      const option = options[index];
+      if (option === "--cwd") {
+        workingDirectory = requireOptionValue(options, ++index, option);
+      } else if (option === "--config") {
+        configurationPath = requireOptionValue(options, ++index, option);
+      } else {
+        throw new CliUsageError(`Unknown doctor option: ${option ?? ""}`);
+      }
+    }
+    return {
+      command: "doctor",
+      workingDirectory,
+      ...(configurationPath === undefined ? {} : { configurationPath }),
+    };
   }
   if (command === "claude-hook") {
     const [action] = options;
@@ -195,6 +221,7 @@ export function helpText(): string {
 Usage:
   intentpatch analyze [options]
   intentpatch init [options]                 Create .intentpatch.json without overwriting it
+  intentpatch doctor [--cwd <path>] [--config <path>]  Show enabled checks and setup gaps
   intentpatch claude-hook <capture|analyze|clear>  Read Claude Code hook JSON from stdin
   intentpatch codex-hook <capture|analyze|clear>   Read Codex hook JSON from stdin
   intentpatch cursor-hook <capture|analyze>        Read Cursor hook JSON from stdin

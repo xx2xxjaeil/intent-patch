@@ -17,6 +17,7 @@ import { readClaudeHookInput, runClaudeHook } from "../claude-code/hook.js";
 import { runCodexHook } from "../codex/hook.js";
 import { runCursorHook } from "../cursor/hook.js";
 import { CliUsageError, helpText, parseArguments } from "./arguments.js";
+import { runDoctor } from "./doctor.js";
 import { shouldFail } from "./failure-policy.js";
 import { promptForContract } from "./interactive-init.js";
 import { writeReportFile } from "./report-file-writer.js";
@@ -32,6 +33,10 @@ async function main(): Promise<void> {
     }
     if (options.command === "version") {
       process.stdout.write(`IntentPatch ${await readPackageVersion()}\n`);
+      return;
+    }
+    if (options.command === "doctor") {
+      process.stdout.write(await runDoctor(options));
       return;
     }
     if (options.command === "init") {
