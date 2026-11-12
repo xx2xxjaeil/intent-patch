@@ -23,7 +23,7 @@ Clone the repository, then run one analysis command against a real change in its
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.12.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.13.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 Open `intentpatch-report.html` locally. You can also [explore the hosted report](https://xx2xxjaeil.github.io/intent-patch/). This case reports a public-API risk and a duplicate-code
@@ -35,16 +35,20 @@ shows the request-to-changed-files map. GitHub may show the HTML source rather t
 ## Quick start
 
 IntentPatch requires Node.js 20 or later and Git. From the repository you want to review, run
-the published v0.12.0 CLI without installing it globally:
+the published v0.13.0 CLI without installing it globally:
 
 ```bash
 cd /path/to/repository
+npx intentpatch doctor
 npx intentpatch analyze
 npx intentpatch analyze --format html --output ../intentpatch-report.html
 ```
 
-For the complete `init → analyze → HTML` walkthrough and common errors, see the
-[first-run guide](./docs/first-run.md). HTML findings link to bounded local Git diff previews.
+For the complete `init → doctor → analyze → HTML` walkthrough and common errors, see the
+[first-run guide](./docs/first-run.md). `doctor` shows which checks are active for the current
+Change Contract and how to enable inactive ones; it does not analyze a patch. Findings with a
+verified source location link to that line in the bounded HTML diff preview when present. Other
+findings link to the file preview.
 
 To run the current source version instead, build it from the repository:
 
@@ -82,7 +86,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.12.0
+        uses: xx2xxjaeil/intent-patch@v0.13.0
         with:
           fail-on: high
 
@@ -94,8 +98,10 @@ jobs:
           path: intentpatch-report
 ```
 
-Pin the action to a released version or an immutable commit SHA. v0.12.0 adds interactive Change
-Contract setup and an analysis coverage summary in CLI, JSON, HTML, and GitHub Job Summary reports.
+Pin the action to a released version or an immutable commit SHA. v0.13.0 adds the `doctor` setup
+diagnostic and source-line locations for supported code findings in reports and annotations.
+v0.12.0 adds interactive Change Contract setup and an analysis coverage summary in CLI, JSON,
+HTML, and GitHub Job Summary reports.
 v0.11.0 adds reviewed finding baselines, PR policy-change findings, and a hosted report demo.
 v0.10.0 adds a request-to-files
 map in HTML reports, exported class method compatibility checks, static import links to changed
@@ -161,7 +167,7 @@ MEDIUM  Four files changed outside the expected scope
 LOW     New abstraction has only one implementation
 ```
 
-Every finding includes the relevant file, a stable rule ID, and evidence for the decision instead of only presenting an unexplained warning.
+Every finding includes the relevant file, a stable rule ID, and evidence for the decision instead of only presenting an unexplained warning. Supported code findings also identify the symbol declaration line; findings about a whole file remain file-level.
 
 For reports generated from actual commits, see the
 [standalone HTML example](./docs/examples/intent-input-change.html), the
@@ -189,6 +195,7 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Render the visualization with inline CSS and SVG, without a CDN or runtime JavaScript dependency.
 - Aggregate findings by `high`, `medium`, and `low` severity.
 - Return a CI-friendly exit code through `--fail-on`.
+- Show active checks and missing Change Contract settings with `doctor`.
 - Print the installed package version through `--version`.
 
 ### Dependencies and TypeScript structure
@@ -506,7 +513,7 @@ npm pack --dry-run
 
 ## Release process
 
-Pushing a tag such as `v0.12.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
+Pushing a tag such as `v0.13.0`, matching the version in `package.json`, from a commit contained in the default branch triggers the release workflow:
 
 1. Validate the tag, package version, and default-branch ancestry.
 2. Run the full quality suite and inspect the npm package with a dry run.
@@ -547,6 +554,8 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
 ## Current limitations
 
 - The target must be a Git repository with at least one commit.
+- `doctor` reports configured checks, not whether a particular patch was completely analyzed. Read the analysis coverage section in an `analyze` report for that.
+- Located findings point to supported symbol declarations, not necessarily the exact changed member. Whole-file findings have no line, and a line outside the bounded HTML preview falls back to its file diff.
 - Untracked symbolic links are not read for safety.
 - Line counts are skipped for untracked files larger than 10 MiB.
 - Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root `package.json` and changed npm/pnpm/Yarn workspace manifests.
