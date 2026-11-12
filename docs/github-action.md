@@ -24,7 +24,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.12.0
+        uses: xx2xxjaeil/intent-patch@v0.13.0
         with:
           config: .intentpatch.json
           fail-on: high
@@ -73,6 +73,11 @@ PR 본문을 보고서에 포함하려면 `with: intent-from-pr-body: 'true'`를
 PR이 현재 검사에 쓰이는 Change Contract나 baseline을 수정하면 high finding을 냅니다. 예외
 항목은 [finding baseline 안내](./finding-baseline.md)처럼 사유·만료일·구체적인 evidence가
 필요합니다. 안정적인 품질 게이트에서는 Action을 릴리스 태그 또는 commit SHA에 고정하세요.
+
+지원되는 코드 finding은 심볼 선언 줄을 Job Summary와 annotation에 표시합니다. 현재
+revision의 줄만 GitHub annotation의 `line`에 지정합니다. 삭제된 심볼처럼 이전 revision에만
+존재하는 위치와 파일 전체에 관한 finding은 파일 수준 annotation으로 남깁니다. HTML 보고서는
+해당 줄이 제한된 diff 미리보기에 있을 때만 줄 링크를 만들고, 없으면 파일 미리보기로 연결합니다.
 
 ## 출력
 

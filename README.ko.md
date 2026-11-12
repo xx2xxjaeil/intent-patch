@@ -26,7 +26,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.12.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.13.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
@@ -37,18 +37,20 @@ GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.12.0을
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.13.0을
 전역 설치 없이 실행할 수 있습니다.
 
 ```bash
 cd /path/to/repository
+npx intentpatch doctor
 npx intentpatch analyze
 npx intentpatch analyze --format html --output ../intentpatch-report.html
 ```
 
-처음 실행하는 경우 [첫 실행 안내](./docs/first-run.md)의 `init → analyze → HTML` 순서와
-오류별 확인 방법을 참고하세요. HTML finding에서 해당 파일의 제한된 Git diff 미리보기로
-이동할 수 있습니다.
+처음 실행하는 경우 [첫 실행 안내](./docs/first-run.md)의 `init → doctor → analyze → HTML` 순서와
+오류별 확인 방법을 참고하세요. `doctor`는 현재 Change Contract에서 켜진 검사와 설정하지 않은
+검사를 보여주며 변경사항 자체는 분석하지 않습니다. 확인된 코드 위치가 있는 finding은 HTML의
+제한된 Git diff 미리보기에서 해당 줄로 이동합니다. 그 외 finding은 파일 미리보기로 이동합니다.
 
 현재 소스 버전을 실행하려면 저장소를 빌드합니다.
 
@@ -88,7 +90,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.12.0
+        uses: xx2xxjaeil/intent-patch@v0.13.0
         with:
           fail-on: high
 
@@ -100,7 +102,8 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.12.0에는
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.13.0에는 `doctor`
+설정 진단과 지원되는 코드 finding의 소스 줄 위치가 보고서·annotation에 추가되었습니다. v0.12.0에는
 대화형 Change Contract 설정과 CLI·JSON·HTML·GitHub Job Summary의 검사 가능 범위 요약이
 추가되었습니다. v0.11.0에는 근거·사유·만료일이 있는 finding 예외 목록과 PR 정책 변경 경고,
 웹 데모가 추가되었습니다.
@@ -168,7 +171,8 @@ LOW     구현체가 하나뿐인 추상화 추가
 ```
 
 분석 결과는 단순한 경고 문구가 아니라 관련 파일, 규칙 ID, 판단 근거와 함께 제공하는 것을
-원칙으로 합니다.
+원칙으로 합니다. 지원되는 코드 finding은 심볼 선언 줄도 표시하며 파일 전체에 관한 finding은
+파일 수준으로 표시합니다.
 
 실제 커밋을 분석한 [웹 데모](https://xx2xxjaeil.github.io/intent-patch/), [독립 실행형 HTML 예시](./docs/examples/intent-input-change.html),
 [자체 저장소 변경 3건의 사례 연구](./docs/real-world-evaluation.md),
@@ -208,6 +212,7 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - workspace 설정 변경과 manifest의 workspace 안팎 이동을 탐지
 - finding 심각도(`high`, `medium`, `low`) 집계
 - CI 품질 게이트를 위한 `--fail-on` 종료 코드
+- `doctor` 명령으로 켜진 검사와 부족한 Change Contract 설정 확인
 - 설치된 패키지 버전을 확인하는 `--version` 명령
 - `.ts`·`.tsx` 파일의 최상위 함수·클래스·인터페이스·타입 별칭·enum과 이름 있는 클래스 메서드 추출
 - `.js`·`.jsx`·`.mjs`·`.cjs`의 최상위 함수·클래스·변수와 식별 가능한 ESM export 추적
@@ -504,7 +509,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.12.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.13.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
@@ -549,6 +554,8 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
 ## 현재 제한사항
 
 - 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
+- `doctor`는 설정된 검사를 보여주며 특정 변경의 분석 성공 여부를 보장하지 않습니다. 실제 검사 범위는 `analyze` 보고서의 검사 가능 범위 요약을 확인하세요.
+- 위치가 있는 finding은 지원되는 심볼의 선언 줄을 가리키며 변경된 구성원과 정확히 같지 않을 수 있습니다. 파일 전체 finding에는 줄 번호가 없고, HTML 미리보기 밖의 줄은 파일 diff로 연결됩니다.
 - untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
 - 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
 - 직접 dependency 선언 분석은 저장소 루트와 변경된 npm·pnpm·Yarn workspace `package.json`의
