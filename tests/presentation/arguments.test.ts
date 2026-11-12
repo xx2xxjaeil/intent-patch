@@ -3,6 +3,17 @@ import { describe, it } from "node:test";
 import { CliUsageError, parseArguments } from "../../src/presentation/cli/arguments.js";
 
 describe("parseArguments", () => {
+  it("parses doctor options and rejects analysis-only options", () => {
+    assert.deepEqual(parseArguments(["doctor"], "/repo"), {
+      command: "doctor",
+      workingDirectory: "/repo",
+    });
+    assert.deepEqual(
+      parseArguments(["doctor", "--cwd", "/other", "--config", "custom.json"], "/repo"),
+      { command: "doctor", workingDirectory: "/other", configurationPath: "custom.json" },
+    );
+    assert.throws(() => parseArguments(["doctor", "--format", "html"], "/repo"), CliUsageError);
+  });
   it("parses a safe init template and explicit scope/test options", () => {
     assert.deepEqual(parseArguments(["init"], "/repo"), {
       command: "init",

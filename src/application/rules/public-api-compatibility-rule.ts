@@ -85,6 +85,9 @@ function typeAliasFinding(
       title: "Public type member removed",
       description: `The exported type ${change.name} no longer contains every previous member.`,
       file: change.path,
+      ...(change.afterLine === undefined
+        ? {}
+        : { location: { side: "current" as const, line: change.afterLine } }),
       evidence: {
         symbolName: change.name,
         removedMembers: removedMembers.join(", "),
@@ -124,6 +127,9 @@ function functionFinding(
           : "Public function contract changed",
       description: `The exported ${change.symbolKind === "method" ? "method" : "function"} ${change.name} no longer provides every previous call signature.`,
       file: change.path,
+      ...(change.afterLine === undefined
+        ? {}
+        : { location: { side: "current" as const, line: change.afterLine } }),
       evidence: {
         symbolName: change.name,
         removedSignatures: removedSignatures.join(" | "),
@@ -153,6 +159,9 @@ function interfaceFinding(
       title: "Public interface contract changed",
       description: `The exported interface ${change.name} contains a backward-incompatible contract change.`,
       file: change.path,
+      ...(change.afterLine === undefined
+        ? {}
+        : { location: { side: "current" as const, line: change.afterLine } }),
       evidence: {
         symbolName: change.name,
         changes: reasons.join("; "),

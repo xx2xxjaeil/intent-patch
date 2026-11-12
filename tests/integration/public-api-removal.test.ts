@@ -102,6 +102,7 @@ describe("public API removal integration", () => {
         title: "Public export removed",
         description: "The function deleteUser is no longer exported.",
         file: "api.ts",
+        location: { side: "current", line: 1 },
         evidence: {
           symbolName: "deleteUser",
           symbolKind: "function",
@@ -141,6 +142,7 @@ describe("public API removal integration", () => {
         description:
           "The exported function findUser no longer provides every previous call signature.",
         file: "api.ts",
+        location: { side: "current", line: 1 },
         evidence: {
           symbolName: "findUser",
           removedSignatures: "(string):string",
@@ -282,6 +284,7 @@ describe("public API removal integration", () => {
         title: "Public type member removed",
         description: "The exported type Options no longer contains every previous member.",
         file: "api.ts",
+        location: { side: "current", line: 2 },
         evidence: { symbolName: "Options", removedMembers: "throwOnTimeout", currentLine: 2 },
       },
     ]);

@@ -13,6 +13,7 @@ export class DuplicateImplementationRule implements AnalysisRule {
           : "New function duplicates existing implementation",
       description: `The new ${candidate.addedKind === "method" ? "method" : "function"} ${candidate.added.name} has the same ${candidate.matchKind === "renamed-locals" ? "structure after local-name normalization" : "normalized implementation"} as ${candidate.existing.name}.`,
       file: candidate.added.path,
+      location: { side: "current", line: candidate.added.line },
       evidence: {
         addedFunction: candidate.added.name,
         addedLine: candidate.added.line,

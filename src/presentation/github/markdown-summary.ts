@@ -52,7 +52,11 @@ export function formatGitHubSummary(report: ChangeReport): string {
 }
 
 function formatFindingRow(finding: Finding): string {
-  return `| ${finding.severity.toUpperCase()} | ${escapeMarkdown(finding.title)} | ${escapeMarkdown(finding.file)} | ${escapeMarkdown(finding.ruleId)} |`;
+  const location =
+    finding.location === undefined
+      ? finding.file
+      : `${finding.file}:${finding.location.line}${finding.location.side === "previous" ? " (previous revision)" : ""}`;
+  return `| ${finding.severity.toUpperCase()} | ${escapeMarkdown(finding.title)} | ${escapeMarkdown(location)} | ${escapeMarkdown(finding.ruleId)} |`;
 }
 
 function escapeMarkdown(value: string): string {

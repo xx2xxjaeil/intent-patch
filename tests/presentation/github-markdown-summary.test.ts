@@ -26,6 +26,7 @@ describe("formatGitHubSummary", () => {
           title: "Unexpected <script>|change",
           description: "Changed outside the expected scope.",
           file: "src/user`name.ts",
+          location: { side: "current", line: 7 },
           evidence: { pattern: "src/api/**" },
         },
       ]),
@@ -54,7 +55,7 @@ describe("formatGitHubSummary", () => {
     assert.match(output, /Symbol files checked \/ unavailable \/ outside target \| 0 \/ 0 \/ 1/u);
     assert.match(output, /\| Missing test changes \| 1 \|/);
     assert.match(output, /Unexpected &lt;script&gt;&#124;change/);
-    assert.match(output, /src\/user&#96;name\.ts/);
+    assert.match(output, /src\/user&#96;name\.ts:7/);
     assert.match(output, /scope\/outside&#124;expected/);
     assert.doesNotMatch(output, /<script>/);
   });
