@@ -65,6 +65,7 @@ describe("PublicApiRemovalRule", () => {
         title: "Public export removed",
         description: "The class AccountService is no longer exported.",
         file: "src/account.ts",
+        location: { side: "current", line: 4 },
         evidence: {
           symbolName: "AccountService",
           symbolKind: "class",
@@ -78,6 +79,7 @@ describe("PublicApiRemovalRule", () => {
         title: "Exported symbol removed",
         description: "The exported function deleteUser was removed.",
         file: "src/user.ts",
+        location: { side: "previous", line: 12 },
         evidence: {
           symbolName: "deleteUser",
           symbolKind: "function",

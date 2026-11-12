@@ -280,10 +280,10 @@ function renderFindings(findings: readonly Finding[], previews: readonly PatchPr
             ) => `<article class="finding ${finding.severity}" data-report-path="${escapeHtml(finding.file)}" data-finding-severity="${finding.severity}">
           <div class="finding-heading">
             <span>${escapeHtml(finding.severity)}</span>
-            <div><h3>${escapeHtml(finding.title)}</h3><code>${escapeHtml(finding.file)}</code></div>
+            <div><h3>${escapeHtml(finding.title)}</h3><code>${escapeHtml(formatFindingLocation(finding))}</code></div>
           </div>
           <p>${escapeHtml(finding.description)}</p>
-          ${renderPatchLink(finding.file, previews)}
+          ${renderPatchLink(finding, previews)}
           <details><summary>${escapeHtml(finding.ruleId)} · evidence</summary>
             <dl>${Object.entries(finding.evidence)
               .map(
@@ -299,9 +299,25 @@ function renderFindings(findings: readonly Finding[], previews: readonly PatchPr
   return renderSection("Potential issues", `${findings.length} findings`, body);
 }
 
-function renderPatchLink(path: string, previews: readonly PatchPreview[]): string {
-  const index = previews.findIndex((preview) => preview.path === path);
-  return index < 0 ? "" : `<a class="patch-link" href="#diff-${index}">Review file diff →</a>`;
+function formatFindingLocation(finding: Finding): string {
+  if (finding.location === undefined) return finding.file;
+  return `${finding.file}:${finding.location.line}${finding.location.side === "previous" ? " (previous revision)" : ""}`;
+}
+
+function renderPatchLink(finding: Finding, previews: readonly PatchPreview[]): string {
+  const index = previews.findIndex((preview) => preview.path === finding.file);
+  if (index < 0) return "";
+  const preview = previews[index];
+  const location = finding.location;
+  const anchor =
+    preview === undefined || location === undefined
+      ? undefined
+      : enumeratePatchLines(preview, index).find(
+          (line) => line.side === location.side && line.line === location.line,
+        )?.anchor;
+  const target = anchor ?? `diff-${index}`;
+  const label = anchor === undefined ? "Review file diff →" : "Review code line →";
+  return `<a class="patch-link" href="#${target}">${label}</a>`;
 }
 
 function renderPatchPreviews(previews: readonly PatchPreview[], totalFiles: number): string {
@@ -316,8 +332,14 @@ function renderPatchPreviews(previews: readonly PatchPreview[], totalFiles: numb
         <h3>${escapeHtml(preview.path)}</h3>
         ${
           preview.unavailableReason === undefined
-            ? `<pre aria-label="Git diff for ${escapeHtml(preview.path)}"><code>${preview.lines
-                .map((line) => `<span class="${patchLineKind(line)}">${escapeHtml(line)}</span>`)
+            ? `<pre aria-label="Git diff for ${escapeHtml(preview.path)}"><code>${enumeratePatchLines(
+                preview,
+                index,
+              )
+                .map(
+                  (line) =>
+                    `<span class="${patchLineKind(line.text)}"${line.anchor === undefined ? "" : ` id="${line.anchor}"`}>${escapeHtml(line.text)}</span>`,
+                )
                 .join("\n")}</code></pre>`
             : `<p>${escapeHtml(preview.unavailableReason)}</p>`
         }
@@ -326,6 +348,50 @@ function renderPatchPreviews(previews: readonly PatchPreview[], totalFiles: numb
       )
       .join("")}</div>`;
   return renderSection("Diff context", `${previews.length} file previews`, body);
+}
+
+interface LocatedPatchLine {
+  readonly text: string;
+  readonly side?: "current" | "previous";
+  readonly line?: number;
+  readonly anchor?: string;
+}
+
+/** Git hunk의 실제 줄 번호만 앵커로 만든다. 잘린 미리보기에서는 없는 줄을 연결하지 않는다. */
+function enumeratePatchLines(preview: PatchPreview, index: number): readonly LocatedPatchLine[] {
+  const located: LocatedPatchLine[] = [];
+  let previous = 0;
+  let current = 0;
+  let inHunk = false;
+  for (const text of preview.lines) {
+    const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/u.exec(text);
+    if (hunk !== null) {
+      previous = Number(hunk[1]);
+      current = Number(hunk[2]);
+      inHunk = true;
+      located.push({ text });
+    } else if (!inHunk) {
+      located.push({ text });
+    } else if (text.startsWith("+")) {
+      located.push({ text, side: "current", line: current, anchor: `diff-${index}-C${current}` });
+      current += 1;
+    } else if (text.startsWith("-")) {
+      located.push({
+        text,
+        side: "previous",
+        line: previous,
+        anchor: `diff-${index}-P${previous}`,
+      });
+      previous += 1;
+    } else if (text.startsWith(" ")) {
+      located.push({ text, side: "current", line: current, anchor: `diff-${index}-C${current}` });
+      previous += 1;
+      current += 1;
+    } else {
+      located.push({ text });
+    }
+  }
+  return located;
 }
 
 function patchLineKind(line: string): string {
@@ -765,6 +831,7 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .patch-card p { margin:0; padding:12px 16px; color:var(--muted); }
 .patch-card pre { overflow:auto; margin:0; padding:12px 16px; border-top:1px solid var(--line); font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
 .patch-card pre span { display:block; white-space:pre; }
+.patch-card pre span:target { outline:1px solid var(--cyan); outline-offset:-1px; scroll-margin-top:24px; }
 .patch-add { color:#89d9a0; background:#143322; }
 .patch-remove { color:#ff9aa8; background:#3c1e28; }
 .patch-hunk { color:var(--cyan); }

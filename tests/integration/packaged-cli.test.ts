@@ -63,7 +63,7 @@ describe("packaged CLI integration", () => {
 
     assert.match(reportResult.stdout, /Risky API changes\s+1/);
     assert.match(reportResult.stdout, /HIGH\s+Public export removed/);
-    assert.match(reportResult.stdout, /src\/api\.ts · api\/export-removed/);
+    assert.match(reportResult.stdout, /src\/api\.ts:1 · api\/export-removed/);
 
     const codexEvent = { session_id: "smoke", turn_id: "turn", cwd: repository };
     assert.equal(
@@ -161,7 +161,7 @@ describe("packaged CLI integration", () => {
     assert.match(htmlResult.stdout, /report written to/u);
     const html = await readFile(htmlPath, "utf8");
     assert.match(html, /Remove the user export/u);
-    assert.match(html, /Review file diff/u);
+    assert.match(html, /href="#diff-\d+-C1">Review code line/u);
     assert.match(html, /@@ -1 \+1 @@/u);
   });
 });

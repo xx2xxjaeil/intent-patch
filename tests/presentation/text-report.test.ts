@@ -60,6 +60,7 @@ describe("formatTextReport", () => {
           title: "Exported symbol removed",
           description: "The exported function deleteUser was removed.",
           file: "src/user.ts",
+          location: { side: "previous", line: 12 },
           evidence: { symbolName: "deleteUser", symbolKind: "function" },
         },
       ]),
@@ -145,6 +146,6 @@ describe("formatTextReport", () => {
     assert.match(output, /MEDIUM {2}New production dependency/);
     assert.match(output, /package\.json · dependency\/new-production/);
     assert.match(output, /HIGH {4}Exported symbol removed/);
-    assert.match(output, /src\/user\.ts · api\/exported-symbol-removed/);
+    assert.match(output, /src\/user\.ts:12 \(previous revision\) · api\/exported-symbol-removed/);
   });
 });

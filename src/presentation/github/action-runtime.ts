@@ -47,9 +47,10 @@ export class EnvironmentGitHubActionRuntime implements GitHubActionRuntime {
   public annotate(finding: Finding): void {
     const level = annotationLevel[finding.severity];
     const file = escapeWorkflowProperty(finding.file);
+    const line = finding.location?.side === "current" ? `,line=${finding.location.line}` : "";
     const title = escapeWorkflowProperty(`IntentPatch: ${finding.title}`);
     const message = escapeWorkflowData(`[${finding.ruleId}] ${finding.description}`);
-    console.log(`::${level} file=${file},title=${title}::${message}`);
+    console.log(`::${level} file=${file}${line},title=${title}::${message}`);
   }
 
   public info(message: string): void {

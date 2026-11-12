@@ -42,6 +42,7 @@ describe("PublicApiCompatibilityRule", () => {
         description:
           "The exported function findUser no longer provides every previous call signature.",
         file: "src/user.ts",
+        location: { side: "current", line: 7 },
         evidence: {
           symbolName: "findUser",
           removedSignatures: "(string):User",
@@ -141,6 +142,7 @@ describe("PublicApiCompatibilityRule", () => {
         title: "Public type member removed",
         description: "The exported type Options no longer contains every previous member.",
         file: "src/options.ts",
+        location: { side: "current", line: 4 },
         evidence: { symbolName: "Options", removedMembers: "throwOnTimeout", currentLine: 4 },
       },
     ]);

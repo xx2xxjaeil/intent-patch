@@ -214,9 +214,13 @@ function formatSymbolChange(change: SymbolChange): string {
 }
 
 function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[] {
+  const location =
+    finding.location === undefined
+      ? finding.file
+      : `${finding.file}:${finding.location.line}${finding.location.side === "previous" ? " (previous revision)" : ""}`;
   const lines = [
     `${finding.severity.toUpperCase().padEnd(8)}${finding.title}`,
-    `        ${finding.file} · ${finding.ruleId}`,
+    `        ${location} · ${finding.ruleId}`,
     `        ${finding.description}`,
   ];
   return addLeadingBlankLine ? ["", ...lines] : lines;

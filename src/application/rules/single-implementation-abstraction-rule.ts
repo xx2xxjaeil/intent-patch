@@ -10,6 +10,7 @@ export class SingleImplementationAbstractionRule implements AnalysisRule {
       title: "New interface has one implementation",
       description: `The new interface ${candidate.abstraction.name} is implemented only by ${candidate.implementation.name}.`,
       file: candidate.abstraction.path,
+      location: { side: "current", line: candidate.abstraction.line },
       evidence: {
         interfaceName: candidate.abstraction.name,
         interfaceLine: candidate.abstraction.line,

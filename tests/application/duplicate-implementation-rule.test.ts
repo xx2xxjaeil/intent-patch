@@ -38,6 +38,7 @@ describe("DuplicateImplementationRule", () => {
         description:
           "The new function verifySession has the same normalized implementation as authorize.",
         file: "src/delete-user.ts",
+        location: { side: "current", line: 9 },
         evidence: {
           addedFunction: "verifySession",
           addedLine: 9,

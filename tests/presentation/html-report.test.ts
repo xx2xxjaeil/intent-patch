@@ -12,6 +12,38 @@ import { createTestChangeAnalysis } from "../../src/domain/test-change.js";
 import { formatHtmlReport } from "../../src/presentation/html/html-report.js";
 
 describe("formatHtmlReport", () => {
+  it("links a located finding to its Git hunk line and falls back when the line is absent", () => {
+    const base = createReport();
+    const finding = {
+      ruleId: "api/public-signature-changed",
+      severity: "high" as const,
+      title: "Changed API",
+      description: "Review the function declaration.",
+      file: "src/user.ts",
+      evidence: { symbolName: "deleteUser" },
+    };
+    const output = formatHtmlReport({
+      ...base,
+      findings: createFindingSet([
+        { ...finding, location: { side: "current", line: 5 } },
+        { ...finding, location: { side: "previous", line: 4 } },
+        { ...finding, location: { side: "current", line: 30 } },
+      ]),
+      patchPreviews: [
+        {
+          path: "src/user.ts",
+          lines: ["@@ -4 +5 @@", "-old", "+new"],
+          truncated: false,
+        },
+      ],
+    });
+    assert.match(output, /src\/user\.ts:5/u);
+    assert.match(output, /src\/user\.ts:4 \(previous revision\)/u);
+    assert.match(output, /href="#diff-0-C5">Review code line/u);
+    assert.match(output, /href="#diff-0-P4">Review code line/u);
+    assert.match(output, /href="#diff-0">Review file diff/u);
+    assert.match(output, /id="diff-0-C5">\+new/u);
+  });
   it("links findings to escaped, bounded diff context", () => {
     const output = formatHtmlReport({
       ...createReport(),
@@ -25,7 +57,7 @@ describe("formatHtmlReport", () => {
     });
     assert.match(output, /href="#diff-0">Review file diff/);
     assert.match(output, /id="diff-0"/);
-    assert.match(output, /class="patch-add">\+&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(output, /class="patch-add"[^>]*>\+&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.match(output, /Preview truncated/);
     assert.doesNotMatch(output, /\+<script>alert/);
   });

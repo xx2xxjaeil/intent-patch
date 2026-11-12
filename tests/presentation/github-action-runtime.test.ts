@@ -39,4 +39,28 @@ describe("EnvironmentGitHubActionRuntime", () => {
     const runtime = new EnvironmentGitHubActionRuntime({});
     await assert.rejects(() => runtime.setOutput("invalid output", "value"), /Invalid/);
   });
+
+  it("annotates current code lines and leaves previous-only locations at file level", () => {
+    const runtime = new EnvironmentGitHubActionRuntime({});
+    const messages: string[] = [];
+    const original = console.log;
+    console.log = (message: string) => messages.push(message);
+    try {
+      const finding = {
+        ruleId: "api/change",
+        severity: "high" as const,
+        title: "Changed API",
+        description: "Review this API.",
+        file: "src/api.ts",
+        evidence: {},
+      };
+      runtime.annotate({ ...finding, location: { side: "current", line: 8 } });
+      runtime.annotate({ ...finding, location: { side: "previous", line: 3 } });
+    } finally {
+      console.log = original;
+    }
+    assert.match(messages[0] ?? "", /file=src\/api\.ts,line=8,title=/u);
+    assert.match(messages[1] ?? "", /file=src\/api\.ts,title=/u);
+    assert.doesNotMatch(messages[1] ?? "", /,line=/u);
+  });
 });

@@ -30,6 +30,9 @@ function toFinding(change: SymbolChange): Finding[] {
         title: "Exported symbol removed",
         description: `The exported ${change.symbolKind} ${change.name} was removed.`,
         file: change.path,
+        ...(change.beforeLine === undefined
+          ? {}
+          : { location: { side: "previous" as const, line: change.beforeLine } }),
         evidence: {
           symbolName: change.name,
           symbolKind: change.symbolKind,
@@ -51,6 +54,9 @@ function toFinding(change: SymbolChange): Finding[] {
         title: "Public export removed",
         description: `The ${change.symbolKind} ${change.name} is no longer exported.`,
         file: change.path,
+        ...(change.afterLine === undefined
+          ? {}
+          : { location: { side: "current" as const, line: change.afterLine } }),
         evidence: {
           symbolName: change.name,
           symbolKind: change.symbolKind,

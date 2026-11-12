@@ -42,6 +42,7 @@ describe("SingleImplementationAbstractionRule", () => {
         description:
           "The new interface DeletionStrategy is implemented only by DefaultDeletionStrategy.",
         file: "src/delete-user.ts",
+        location: { side: "current", line: 3 },
         evidence: {
           interfaceName: "DeletionStrategy",
           interfaceLine: 3,
