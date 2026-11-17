@@ -75,6 +75,8 @@ describe("formatHtmlReport", () => {
     assert.match(output, /Risky API changes/);
     assert.match(output, /Structure signals/);
     assert.match(output, /Potential issues/);
+    assert.match(output, /What to check/);
+    assert.match(output, /does not execute tests or measure coverage/u);
     assert.match(output, /Exported symbol removed/);
     assert.match(output, /Source change without matching test change/);
     assert.match(output, /src\/user\.ts/);

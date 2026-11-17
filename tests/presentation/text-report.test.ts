@@ -147,5 +147,7 @@ describe("formatTextReport", () => {
     assert.match(output, /package\.json · dependency\/new-production/);
     assert.match(output, /HIGH {4}Exported symbol removed/);
     assert.match(output, /src\/user\.ts:12 \(previous revision\) · api\/exported-symbol-removed/);
+    assert.match(output, /Check: Check the previous public entrypoint/u);
+    assert.match(output, /Limit: Export evidence and supported type checks cannot prove/u);
   });
 });

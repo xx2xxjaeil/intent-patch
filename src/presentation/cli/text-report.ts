@@ -8,6 +8,7 @@ import type {
   SymbolChange,
   SymbolChangeKind,
 } from "../../domain/symbol-change.js";
+import { reviewGuideForRule } from "../review-guide.js";
 
 const statusLabels: Readonly<Record<FileChangeKind, string>> = {
   added: "A",
@@ -214,6 +215,7 @@ function formatSymbolChange(change: SymbolChange): string {
 }
 
 function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[] {
+  const guide = reviewGuideForRule(finding.ruleId);
   const location =
     finding.location === undefined
       ? finding.file
@@ -222,6 +224,8 @@ function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[]
     `${finding.severity.toUpperCase().padEnd(8)}${finding.title}`,
     `        ${location} · ${finding.ruleId}`,
     `        ${finding.description}`,
+    `        Check: ${guide.verify}`,
+    `        Limit: ${guide.caveat}`,
   ];
   return addLeadingBlankLine ? ["", ...lines] : lines;
 }

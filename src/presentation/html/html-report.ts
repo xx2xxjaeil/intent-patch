@@ -6,6 +6,7 @@ import type { ImpactedFile } from "../../domain/impact.js";
 import { analysisCoverageOf, type ChangeReport, type PatchPreview } from "../../domain/report.js";
 import type { SymbolChange } from "../../domain/symbol-change.js";
 import type { SourceTestCoverage } from "../../domain/test-change.js";
+import { reviewGuideForRule } from "../review-guide.js";
 
 /** ChangeReport를 외부 리소스가 필요 없는 정적 HTML 문서로 변환한다. */
 export function formatHtmlReport(report: ChangeReport): string {
@@ -283,6 +284,7 @@ function renderFindings(findings: readonly Finding[], previews: readonly PatchPr
             <div><h3>${escapeHtml(finding.title)}</h3><code>${escapeHtml(formatFindingLocation(finding))}</code></div>
           </div>
           <p>${escapeHtml(finding.description)}</p>
+          ${renderReviewGuide(finding)}
           ${renderPatchLink(finding, previews)}
           <details><summary>${escapeHtml(finding.ruleId)} · evidence</summary>
             <dl>${Object.entries(finding.evidence)
@@ -297,6 +299,11 @@ function renderFindings(findings: readonly Finding[], previews: readonly PatchPr
           .join("")}</div>`;
 
   return renderSection("Potential issues", `${findings.length} findings`, body);
+}
+
+function renderReviewGuide(finding: Finding): string {
+  const guide = reviewGuideForRule(finding.ruleId);
+  return `<div class="review-guide"><strong>What to check</strong><p>${escapeHtml(guide.verify)}</p><small>${escapeHtml(guide.caveat)}</small></div>`;
 }
 
 function formatFindingLocation(finding: Finding): string {
@@ -821,6 +828,10 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .finding-heading>span { min-width:64px; padding:5px 7px; border-radius:7px; background:#232b39; color:var(--muted); font-size:10px; font-weight:800; text-align:center; text-transform:uppercase; }
 .finding code { display:block; margin-top:5px; color:var(--muted); }
 .finding p { margin:14px 0; color:#c3cad6; line-height:1.55; }
+.review-guide { margin:12px 0; padding:12px; border:1px solid var(--line); border-radius:8px; }
+.review-guide strong { font-size:12px; color:var(--cyan); }
+.review-guide p { margin:7px 0; }
+.review-guide small { color:var(--muted); line-height:1.5; }
 .patch-link { display:inline-block; margin:0 0 12px; color:var(--cyan); font-size:12px; font-weight:700; text-decoration:none; }
 .patch-link:hover { text-decoration:underline; }
 .patch-note { color:var(--muted); font-size:12px; line-height:1.5; }
