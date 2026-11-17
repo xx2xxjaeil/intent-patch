@@ -24,7 +24,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.13.0
+        uses: xx2xxjaeil/intent-patch@v0.14.0
         with:
           config: .intentpatch.json
           fail-on: high
