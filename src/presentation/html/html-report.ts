@@ -1,6 +1,7 @@
 import { traceIntentToFiles } from "../../application/services/trace-intent-to-files.js";
 import type { FileChange, LineDelta } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
+import type { DecisionReview } from "../../domain/decision-record.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
 import { analysisCoverageOf, type ChangeReport, type PatchPreview } from "../../domain/report.js";
@@ -51,6 +52,7 @@ export function formatHtmlReport(report: ChangeReport): string {
     ${renderReportControls()}
     ${renderContract(report.contract)}
     ${renderIntentTrace(report.contract, report.changes.files)}
+    ${renderDecisions(report.decisions ?? [], report.changes.files)}
     ${renderImpact(report.impact.changedModules, report.impact.impactedFiles, report.changes.files)}
     ${renderFindings(report.findings.items, report.patchPreviews ?? [])}
     ${renderBaseline(report)}
@@ -278,7 +280,8 @@ function renderFindings(findings: readonly Finding[], previews: readonly PatchPr
           .map(
             (
               finding,
-            ) => `<article class="finding ${finding.severity}" data-report-path="${escapeHtml(finding.file)}" data-finding-severity="${finding.severity}">
+              index,
+            ) => `<article id="finding-${index}" class="finding ${finding.severity}" data-report-path="${escapeHtml(finding.file)}" data-finding-severity="${finding.severity}">
           <div class="finding-heading">
             <span>${escapeHtml(finding.severity)}</span>
             <div><h3>${escapeHtml(finding.title)}</h3><code>${escapeHtml(formatFindingLocation(finding))}</code></div>
@@ -299,6 +302,54 @@ function renderFindings(findings: readonly Finding[], previews: readonly PatchPr
           .join("")}</div>`;
 
   return renderSection("Potential issues", `${findings.length} findings`, body);
+}
+
+function renderDecisions(
+  decisions: readonly DecisionReview[],
+  files: readonly FileChange[],
+): string {
+  if (decisions.length === 0) return "";
+  const cards = decisions.map((decision) => {
+    const changed =
+      decision.changedPaths.length === 0
+        ? "<p>No declared path changed in this comparison.</p>"
+        : `<ul>${decision.changedPaths
+            .map((path) => {
+              const index = files.findIndex((file) => file.path === path);
+              return `<li><a href="#file-${index}">${escapeHtml(path)}</a></li>`;
+            })
+            .join("")}</ul>`;
+    const related =
+      decision.relatedFindings.length === 0
+        ? "<p>No active finding overlaps these changed paths.</p>"
+        : `<ul>${decision.relatedFindings
+            .map((reference) => {
+              return `<li><a href="#finding-${reference.index}">${escapeHtml(reference.ruleId)} · ${escapeHtml(reference.file)}</a></li>`;
+            })
+            .join("")}</ul>`;
+    return `<article class="decision-card">
+      <h3>${escapeHtml(decision.question)}</h3>
+      <p><strong>Selected:</strong> ${escapeHtml(decision.options.find((option) => option.id === decision.selectedOptionId)?.title ?? decision.selectedOptionId)}</p>
+      <p><strong>Reason:</strong> ${escapeHtml(decision.rationale)}</p>
+      <div class="decision-options">${decision.options
+        .map(
+          (
+            option,
+          ) => `<div class="decision-option${option.id === decision.selectedOptionId ? " selected" : ""}">
+        <h4>${escapeHtml(option.title)}${option.id === decision.selectedOptionId ? " · selected" : ""}</h4>
+        <p><strong>Benefits:</strong> ${escapeHtml(option.benefits.join("; "))}</p>
+        <p><strong>Tradeoffs:</strong> ${escapeHtml(option.tradeoffs.join("; "))}</p>
+      </div>`,
+        )
+        .join("")}</div>
+      <div class="decision-evidence"><div><strong>Changed paths</strong>${changed}</div><div><strong>Related findings</strong>${related}</div></div>
+    </article>`;
+  });
+  return renderSection(
+    "Implementation decisions",
+    "AUTHOR-PROVIDED",
+    `<p class="decision-note">Alternatives and reasons are written by the author. Links below show observed overlap with this comparison, not proof that the chosen approach is correct.</p><div class="decision-list">${cards.join("")}</div>`,
+  );
 }
 
 function renderReviewGuide(finding: Finding): string {
@@ -832,6 +883,17 @@ details dl { display:grid; gap:7px; margin:12px 0 0; } details dl div { display:
 .review-guide strong { font-size:12px; color:var(--cyan); }
 .review-guide p { margin:7px 0; }
 .review-guide small { color:var(--muted); line-height:1.5; }
+.decision-list { display:grid; gap:14px; }
+.decision-card { border:1px solid var(--line); border-radius:12px; padding:18px; background:var(--panel-2); }
+.decision-card h3 { margin:0 0 12px; }
+.decision-card p { line-height:1.55; }
+.decision-options, .decision-evidence { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-top:14px; }
+.decision-option, .decision-evidence>div { padding:12px; border:1px solid var(--line); border-radius:8px; }
+.decision-option.selected { border-color:var(--cyan); }
+.decision-option h4 { margin:0 0 8px; }
+.decision-option p { margin:6px 0; }
+.decision-evidence ul { padding-left:20px; }
+.decision-note { color:var(--muted); }
 .patch-link { display:inline-block; margin:0 0 12px; color:var(--cyan); font-size:12px; font-weight:700; text-decoration:none; }
 .patch-link:hover { text-decoration:underline; }
 .patch-note { color:var(--muted); font-size:12px; line-height:1.5; }

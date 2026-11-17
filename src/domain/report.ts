@@ -2,6 +2,7 @@ import { type AnalysisCoverage, createAnalysisCoverage } from "./analysis-covera
 import type { ChangeSet } from "./change.js";
 import type { ChangeContract } from "./change-contract.js";
 import type { CodeStructureAnalysis } from "./code-structure.js";
+import type { DecisionReview } from "./decision-record.js";
 import type { FindingSet } from "./finding.js";
 import type { BaselineEntry, SuppressedFinding } from "./finding-baseline.js";
 import type { ImpactAnalysis } from "./impact.js";
@@ -16,6 +17,7 @@ export interface AnalysisTarget {
 export interface ChangeReport {
   readonly target: AnalysisTarget;
   readonly contract?: ChangeContract;
+  readonly decisions?: readonly DecisionReview[];
   readonly changes: ChangeSet;
   readonly analysisCoverage?: AnalysisCoverage;
   readonly findings: FindingSet;

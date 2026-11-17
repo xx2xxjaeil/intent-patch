@@ -19,9 +19,11 @@ import { CompareSourceSymbols } from "../application/services/compare-source-sym
 import { RuleEngine } from "../application/services/rule-engine.js";
 import { AnalyzeChanges } from "../application/use-cases/analyze-changes.js";
 import { createChangeContract } from "../domain/change-contract.js";
+import { connectDecisions } from "../domain/decision-record.js";
 import { applyFindingBaseline } from "../domain/finding-baseline.js";
 import type { ChangeReport } from "../domain/report.js";
 import { JsonChangeContractLoader } from "../infrastructure/config/json-change-contract-loader.js";
+import { JsonDecisionRecordLoader } from "../infrastructure/config/json-decision-record-loader.js";
 import { JsonFindingBaselineLoader } from "../infrastructure/config/json-finding-baseline-loader.js";
 import { GitChangeSource } from "../infrastructure/git/git-change-source.js";
 import { GitFileSnapshotSource } from "../infrastructure/git/git-file-snapshot-source.js";
@@ -137,6 +139,13 @@ export async function analyzeRepository(options: RepositoryAnalysisOptions): Pro
       ...report,
       findings: result.findings,
       baseline: { suppressed: result.suppressed, expired: result.expired },
+    };
+  }
+  const decisions = await new JsonDecisionRecordLoader().load(options.workingDirectory);
+  if (decisions.length > 0) {
+    report = {
+      ...report,
+      decisions: connectDecisions(decisions, report.changes, report.findings),
     };
   }
   if (!options.includePatchPreviews) return report;

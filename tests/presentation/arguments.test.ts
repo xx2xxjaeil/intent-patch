@@ -3,6 +3,20 @@ import { describe, it } from "node:test";
 import { CliUsageError, parseArguments } from "../../src/presentation/cli/arguments.js";
 
 describe("parseArguments", () => {
+  it("parses decision file initialization without accepting analysis flags", () => {
+    assert.deepEqual(parseArguments(["decision", "init"], "/repo"), {
+      command: "decision-init",
+      workingDirectory: "/repo",
+    });
+    assert.deepEqual(parseArguments(["decision", "init", "--cwd", "/other"], "/repo"), {
+      command: "decision-init",
+      workingDirectory: "/other",
+    });
+    assert.throws(
+      () => parseArguments(["decision", "init", "--format", "html"], "/repo"),
+      CliUsageError,
+    );
+  });
   it("parses doctor options and rejects analysis-only options", () => {
     assert.deepEqual(parseArguments(["doctor"], "/repo"), {
       command: "doctor",

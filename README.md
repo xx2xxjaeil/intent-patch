@@ -63,6 +63,16 @@ node dist/presentation/cli/main.js analyze --cwd /path/to/repository
 
 The core analyzer needs no API key, paid AI model, server, or database. Repository files are processed locally, and no LLM is used in the default execution path.
 
+## Review guidance and implementation decisions
+
+Each finding includes a rule-specific next check and a reminder of what the signal cannot prove.
+The guidance appears in text, JSON, and HTML reports; it does not change the severity or quality
+gate. To record *why* an implementation approach was chosen, run `intentpatch decision init`,
+then fill `.intentpatch-decisions.json` with alternatives, benefits, tradeoffs, the selected option,
+and a rationale. Reports link declared paths only when those files actually changed. The choice
+and rationale are author-provided, not inferred or endorsed by IntentPatch. See the
+[decision record guide](./docs/decisions.md) for a complete example.
+
 ## GitHub Action
 
 Use IntentPatch in pull requests to check scope and risky changes automatically. The checkout must include the full Git history so the action can compare the exact base and head commits.
@@ -196,6 +206,8 @@ implementations, single-implementation abstractions, import-graph impact, and re
 - Aggregate findings by `high`, `medium`, and `low` severity.
 - Return a CI-friendly exit code through `--fail-on`.
 - Show active checks and missing Change Contract settings with `doctor`.
+- Add rule-specific review steps and uncertainty notes to findings.
+- Show optional, author-provided decision records beside observed changed paths and findings.
 - Print the installed package version through `--version`.
 
 ### Dependencies and TypeScript structure
@@ -549,13 +561,15 @@ No long-lived npm token is stored as a GitHub secret. Public packages published 
     - ✅ CLI request file and opt-in GitHub PR body
     - ✅ Opt-in Claude Code Hook
     - ✅ Opt-in Codex and Cursor-specific adapters (v0.7.0)
-13. Optional LLM explanations grounded in deterministic evidence
+13. ✅ Rule-specific review guidance and author-provided implementation decisions
+14. Optional LLM explanations grounded in deterministic evidence
 
 ## Current limitations
 
 - The target must be a Git repository with at least one commit.
 - `doctor` reports configured checks, not whether a particular patch was completely analyzed. Read the analysis coverage section in an `analyze` report for that.
 - Located findings point to supported symbol declarations, not necessarily the exact changed member. Whole-file findings have no line, and a line outside the bounded HTML preview falls back to its file diff.
+- Review guidance is a checklist, not a verified fix or a correctness verdict. Decision alternatives and rationale are written by the author; only their overlap with changed paths and active findings is observed.
 - Untracked symbolic links are not read for safety.
 - Line counts are skipped for untracked files larger than 10 MiB.
 - Direct dependency declarations are analyzed from `dependencies` and `devDependencies` in the root `package.json` and changed npm/pnpm/Yarn workspace manifests.
