@@ -26,7 +26,7 @@ LLM 없이도 재현 가능한 분석을 제공하고, AI 설명 기능은 선�
 ```bash
 git clone https://github.com/xx2xxjaeil/intent-patch.git
 cd intent-patch
-npx --yes intentpatch@0.13.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
+npx --yes intentpatch@0.14.0 analyze --base '1cc489b^' --head 1cc489b --format html --output intentpatch-report.html
 ```
 
 생성된 `intentpatch-report.html`을 로컬 브라우저에서 여세요. 이 변경에서는 나중에 수정된
@@ -37,7 +37,7 @@ GitHub에서는 HTML 화면 대신 소스가 보일 수 있습니다.
 
 ## 빠른 시작
 
-Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.13.0을
+Node.js 20 이상과 Git이 설치되어 있어야 합니다. 분석할 저장소에서 npm에 공개된 v0.14.0을
 전역 설치 없이 실행할 수 있습니다.
 
 ```bash
@@ -99,7 +99,7 @@ jobs:
 
       - name: Analyze pull request
         id: intentpatch
-        uses: xx2xxjaeil/intent-patch@v0.13.0
+        uses: xx2xxjaeil/intent-patch@v0.14.0
         with:
           fail-on: high
 
@@ -111,7 +111,8 @@ jobs:
           path: intentpatch-report
 ```
 
-Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.13.0에는 `doctor`
+Action은 릴리스 버전이나 불변 commit SHA로 고정하는 방식을 권장합니다. v0.14.0에는 규칙별
+검토 가이드와 실제 변경 근거에 연결되는 작성자 제공 구현 결정 기록이 추가되었습니다. v0.13.0에는 `doctor`
 설정 진단과 지원되는 코드 finding의 소스 줄 위치가 보고서·annotation에 추가되었습니다. v0.12.0에는
 대화형 Change Contract 설정과 CLI·JSON·HTML·GitHub Job Summary의 검사 가능 범위 요약이
 추가되었습니다. v0.11.0에는 근거·사유·만료일이 있는 finding 예외 목록과 PR 정책 변경 경고,
@@ -520,7 +521,7 @@ npm pack --dry-run
 
 ## 릴리스
 
-`v0.13.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
+`v0.14.0`처럼 `package.json` 버전과 일치하는 태그를 기본 브랜치의 커밋에 push하면 릴리스
 워크플로가 다음 작업을 순서대로 수행합니다.
 
 1. 태그·버전·기본 브랜치 포함 여부 검증
