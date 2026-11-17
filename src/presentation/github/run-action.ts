@@ -5,6 +5,7 @@ import type { ChangeReport } from "../../domain/report.js";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { resolveRepositoryPath } from "../../infrastructure/filesystem/repository-path.js";
 import { analyzeRepository } from "../analyze-repository.js";
+import { formatReport } from "../cli/report-formatter.js";
 import { formatHtmlReport } from "../html/html-report.js";
 import { readGitHubActionInputs } from "./action-inputs.js";
 import type { GitHubActionRuntime } from "./action-runtime.js";
@@ -103,7 +104,7 @@ async function writeReports(
   const json = resolve(reportDirectory, "intentpatch-report.json");
   const html = resolve(reportDirectory, "intentpatch-report.html");
   await Promise.all([
-    writeFile(json, `${JSON.stringify(report, null, 2)}\n`, "utf8"),
+    writeFile(json, formatReport(report, "json"), "utf8"),
     writeFile(html, formatHtmlReport(report), "utf8"),
   ]);
   return { json, html };

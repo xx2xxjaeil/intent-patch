@@ -1,5 +1,6 @@
 import type { ChangeReport } from "../../domain/report.js";
 import { formatHtmlReport } from "../html/html-report.js";
+import { reviewGuideForRule } from "../review-guide.js";
 import type { OutputFormat } from "./arguments.js";
 import { formatTextReport } from "./text-report.js";
 
@@ -9,7 +10,20 @@ export function formatReport(report: ChangeReport, format: OutputFormat): string
     case "text":
       return formatTextReport(report);
     case "json":
-      return `${JSON.stringify(report, null, 2)}\n`;
+      return `${JSON.stringify(
+        {
+          ...report,
+          findings: {
+            ...report.findings,
+            items: report.findings.items.map((finding) => ({
+              ...finding,
+              reviewGuide: reviewGuideForRule(finding.ruleId),
+            })),
+          },
+        },
+        null,
+        2,
+      )}\n`;
     case "html":
       return formatHtmlReport(report);
   }

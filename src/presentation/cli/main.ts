@@ -6,6 +6,7 @@ import process from "node:process";
 import { type ChangeContract, createChangeContract } from "../../domain/change-contract.js";
 import { TextIntentLoader } from "../../infrastructure/config/text-intent-loader.js";
 import { writeChangeContract } from "../../infrastructure/config/write-change-contract.js";
+import { writeDecisionRecord } from "../../infrastructure/config/write-decision-record.js";
 import { isNotFoundError } from "../../infrastructure/filesystem/is-not-found-error.js";
 import { GitChangeSource } from "../../infrastructure/git/git-change-source.js";
 import { GitPrivateAgentIntentStore } from "../../infrastructure/git/git-private-agent-intent-store.js";
@@ -37,6 +38,14 @@ async function main(): Promise<void> {
     }
     if (options.command === "doctor") {
       process.stdout.write(await runDoctor(options));
+      return;
+    }
+    if (options.command === "decision-init") {
+      const path = await writeDecisionRecord(options.workingDirectory);
+      process.stdout.write(`IntentPatch decision record created at ${path}\n`);
+      process.stdout.write(
+        "Add alternatives, tradeoffs, the selected option, and related paths before running analyze. See https://github.com/xx2xxjaeil/intent-patch/blob/main/docs/decisions.md.\n",
+      );
       return;
     }
     if (options.command === "init") {

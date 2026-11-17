@@ -66,6 +66,15 @@ node dist/presentation/cli/main.js analyze --cwd /path/to/repository
 핵심 분석에는 API key, 유료 AI 모델, 서버 또는 데이터베이스가 필요하지 않습니다. 분석할 Git
 저장소의 파일은 로컬에서 처리하며 LLM 연결은 현재 기본 실행 경로에 포함되지 않습니다.
 
+## 검토 가이드와 구현 결정 기록
+
+각 finding에는 규칙별로 다음에 확인할 사항과 결과가 증명하지 못하는 범위를 표시합니다.
+텍스트·JSON·HTML 보고서에 나타나며 심각도나 품질 게이트는 바꾸지 않습니다. 특정 구현 방식을
+고른 이유를 남기려면 `intentpatch decision init`을 실행한 뒤 `.intentpatch-decisions.json`에
+대안, 장단점, 선택한 방안과 이유를 작성합니다. 보고서는 선언한 경로 중 실제 변경된 파일만
+연결합니다. 대안과 이유는 작성자의 설명이며 IntentPatch가 추론하거나 검증한 결론이 아닙니다.
+전체 예시는 [구현 결정 기록 안내](./docs/decisions.md)에 있습니다.
+
 ## GitHub Action
 
 Pull Request에서 요청 범위와 위험 변경을 자동 검사할 수 있습니다. 정확한 base·head commit을
@@ -194,6 +203,8 @@ lockfile 변경, 최상위 TypeScript·JavaScript 심볼과 공개 export, 기�
 - working tree 분석 시 untracked 파일 포함
 - 터미널용 텍스트 보고서
 - 후속 도구 연동을 위한 JSON 보고서
+- finding별 규칙 기반 검토 절차와 판단의 한계 표시
+- 작성자가 남긴 구현 결정과 실제 변경 파일·finding의 교집합 표시
 - 텍스트·JSON(`analysisCoverage`)·HTML·GitHub Job Summary에 변경 파일, 심볼 분석 성공·불가, import graph 입력·미해결 참조, 라인 수 측정 불가를 요약
 - 요약 카드, 경로·심각도 필터, finding, 테스트 신호, 요청-변경 파일 연결 화면과 탐색 가능한 영향 그래프를 담은 단일 HTML 보고서
 - 외부 CDN이나 JavaScript dependency가 필요 없는 인라인 CSS·SVG 시각화
@@ -549,13 +560,15 @@ npm provenance가 자동 생성됩니다. 아직 npm에 존재하지 않는 신�
     - ✅ CLI 요청 문서와 선택적 GitHub PR 본문 입력
     - ✅ 선택적 Claude Code Hook
     - ✅ 선택적 Codex·Cursor 전용 adapter (v0.7.0)
-13. 근거 기반 결과에 대한 선택적 LLM 설명
+13. ✅ 규칙별 검토 가이드와 작성자 제공 구현 결정 기록
+14. 근거 기반 결과에 대한 선택적 LLM 설명
 
 ## 현재 제한사항
 
 - 분석 대상은 최소 한 번 이상 커밋된 Git 저장소여야 합니다.
 - `doctor`는 설정된 검사를 보여주며 특정 변경의 분석 성공 여부를 보장하지 않습니다. 실제 검사 범위는 `analyze` 보고서의 검사 가능 범위 요약을 확인하세요.
 - 위치가 있는 finding은 지원되는 심볼의 선언 줄을 가리키며 변경된 구성원과 정확히 같지 않을 수 있습니다. 파일 전체 finding에는 줄 번호가 없고, HTML 미리보기 밖의 줄은 파일 diff로 연결됩니다.
+- 검토 가이드는 확인 절차일 뿐 수정 방안이나 정답을 검증하지 않습니다. 결정 기록의 대안과 선택 이유는 작성자가 제공하며, 실제 변경 파일·활성 finding과 겹치는 부분만 관찰된 사실입니다.
 - untracked symbolic link는 안전을 위해 내용을 읽지 않습니다.
 - 10 MiB를 초과하는 untracked 파일은 라인 수를 측정하지 않습니다.
 - 직접 dependency 선언 분석은 저장소 루트와 변경된 npm·pnpm·Yarn workspace `package.json`의

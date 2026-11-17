@@ -37,6 +37,11 @@ export interface DoctorCommandOptions {
   readonly configurationPath?: string;
 }
 
+export interface DecisionInitCommandOptions {
+  readonly command: "decision-init";
+  readonly workingDirectory: string;
+}
+
 export interface HelpCommandOptions {
   readonly command: "help";
 }
@@ -70,6 +75,7 @@ export type CliOptions =
   | AnalyzeCommandOptions
   | InitCommandOptions
   | DoctorCommandOptions
+  | DecisionInitCommandOptions
   | ClaudeHookCommandOptions
   | CodexHookCommandOptions
   | CursorHookCommandOptions
@@ -116,6 +122,21 @@ export function parseArguments(
       workingDirectory,
       ...(configurationPath === undefined ? {} : { configurationPath }),
     };
+  }
+  if (command === "decision") {
+    if (options[0] !== "init") {
+      throw new CliUsageError("Usage: intentpatch decision init [--cwd <path>]");
+    }
+    const remaining = options.slice(1);
+    if (remaining.length === 0)
+      return { command: "decision-init", workingDirectory: currentDirectory };
+    if (remaining.length === 2 && remaining[0] === "--cwd") {
+      return {
+        command: "decision-init",
+        workingDirectory: requireOptionValue(remaining, 1, "--cwd"),
+      };
+    }
+    throw new CliUsageError("Usage: intentpatch decision init [--cwd <path>]");
   }
   if (command === "claude-hook") {
     const [action] = options;
@@ -222,6 +243,7 @@ Usage:
   intentpatch analyze [options]
   intentpatch init [options]                 Create .intentpatch.json without overwriting it
   intentpatch doctor [--cwd <path>] [--config <path>]  Show enabled checks and setup gaps
+  intentpatch decision init [--cwd <path>]  Create an empty decision record file
   intentpatch claude-hook <capture|analyze|clear>  Read Claude Code hook JSON from stdin
   intentpatch codex-hook <capture|analyze|clear>   Read Codex hook JSON from stdin
   intentpatch cursor-hook <capture|analyze>        Read Cursor hook JSON from stdin

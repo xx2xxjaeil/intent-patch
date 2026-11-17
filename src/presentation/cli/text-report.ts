@@ -1,5 +1,6 @@
 import type { FileChange, FileChangeKind, LineDelta } from "../../domain/change.js";
 import type { ChangeContract } from "../../domain/change-contract.js";
+import type { DecisionReview } from "../../domain/decision-record.js";
 import type { Finding } from "../../domain/finding.js";
 import type { ImpactedFile } from "../../domain/impact.js";
 import { analysisCoverageOf, type ChangeReport } from "../../domain/report.js";
@@ -8,6 +9,7 @@ import type {
   SymbolChange,
   SymbolChangeKind,
 } from "../../domain/symbol-change.js";
+import { reviewGuideForRule } from "../review-guide.js";
 
 const statusLabels: Readonly<Record<FileChangeKind, string>> = {
   added: "A",
@@ -93,6 +95,11 @@ export function formatTextReport(report: ChangeReport): string {
     lines.push(...formatChangeContract(report.contract));
   }
 
+  if ((report.decisions?.length ?? 0) > 0) {
+    lines.push("", "Implementation decisions (author-provided)", "");
+    lines.push(...(report.decisions ?? []).flatMap(formatDecision));
+  }
+
   const coverage = analysisCoverageOf(report);
   lines.push(
     "",
@@ -167,6 +174,24 @@ export function formatTextReport(report: ChangeReport): string {
   return `${lines.join("\n")}\n`;
 }
 
+function formatDecision(decision: DecisionReview): string[] {
+  const selected = decision.options.find((option) => option.id === decision.selectedOptionId);
+  return [
+    `Decision        ${decision.question}`,
+    `Selected        ${selected?.title ?? decision.selectedOptionId}`,
+    `Reason          ${decision.rationale}`,
+    `Changed paths   ${decision.changedPaths.join(", ") || "(none of the declared paths changed)"}`,
+    `Related findings ${decision.relatedFindings.map((finding) => `${finding.ruleId} (${finding.file})`).join(", ") || "(none)"}`,
+    ...decision.options.flatMap((option) => [
+      `  ${option.id === decision.selectedOptionId ? "*" : "-"} ${option.title}`,
+      `    Benefits: ${option.benefits.join("; ")}`,
+      `    Tradeoffs: ${option.tradeoffs.join("; ")}`,
+    ]),
+    "  Declared reasoning is not validated by the analyzer; path and finding links show only observed overlap.",
+    "",
+  ];
+}
+
 function formatChangeContract(contract: ChangeContract): string[] {
   const budgets = [
     contract.scope.maxFiles === undefined ? undefined : `${contract.scope.maxFiles} files`,
@@ -214,6 +239,7 @@ function formatSymbolChange(change: SymbolChange): string {
 }
 
 function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[] {
+  const guide = reviewGuideForRule(finding.ruleId);
   const location =
     finding.location === undefined
       ? finding.file
@@ -222,6 +248,8 @@ function formatFinding(finding: Finding, addLeadingBlankLine: boolean): string[]
     `${finding.severity.toUpperCase().padEnd(8)}${finding.title}`,
     `        ${location} · ${finding.ruleId}`,
     `        ${finding.description}`,
+    `        Check: ${guide.verify}`,
+    `        Limit: ${guide.caveat}`,
   ];
   return addLeadingBlankLine ? ["", ...lines] : lines;
 }
